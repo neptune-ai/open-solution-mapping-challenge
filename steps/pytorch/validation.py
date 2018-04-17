@@ -21,6 +21,11 @@ def segmentation_loss(output, target, weight_bce=1.0, weight_dice=1.0):
     return weight_bce*bce(output, target) + weight_dice*dice(output, target)
 
 
+def multiclass_segmentation_loss(output, target):
+    cross_entropy = nn.CrossEntropyLoss()
+    return cross_entropy(output, target)
+
+
 def cross_entropy(output, target, squeeze=False):
     if squeeze:
         target = target.squeeze(1)

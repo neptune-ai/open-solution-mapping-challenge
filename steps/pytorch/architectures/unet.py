@@ -7,7 +7,8 @@ class UNet(nn.Module):
                  pool_kernel, pool_stride,
                  repeat_blocks, n_filters,
                  batch_norm, dropout,
-                 in_channels, **kwargs):
+                 in_channels, out_channels,
+                 **kwargs):
         super(UNet, self).__init__()
 
         self.conv_kernel = conv_kernel
@@ -18,6 +19,7 @@ class UNet(nn.Module):
         self.batch_norm = batch_norm
         self.dropout = dropout
         self.in_channels = in_channels
+        self.out_channels = out_channels
 
         self.input_block = self._input_block()
         self.down_convs = self._down_convs()
@@ -133,7 +135,7 @@ class UNet(nn.Module):
         return classification_block
 
     def _output_layer(self):
-        return nn.Conv2d(in_channels=self.n_filters, out_channels=1,
+        return nn.Conv2d(in_channels=self.n_filters, out_channels=self.out_channels,
                          kernel_size=(1, 1), stride=1, padding=0)
 
     def forward(self, x):
@@ -169,6 +171,7 @@ class UNetMultitask(UNet):
                  batch_norm,
                  dropout,
                  in_channels,
+                 out_channels,
                  nr_outputs):
         super(UNetMultitask, self).__init__(conv_kernel,
                                             pool_kernel,
@@ -177,7 +180,8 @@ class UNetMultitask(UNet):
                                             n_filters,
                                             batch_norm,
                                             dropout,
-                                            in_channels)
+                                            in_channels,
+                                            out_channels)
         self.nr_outputs = nr_outputs
         output_legs = []
         for i in range(self.nr_outputs):
