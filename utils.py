@@ -13,6 +13,8 @@ import yaml
 from PIL import Image
 from attrdict import AttrDict
 from tqdm import tqdm
+import json
+import pycocotools
 
 
 def read_yaml(filepath):
@@ -57,9 +59,42 @@ def decompose(labeled):
     else:
         return masks
 
+def create_submission(meta, predictions, logger, save=False, experiment_dir='./'):
+    '''
+    :param meta: pd.DataFrame with metadata
+    :param predictions: list of labeled masks or numpy array of size [n_images, im_height, im_width]
+    :param logger:
+    :param save: True, if one want to save submission, False if one want to return it
+    :param experiment_dir: path to save submission
+    :return: submission if save==False else True
+    '''
+    annotations = []
+    for image_id, prediction in zip(meta["ImageId"].values, predictions):
+        score = 1.0
+        masks = decompose(prediction)
+        for mask_nr, mask in enumerate(masks):
+            annotation = {}
+            annotation["image_id"] = image_id
+            annotation["category_id"] = 100
+            annotation["score"] = score
+            annotation["segmentation"] = rle_from_binary(mask)
+            annotation["bbox"] = bounding_box_from_rle(annotation["segmentation"])
+            annotations.append(annotation)
+    if save:
+        submission_filepath = os.path.join(experiment_dir, 'submission.json')
+        with open(submission_filepath, "w") as fp:
+            fp.write(json.dumps(annotations))
+            logger.info("Submission saved to {}".format(submission_filepath))
+        return True
+    else:
+        return annotations
 
-def create_submission(meta, predictions, logger):
-    return NotImplementedError
+def rle_from_binary(prediction):
+    prediction = np.asfortranarray(prediction)
+    return pycocotools.mask.encode(prediction)
+
+def bounding_box_from_rle(rle):
+    return pycocotools.toBbox(rle)
 
 
 def read_masks(masks_filepaths):
