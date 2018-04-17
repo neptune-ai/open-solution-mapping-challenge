@@ -45,20 +45,14 @@ def compute_eval_metric(gt, predictions):
     return compute_precision_and_recall_at(ious, threshold)
 
 
-def intersection_over_union(y_true, y_pred):
-    ious = []
+def mean_precision_and_recall(y_true, y_pred):
+    precisions = []
+    recalls = []
     for y_t, y_p in tqdm(list(zip(y_true, y_pred))):
-        iou = compute_ious(y_t, y_p)
-        iou_mean = 1.0 * np.sum(iou) / iou.shape[0]
-        ious.append(iou_mean)
-    return np.mean(ious)
-
-
-def intersection_over_union_thresholds(y_true, y_pred):
-    iouts = []
-    for y_t, y_p in tqdm(list(zip(y_true, y_pred))):
-        iouts.append(compute_eval_metric(y_t, y_p))
-    return np.mean(iouts)
+        precision, recall = compute_eval_metric(y_t, y_p)
+        precisions.append(precision)
+        recalls.append(recall)
+    return np.mean(precisions), np.mean(recalls)
 
 
 def calculate_iou_matrix(ground_truth, proposals):
