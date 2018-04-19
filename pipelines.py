@@ -25,9 +25,12 @@ def unet(config, train_mode):
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
 
+    if train_mode:
+        return unet
+
     mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
 
-    detached = nuclei_labeler(mask_postprocessed, config, save_output=save_output)
+    detached = building_labeler(mask_postprocessed, config, save_output=save_output)
 
     output = Step(name='output',
                   transformer=Dummy(),
@@ -91,7 +94,7 @@ def postprocessing(model_mask, model_contour, config, suffix='', save_output=Fal
 
     return morphological_postprocessing
 
-def nuclei_labeler(postprocessed_mask, config, save_output=True):
+def building_labeler(postprocessed_mask, config, save_output=True):
     labeler = Step(name='labeler',
                    transformer=BuildingLabeler(),
                    input_steps=[postprocessed_mask],
