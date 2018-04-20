@@ -1,19 +1,19 @@
 import torch
 import torch.nn as nn
-from .utils import get_pad
+from .utils import get_downsample_pad, get_upsample_pad
 
 
 class UNet(nn.Module):
-    def __init__(self, conv_kernel,
-                 pool_kernel, pool_stride,
-                 repeat_blocks, n_filters,
-                 batch_norm, dropout,
-                 in_channels, out_channels,
-                 kernel_scale = 3,
+    def __init__(self, conv_kernel=3,
+                 pool_kernel=3, pool_stride=2,
+                 repeat_blocks=2, n_filters=8,
+                 batch_norm=True, dropout=0.1,
+                 in_channels=3, out_channels=2,
+                 kernel_scale=3,
                  **kwargs):
 
-        assert conv_kernel%2==1
-        assert pool_stride>1 or pool_kernel%2==1
+        assert conv_kernel % 2 == 1
+        assert pool_stride > 1 or pool_kernel % 2 == 1
 
         super(UNet, self).__init__()
 
@@ -53,11 +53,11 @@ class UNet(nn.Module):
 
     def _down_pools(self):
         down_pools = []
-        padding = get_pad(stride=self.pool_stride, kernel=self.pool_kernel)
+        padding = get_downsample_pad(stride=self.pool_stride, kernel=self.pool_kernel)
         for _ in range(self.repeat_blocks):
-            down_pools.append(nn.MaxPool2d(kernel_size = self.pool_kernel,
-                                           stride = self.pool_stride,
-                                           padding = padding))
+            down_pools.append(nn.MaxPool2d(kernel_size=self.pool_kernel,
+                                           stride=self.pool_stride,
+                                           padding=padding))
         return nn.ModuleList(down_pools)
 
     def _up_samples(self):
@@ -65,7 +65,7 @@ class UNet(nn.Module):
         kernel_scale = self.kernel_scale
         stride = self.pool_stride
         kernel_size = kernel_scale * stride
-        padding, output_padding = get_pad(stride=stride, kernel=kernel_size, mode="upsample")
+        padding, output_padding = get_upsample_pad(stride=stride, kernel=kernel_size)
         for i in range(self.repeat_blocks):
             in_channels = int(self.n_filters * 2 ** (i + 2))
             out_channels = int(self.n_filters * 2 ** (i + 1))
@@ -81,7 +81,7 @@ class UNet(nn.Module):
 
     def _input_block(self):
         stride = 1
-        padding = get_pad(stride=stride, kernel=self.conv_kernel)
+        padding = get_downsample_pad(stride=stride, kernel=self.conv_kernel)
         if self.batch_norm:
             input_block = nn.Sequential(nn.Conv2d(in_channels=self.in_channels, out_channels=self.n_filters,
                                                   kernel_size=(self.conv_kernel, self.conv_kernel),
@@ -120,7 +120,7 @@ class UNet(nn.Module):
     def _classification_block(self):
         in_block = int(2 * self.n_filters)
         stride = 1
-        padding = get_pad(stride=stride, kernel=self.conv_kernel)
+        padding = get_downsample_pad(stride=stride, kernel=self.conv_kernel)
 
         if self.batch_norm:
             classification_block = nn.Sequential(nn.Conv2d(in_channels=in_block, out_channels=self.n_filters,
@@ -241,7 +241,7 @@ class DownConv(nn.Module):
 
     def _down_conv(self):
         stride = 1
-        padding = get_pad(stride=stride, kernel=self.kernel_size)
+        padding = get_downsample_pad(stride=stride, kernel=self.kernel_size)
         if self.batch_norm:
             down_conv = nn.Sequential(nn.Conv2d(in_channels=self.in_channels, out_channels=self.block_channels,
                                                 kernel_size=(self.kernel_size, self.kernel_size),
@@ -289,7 +289,7 @@ class UpConv(nn.Module):
 
     def _up_conv(self):
         stride = 1
-        padding = get_pad(stride=stride, kernel=self.kernel_size)
+        padding = get_downsample_pad(stride=stride, kernel=self.kernel_size)
         if self.batch_norm:
             up_conv = nn.Sequential(nn.Conv2d(in_channels=self.in_channels, out_channels=self.block_channels,
                                               kernel_size=(self.kernel_size, self.kernel_size),

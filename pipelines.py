@@ -2,8 +2,7 @@ from functools import partial
 
 import loaders
 from models import PyTorchUNet
-from postprocessing import Resizer, Thresholder, BuildingLabeler, Postprocessor
-from preprocessing import ImageReader
+from postprocessing import Thresholder, BuildingLabeler
 from steps.base import Step, Dummy
 from steps.preprocessing import XYSplit
 from utils import squeeze_inputs
@@ -26,73 +25,33 @@ def unet(config, train_mode):
                 save_output=save_output, load_saved_output=load_saved_output)
 
     if train_mode:
+
         return unet
 
-    mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
+    else:
 
-    detached = building_labeler(mask_postprocessed, config, save_output=save_output)
+        mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
 
-    output = Step(name='output',
-                  transformer=Dummy(),
-                  input_steps=[detached],
-                  adapter={'y_pred': ([(detached.name, 'labeled_images')]),
-                           },
-                  cache_dirpath=config.env.cache_dirpath)
-    return output
+        detached = building_labeler(mask_postprocessed, config, save_output=save_output)
+
+        output = Step(name='output',
+                      transformer=Dummy(),
+                      input_steps=[detached],
+                      adapter={'y_pred': ([(detached.name, 'labeled_images')]),
+                               },
+                      cache_dirpath=config.env.cache_dirpath)
+        return output
 
 
 def preprocessing(config, model_type, is_train, loader_mode=None):
-    if config.execution.load_in_memory:
-        if model_type == 'single':
-            loader = _preprocessing_single_in_memory(config, is_train, loader_mode)
-        elif model_type == 'multitask':
-            loader = _preprocessing_multitask_in_memory(config, is_train, loader_mode)
-        else:
-            raise NotImplementedError
+    if model_type == 'single':
+        loader = _preprocessing_single_generator(config, is_train, loader_mode)
+    elif model_type == 'multitask':
+        loader = _preprocessing_multitask_generator(config, is_train, loader_mode)
     else:
-        if model_type == 'single':
-            loader = _preprocessing_single_generator(config, is_train, loader_mode)
-        elif model_type == 'multitask':
-            loader = _preprocessing_multitask_generator(config, is_train, loader_mode)
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
     return loader
 
-
-def postprocessing(model_mask, model_contour, config, suffix='', save_output=False, cache_output=False):
-    mask_resize = Step(name='mask_resize{}'.format(suffix),
-                       transformer=Resizer(),
-                       input_data=['input'],
-                       input_steps=[model_mask],
-                       adapter={'images': ([(model_mask.name, 'mask_prediction')]),
-                                'target_sizes': ([('input', 'target_sizes')]),
-                                },
-                       cache_dirpath=config.env.cache_dirpath,
-                       save_output=save_output,
-                       cache_output=cache_output)
-
-    contour_resize = Step(name='contour_resize{}'.format(suffix),
-                          transformer=Resizer(),
-                          input_data=['input'],
-                          input_steps=[model_contour],
-                          adapter={'images': ([(model_contour.name, 'contour_prediction')]),
-                                   'target_sizes': ([('input', 'target_sizes')]),
-                                   },
-                          cache_dirpath=config.env.cache_dirpath,
-                          save_output=save_output,
-                          cache_output=cache_output)
-
-    morphological_postprocessing = Step(name='morphological_postprocessing{}'.format(suffix),
-                                        transformer=Postprocessor(),
-                                        input_steps=[mask_resize, contour_resize],
-                                        adapter={'images': ([(mask_resize.name, 'resized_images')]),
-                                                 'contours': ([(contour_resize.name, 'resized_images')]),
-                                                 },
-                                        cache_dirpath=config.env.cache_dirpath,
-                                        save_output=save_output,
-                                        cache_output=cache_output)
-
-    return morphological_postprocessing
 
 def building_labeler(postprocessed_mask, config, save_output=True):
     labeler = Step(name='labeler',
@@ -103,33 +62,6 @@ def building_labeler(postprocessed_mask, config, save_output=True):
                    cache_dirpath=config.env.cache_dirpath,
                    save_output=save_output)
     return labeler
-
-
-def _preprocessing_single_in_memory(config, is_train, use_patching):
-    if use_patching:
-        raise NotImplementedError
-    else:
-        reader = Step(name='reader',
-                      transformer=ImageReader(**config.reader_single),
-                      input_data=['input'],
-                      adapter={'meta': ([('input', 'meta')]),
-                               'meta_valid': ([('input', 'meta_valid')]),
-                               'train_mode': ([('input', 'train_mode')]),
-                               },
-                      cache_dirpath=config.env.cache_dirpath)
-
-        loader = Step(name='loader',
-                      transformer=loaders.ImageSegmentationLoader(**config.loader),
-                      input_data=['input'],
-                      input_steps=[reader],
-                      adapter={'X': ([('reader', 'X')]),
-                               'y': ([('reader', 'y')]),
-                               'train_mode': ([('input', 'train_mode')]),
-                               'X_valid': ([('reader', 'X_valid')]),
-                               'y_valid': ([('reader', 'y_valid')]),
-                               },
-                      cache_dirpath=config.env.cache_dirpath)
-    return loader
 
 
 def _preprocessing_single_generator(config, is_train, use_patching):
@@ -182,38 +114,6 @@ def _preprocessing_single_generator(config, is_train, use_patching):
                                    'train_mode': ([('input', 'train_mode')]),
                                    },
                           cache_dirpath=config.env.cache_dirpath)
-    return loader
-
-
-def _preprocessing_multitask_in_memory(config, is_train, loader_mode):
-    if loader_mode == 'patching_train':
-        Loader = loaders.ImageSegmentationMultitaskLoaderPatchingTrain
-    elif loader_mode == 'patching_inference':
-        Loader = loaders.ImageSegmentationMultitaskLoaderPatchingInference
-    else:
-        Loader = loaders.ImageSegmentationMultitaskLoader
-
-    reader = Step(name='reader',
-                  transformer=ImageReader(**config.reader_multitask),
-                  input_data=['input'],
-                  adapter={'meta': ([('input', 'meta')]),
-                           'meta_valid': ([('input', 'meta_valid')]),
-                           'train_mode': ([('input', 'train_mode')]),
-                           },
-                  cache_dirpath=config.env.cache_dirpath,
-                  save_output=False, load_saved_output=False)
-
-    loader = Step(name='loader',
-                  transformer=Loader(**config.loader),
-                  input_data=['input'],
-                  input_steps=[reader],
-                  adapter={'X': ([('reader', 'X')]),
-                           'y': ([('reader', 'y')]),
-                           'train_mode': ([('input', 'train_mode')]),
-                           'X_valid': ([('reader', 'X_valid')]),
-                           'y_valid': ([('reader', 'y_valid')]),
-                           },
-                  cache_dirpath=config.env.cache_dirpath)
     return loader
 
 
@@ -271,19 +171,10 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
 
 
 def mask_postprocessing(model, config, save_output=True):
-    mask_resize = Step(name='mask_resize',
-                       transformer=Resizer(),
-                       input_data=['input'],
-                       input_steps=[model],
-                       adapter={'images': ([(model.name, 'mask_prediction')]),
-                                'target_sizes': ([('input', 'target_sizes')]),
-                                },
-                       cache_dirpath=config.env.cache_dirpath,
-                       save_output=save_output)
     mask_thresholding = Step(name='mask_thresholding',
                              transformer=Thresholder(**config.thresholder),
-                             input_steps=[mask_resize],
-                             adapter={'images': ([('mask_resize', 'resized_images')]),
+                             input_steps=[model],
+                             adapter={'images': ([(model.name, 'mask_prediction')]),
                                       },
                              cache_dirpath=config.env.cache_dirpath,
                              save_output=save_output)

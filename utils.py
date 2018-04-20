@@ -24,7 +24,7 @@ def read_yaml(filepath):
 
 
 def init_logger():
-    logger = logging.getLogger('dsb-2018')
+    logger = logging.getLogger('mapping-challenge')
     logger.setLevel(logging.INFO)
     message_format = logging.Formatter(fmt='%(asctime)s %(name)s >>> %(message)s',
                                        datefmt='%Y-%m-%d %H-%M-%S')
@@ -42,7 +42,7 @@ def init_logger():
 
 
 def get_logger():
-    return logging.getLogger('dsb-2018')
+    return logging.getLogger('mapping-challenge')
 
 
 def decompose(labeled):
@@ -58,6 +58,7 @@ def decompose(labeled):
         return [labeled]
     else:
         return masks
+
 
 def create_submission(meta, predictions, logger, save=False, experiment_dir='./'):
     '''
@@ -89,44 +90,14 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
     else:
         return annotations
 
+
 def rle_from_binary(prediction):
     prediction = np.asfortranarray(prediction)
     return pycocotools.mask.encode(prediction)
 
+
 def bounding_box_from_rle(rle):
     return pycocotools.toBbox(rle)
-
-
-def read_masks(masks_filepaths):
-    masks = []
-    for mask_dir in tqdm(masks_filepaths):
-        mask = []
-        if len(mask_dir) == 1:
-            mask_dir = mask_dir[0]
-        for i, mask_filepath in enumerate(glob.glob('{}/*'.format(mask_dir))):
-            blob = np.asarray(Image.open(mask_filepath))
-            blob_binarized = (blob > 128.).astype(np.uint8) * i
-            mask.append(blob_binarized)
-        mask = np.sum(np.stack(mask, axis=0), axis=0).astype(np.uint8)
-        masks.append(mask)
-    return masks
-
-
-def run_length_encoding(x):
-    # https://www.kaggle.com/c/data-science-bowl-2018/discussion/48561#
-    bs = np.where(x.T.flatten())[0]
-
-    rle = []
-    prev = -2
-    for b in bs:
-        if (b > prev + 1): rle.extend((b + 1, 0))
-        rle[-1] += 1
-        prev = b
-
-    if len(rle) != 0 and rle[-1] + rle[-2] == x.size:
-        rle[-2] = rle[-2] - 1
-
-    return rle
 
 
 def read_params(ctx):
@@ -139,61 +110,10 @@ def read_params(ctx):
 
 
 def generate_metadata(data_dir,
-                      masks_overlayed_dir,
-                      contours_overlayed_dir,
-                      centers_overlayed_dir,
-                      competition_stage=1,
                       process_train_data=True,
                       process_test_data=True):
     def _generate_metadata(train):
-        df_metadata = pd.DataFrame(columns=['ImageId', 'file_path_image', 'file_path_masks', 'file_path_mask',
-                                            'is_train', 'width', 'height', 'n_nuclei'])
-        if train:
-            tr_te = 'stage{}_train'.format(competition_stage)
-        else:
-            tr_te = 'stage{}_test'.format(competition_stage)
-
-        for image_id in sorted(os.listdir(os.path.join(data_dir, tr_te))):
-            p = os.path.join(data_dir, tr_te, image_id, 'images')
-            if image_id != os.listdir(p)[0][:-4]:
-                ValueError('ImageId mismatch ' + str(image_id))
-            if len(os.listdir(p)) != 1:
-                ValueError('more than one image in dir')
-
-            file_path_image = os.path.join(p, os.listdir(p)[0])
-            if train:
-                is_train = 1
-                file_path_masks = os.path.join(data_dir, tr_te, image_id, 'masks')
-                file_path_mask = os.path.join(masks_overlayed_dir, tr_te, image_id + '.png')
-                file_path_contours = os.path.join(contours_overlayed_dir, tr_te, image_id + '.png')
-                file_path_centers = os.path.join(centers_overlayed_dir, tr_te, image_id + '.png')
-                n_nuclei = len(os.listdir(file_path_masks))
-            else:
-                is_train = 0
-                file_path_masks = None
-                file_path_mask = None
-                file_path_contours = None
-                file_path_contours_touching = None
-                file_path_centers = None
-                n_nuclei = None
-
-            img = Image.open(file_path_image)
-            width = img.size[0]
-            height = img.size[1]
-            s = df_metadata['ImageId']
-            if image_id is s:
-                ValueError('ImageId conflict ' + str(image_id))
-            df_metadata = df_metadata.append({'ImageId': image_id,
-                                              'file_path_image': file_path_image,
-                                              'file_path_masks': file_path_masks,
-                                              'file_path_mask': file_path_mask,
-                                              'file_path_contours': file_path_contours,
-                                              'file_path_centers': file_path_centers,
-                                              'is_train': is_train,
-                                              'width': width,
-                                              'height': height,
-                                              'n_nuclei': n_nuclei}, ignore_index=True)
-        return df_metadata
+        pass
 
     if process_train_data and process_test_data:
         train_metadata = _generate_metadata(train=True)
@@ -211,10 +131,6 @@ def generate_metadata(data_dir,
 
 def squeeze_inputs(inputs):
     return np.squeeze(inputs[0], axis=1)
-
-
-def sigmoid(x):
-    return 1. / (1 + np.exp(-x))
 
 
 def softmax(X, theta=1.0, axis=None):
