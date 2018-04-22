@@ -17,7 +17,6 @@ def unet(config, train_mode):
         load_saved_output = False
 
     loader = preprocessing(config, model_type='single', is_train=train_mode)
-
     unet = Step(name='unet',
                 transformer=PyTorchUNet(**config.unet),
                 input_steps=[loader],
@@ -25,15 +24,10 @@ def unet(config, train_mode):
                 save_output=save_output, load_saved_output=load_saved_output)
 
     if train_mode:
-
         return unet
-
     else:
-
         mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
-
         detached = building_labeler(mask_postprocessed, config, save_output=save_output)
-
         output = Step(name='output',
                       transformer=Dummy(),
                       input_steps=[detached],
