@@ -1,0 +1,83 @@
+project: MC
+
+name: mapping_challenge_open_solution
+tags: [solution_1, prepare_masks, prepare_metadata]
+
+metric:
+  channel: 'Final Validation Score'
+  goal: maximize
+
+#Comment out if not in Cloud Environment
+pip-requirements-file: requirements.txt
+
+exclude:
+  - .git
+  - .idea
+  - .ipynb_checkpoints
+  - output
+  - imgs
+  - neptune.log
+  - offline_job.log
+  - notebooks
+
+parameters:
+# Cloud environment
+  data_dir:                        /public/minerva/open-solutions/mapping-challenge_data/
+  meta_dir:                        /public/minerva/open-solutions/mapping-challenge_data/
+  masks_overlayed_dir:             /public/minerva/open-solutions/mapping-challenge_data/masks_overlayed/
+  experiment_dir:                  /output/dsb/experiments/
+
+# Local Environment
+#  data_dir:               /path/to/data
+#  meta_dir:               /path/to/data
+#  masks_overlayed_dir:    /path/to/masks_overlayed
+#  experiment_dir:         /path/to/work/dir
+
+  overwrite: 0
+  num_workers: 4
+  load_in_memory: 0
+  pin_memory: 1
+  competition_stage: 1
+
+# General parameters
+  image_h: 512
+  image_w: 512
+  image_channels: 3
+
+# U-Net parameters (multi-output)
+  nr_unet_outputs: 1
+  n_filters: 16
+  conv_kernel: 3
+  pool_kernel: 3
+  pool_stride: 2
+  repeat_blocks: 4
+
+# U-Net loss weights (multi-output)
+  mask: 1.0
+  bce_mask: 1.0
+  dice_mask: 1.0
+
+# Training schedule
+  epochs_nr: 500
+  batch_size_train: 4
+  batch_size_inference: 4
+  lr: 0.0001
+  momentum: 0.9
+  gamma: 0.99
+  patience: 30
+  lr_factor: 0.3
+  lr_patience: 30
+
+# Regularization
+  use_batch_norm: 1
+  l2_reg_conv: 0.0001
+  l2_reg_dense: 0.0
+  dropout_conv: 0.1
+  dropout_dense: 0.0
+
+# Postprocessing
+  threshold: 0.5
+  min_nuclei_size: 20
+
+#Neptune monitor
+  unet_outputs_to_plot: '["mask",]'
