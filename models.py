@@ -41,8 +41,7 @@ def weight_regularization(model, regularize, weight_decay_conv2d, weight_decay_l
 
 def weight_regularization_unet(model, regularize, weight_decay_conv2d):
     if regularize:
-        parameter_list = [{'params': model.parameters(), 'weight_decay': weight_decay_conv2d},
-                          ]
+        parameter_list = [{'params': model.parameters(), 'weight_decay': weight_decay_conv2d}]
     else:
         parameter_list = [model.parameters()]
     return parameter_list
