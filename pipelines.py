@@ -2,7 +2,7 @@ from functools import partial
 
 import loaders
 from models import PyTorchUNet
-from postprocessing import Thresholder, BuildingLabeler
+from postprocessing import Thresholder, BuildingLabeler, Resizer
 from steps.base import Step, Dummy
 from steps.preprocessing import XYSplit
 from utils import squeeze_inputs
@@ -165,10 +165,19 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
 
 
 def mask_postprocessing(model, config, save_output=True):
+    mask_resize = Step(name='mask_resize',
+                       transformer=Resizer(),
+                       input_data=['input'],
+                       input_steps=[model],
+                       adapter={'images': ([(model.name, 'mask_prediction')]),
+                                'target_sizes': ([('input', 'target_sizes')]),
+                                },
+                       cache_dirpath=config.env.cache_dirpath,
+                       save_output=save_output)
     mask_thresholding = Step(name='mask_thresholding',
                              transformer=Thresholder(**config.thresholder),
-                             input_steps=[model],
-                             adapter={'images': ([(model.name, 'mask_prediction')]),
+                             input_steps=[mask_resize],
+                             adapter={'images': ([('mask_resize', 'resized_images')]),
                                       },
                              cache_dirpath=config.env.cache_dirpath,
                              save_output=save_output)

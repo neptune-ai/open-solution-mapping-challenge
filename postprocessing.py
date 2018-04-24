@@ -1,5 +1,7 @@
 import numpy as np
 from scipy import ndimage as ndi
+import tqdm
+from skimage.transform import resize
 
 from steps.base import BaseTransformer
 
@@ -25,6 +27,14 @@ class BuildingLabeler(BaseTransformer):
 
         return {'labeled_images': labeled_images}
 
+
+class Resizer(BaseTransformer):
+    def transform(self, images, target_sizes):
+        resized_images = []
+        for image, target_size in tqdm(zip(images, target_sizes)):
+            resized_image = resize(image, target_size, mode='constant')
+            resized_images.append(resized_image)
+        return {'resized_images': resized_images}
 
 def label(mask):
     labeled, nr_true = ndi.label(mask)

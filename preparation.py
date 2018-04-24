@@ -30,7 +30,7 @@ def overlay_masks(data_dir, dataset, target_dir, is_small=False):
         annotation_ids = coco.getAnnIds(imgIds=image_id)
         annotations = coco.loadAnns(annotation_ids)
         mask = overlay_masks_from_annotations(annotations, image_size)
-        target_filepath = os.path.join(target_dir, dataset, "masks", str(image_id)) + ".png"
+        target_filepath = os.path.join(target_dir, dataset, "masks", image["file_name"][:-4]) + ".png"
         os.makedirs(os.path.dirname(target_filepath), exist_ok=True)
         try:
             imwrite(target_filepath, mask)

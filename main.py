@@ -9,11 +9,11 @@ import glob
 import pandas as pd
 from deepsense import neptune
 
-from pipeline_config import SOLUTION_CONFIG, SIZE_COLUMNS
-#from pipelines import PIPELINES
+from pipeline_config import SOLUTION_CONFIG, SIZE_COLUMNS, Y_COLUMNS_SCORING
+from pipelines import PIPELINES
 from preparation import overlay_masks
 from utils import init_logger, read_params, create_submission, generate_metadata, set_seed, \
-    generate_data_frame_chunks
+    generate_data_frame_chunks, read_masks
 
 logger = init_logger()
 ctx = neptune.Context()
@@ -42,16 +42,15 @@ def prepare_metadata(train_data, validation_data, test_data, public_paths):
                              process_test_data=test_data,
                              public_paths=public_paths)
 
-    metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadata.csv').format(params.competition_stage)
+    metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadataTMP.csv').format(params.competition_stage)
     logger.info('saving metadata to {}'.format(metadata_filepath))
     meta.to_csv(metadata_filepath, index=None)
 
 
-#@action.command()
+@action.command()
 def prepare_masks():
     for dataset in ["train", "val"]:
-        logger.info('processing dataset {}'.format(dataset))
-        logger.info('overlaying masks')
+        logger.info('Overlaying masks, dataset: {}'.format(dataset))
         overlay_masks(data_dir=params.data_dir,
                       dataset=dataset,
                       target_dir=params.masks_overlayed_dir,
@@ -60,35 +59,27 @@ def prepare_masks():
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-v', '--validation_size', help='percentage of training used for validation', default=0.1, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-s', '--simple_cv', help='use simple train test split', is_flag=True, required=False)
-def train_pipeline(pipeline_name, validation_size, dev_mode, simple_cv):
-    _train_pipeline(pipeline_name, validation_size, dev_mode, simple_cv)
+def train_pipeline(pipeline_name, dev_mode):
+    _train_pipeline(pipeline_name, dev_mode)
 
 
-def _train_pipeline(pipeline_name, validation_size, dev_mode, simple_cv):
+def _train_pipeline(pipeline_name, dev_mode):
     if bool(params.overwrite) and os.path.isdir(params.experiment_dir):
         shutil.rmtree(params.experiment_dir)
 
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
-    meta_train = meta[(meta['is_train'] == 1) & (meta["is_valid"]==0)]
+    meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
 
-    if simple_cv:
-        meta_train_split, meta_valid_split = train_valid_split(meta_train, validation_size, simple_split=True)
-    else:
-        meta_train_split, meta_valid_split = train_valid_split(meta_train, validation_size,
-                                                               valid_category_ids=valid_ids)
-
     if dev_mode:
-        meta_train_split = meta_train_split.sample(5, random_state=1234)
-        meta_valid_split = meta_valid_split.sample(3, random_state=1234)
+        meta_train = meta_train.sample(5, random_state=1234)
+        meta_valid = meta_valid.sample(3, random_state=1234)
 
-    data = {'input': {'meta': meta_train_split,
-                      'meta_valid': meta_valid_split,
+    data = {'input': {'meta': meta_train,
+                      'meta_valid': meta_valid,
                       'train_mode': True,
-                      'target_sizes': meta_train_split[SIZE_COLUMNS].values,
+                      'target_sizes': meta_train[SIZE_COLUMNS].values,
                       },
             }
 
@@ -100,35 +91,28 @@ def _train_pipeline(pipeline_name, validation_size, dev_mode, simple_cv):
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-v', '--validation_size', help='percentage of training used for validation', default=0.1, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-s', '--simple_cv', help='use simple train test split', is_flag=True, required=False)
-def evaluate_pipeline(pipeline_name, validation_size, dev_mode, simple_cv):
-    _evaluate_pipeline(pipeline_name, validation_size, dev_mode, simple_cv)
+def evaluate_pipeline(pipeline_name, dev_mode):
+    _evaluate_pipeline(pipeline_name, dev_mode)
 
 
-def _evaluate_pipeline(pipeline_name, validation_size, dev_mode, simple_cv):
+def _evaluate_pipeline(pipeline_name, dev_mode):
+
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
-    meta_train = meta[meta['is_train'] == 1]
-    valid_ids = eval(params.valid_category_ids)
-
-    if simple_cv:
-        meta_train_split, meta_valid_split = train_valid_split(meta_train, validation_size, simple_split=True)
-    else:
-        meta_train_split, meta_valid_split = train_valid_split(meta_train, validation_size,
-                                                               valid_category_ids=valid_ids)
+    meta_train = meta[(meta['is_train'] == 1) & (meta["is_valid"]==0)]
+    meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
-        meta_valid_split = meta_valid_split.sample(2, random_state=1234)
+        meta_valid = meta_valid.sample(3, random_state=1234)
 
-    data = {'input': {'meta': meta_valid_split,
-                      'meta_valid': None,
-                      'train_mode': False,
-                      'target_sizes': meta_valid_split[SIZE_COLUMNS].values
+    data = {'input': {'meta': meta_train,
+                      'meta_valid': meta_valid,
+                      'train_mode': True,
+                      'target_sizes': meta_train[SIZE_COLUMNS].values,
                       },
             }
 
-    y_true = read_masks(meta_valid_split[Y_COLUMNS_SCORING].values)
+    y_true = read_masks(meta_valid[Y_COLUMNS_SCORING].values)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     pipeline.clean_cache()
@@ -260,5 +244,5 @@ def evaluate_predict_pipeline(pipeline_name, validation_size, dev_mode, simple_c
 
 
 if __name__ == "__main__":
-    #action()
-    prepare_masks()
+    action()
+    #prepare_metadata(True, True, True, False)
