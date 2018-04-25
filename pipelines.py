@@ -169,7 +169,7 @@ def mask_postprocessing(model, config, save_output=True):
                        transformer=Resizer(),
                        input_data=['input'],
                        input_steps=[model],
-                       adapter={'images': ([(model.name, 'mask_prediction')]),
+                       adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
                                 'target_sizes': ([('input', 'target_sizes')]),
                                 },
                        cache_dirpath=config.env.cache_dirpath,

@@ -14,6 +14,7 @@ from pipelines import PIPELINES
 from preparation import overlay_masks
 from utils import init_logger, read_params, create_submission, generate_metadata, set_seed, \
     generate_data_frame_chunks, read_masks
+from metrics import mean_precision_and_recall
 
 logger = init_logger()
 ctx = neptune.Context()
@@ -61,6 +62,7 @@ def prepare_masks():
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
 def train_pipeline(pipeline_name, dev_mode):
+    logger.info('training')
     _train_pipeline(pipeline_name, dev_mode)
 
 
@@ -89,17 +91,18 @@ def _train_pipeline(pipeline_name, dev_mode):
     pipeline.clean_cache()
 
 
-@action.command()
-@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
+#@action.command()
+#@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
+#@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
 def evaluate_pipeline(pipeline_name, dev_mode):
+    logger.info('evaluating')
     _evaluate_pipeline(pipeline_name, dev_mode)
 
 
 def _evaluate_pipeline(pipeline_name, dev_mode):
 
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
-    meta_train = meta[(meta['is_train'] == 1) & (meta["is_valid"]==0)]
+    meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
@@ -108,7 +111,7 @@ def _evaluate_pipeline(pipeline_name, dev_mode):
     data = {'input': {'meta': meta_train,
                       'meta_valid': meta_valid,
                       'train_mode': True,
-                      'target_sizes': meta_train[SIZE_COLUMNS].values,
+                      'target_sizes': [[300,300] for x in range(len(meta_valid))],
                       },
             }
 
@@ -120,22 +123,21 @@ def _evaluate_pipeline(pipeline_name, dev_mode):
     pipeline.clean_cache()
     y_pred = output['y_pred']
 
-    logger.info('Calculating IOU and IOUT Scores')
-    iou_score = intersection_over_union(y_true, y_pred)
-    logger.info('IOU score on validation is {}'.format(iou_score))
-    ctx.channel_send('IOU Score', 0, iou_score)
-
-    iout_score = intersection_over_union_thresholds(y_true, y_pred)
-    logger.info('IOUT score on validation is {}'.format(iout_score))
-    ctx.channel_send('IOUT Score', 0, iout_score)
+    logger.info('Calculating mean precision and recall')
+    (precision, recall) = mean_precision_and_recall(y_true, y_pred)
+    logger.info('Mean precision on validation is {}'.format(precision))
+    logger.info('Mean recall on validation is {}'.format(recall))
+    ctx.channel_send('Precision', 0, precision)
+    ctx.channel_send('Recall', 0, recall)
 
 
-@action.command()
-@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
-              required=False)
+#@action.command()
+#@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
+#@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
+#@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
+#              required=False)
 def predict_pipeline(pipeline_name, dev_mode, chunk_size):
+    logger.info('predicting')
     if chunk_size is not None:
         _predict_in_chunks_pipeline(pipeline_name, dev_mode, chunk_size)
     else:
@@ -144,7 +146,7 @@ def predict_pipeline(pipeline_name, dev_mode, chunk_size):
 
 def _predict_pipeline(pipeline_name, dev_mode):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
-    meta_test = meta[meta['is_train'] == 0]
+    meta_test = meta[meta['is_test'] == 1]
 
     if dev_mode:
         meta_test = meta_test.sample(2, random_state=1234)
@@ -152,7 +154,7 @@ def _predict_pipeline(pipeline_name, dev_mode):
     data = {'input': {'meta': meta_test,
                       'meta_valid': None,
                       'train_mode': False,
-                      'target_sizes': meta_test[SIZE_COLUMNS].values
+                      'target_sizes': [[300,300] for x in range(len(meta_test))],
                       },
             }
 
@@ -172,7 +174,7 @@ def _predict_pipeline(pipeline_name, dev_mode):
 
 def _predict_in_chunks_pipeline(pipeline_name, dev_mode, chunk_size):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
-    meta_test = meta[meta['is_train'] == 0]
+    meta_test = meta[meta['is_test'] == 1]
 
     if dev_mode:
         meta_test = meta_test.sample(9, random_state=1234)
@@ -238,5 +240,5 @@ def evaluate_predict_pipeline(pipeline_name, dev_mode):
 
 
 if __name__ == "__main__":
-    action()
-    #train_pipeline("unet", True)
+    #action()
+    predict_pipeline("unet", True, None)

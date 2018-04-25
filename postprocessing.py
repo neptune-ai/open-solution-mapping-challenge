@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import ndimage as ndi
-import tqdm
+from tqdm import tqdm
 from skimage.transform import resize
 
 from steps.base import BaseTransformer
