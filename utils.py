@@ -23,6 +23,21 @@ def read_yaml(filepath):
     return AttrDict(config)
 
 
+def read_masks(masks_filepaths):
+    masks = []
+    for mask_dir in tqdm(masks_filepaths):
+        mask = []
+        if len(mask_dir) == 1:
+            mask_dir = mask_dir[0]
+        for i, mask_filepath in enumerate(glob.glob('{}/*'.format(mask_dir))):
+            blob = np.asarray(Image.open(mask_filepath))
+            blob_binarized = (blob > 128.).astype(np.uint8) * i
+            mask.append(blob_binarized)
+        mask = np.sum(np.stack(mask, axis=0), axis=0).astype(np.uint8)
+        masks.append(mask)
+    return masks
+
+
 def init_logger():
     logger = logging.getLogger('mapping-challenge')
     logger.setLevel(logging.INFO)
@@ -110,21 +125,75 @@ def read_params(ctx):
 
 
 def generate_metadata(data_dir,
+                      masks_overlayed_dir,
                       process_train_data=True,
-                      process_test_data=True):
-    def _generate_metadata(train):
-        pass
+                      process_validation_data=True,
+                      process_test_data=True,
+                      public_paths=False,
+                      competition_stage=1):
+    def _generate_metadata(dataset):
+        assert dataset in ["train", "test", "val"], "Uknown dataset!"
+        df_metadata = pd.DataFrame(columns=['ImageId', 'file_path_image', 'file_path_mask',
+                                            'is_train', 'is_valid', 'is_test', 'n_buildings'])
 
-    if process_train_data and process_test_data:
-        train_metadata = _generate_metadata(train=True)
-        test_metadata = _generate_metadata(train=False)
-        metadata = train_metadata.append(test_metadata, ignore_index=True)
-    elif process_train_data and not process_test_data:
-        metadata = _generate_metadata(train=True)
-    elif not process_train_data and process_test_data:
-        metadata = _generate_metadata(train=False)
-    else:
-        raise ValueError('both train_data and test_data cannot be set to False')
+        if dataset == "test":
+            dataset = "test_images"
+
+        images_path = os.path.join(data_dir, dataset)
+        public_path = "/public/mapping_challenge_data/"
+
+        if dataset != "test_images":
+            images_path = os.path.join(images_path, "images")
+
+        if public_paths:
+            images_path_to_write = os.path.join(public_path, dataset)
+            masks_overlayed_dir_to_write = os.path.join(public_path, "masks_overlayed")
+        else:
+            images_path_to_write = images_path
+            masks_overlayed_dir_to_write = masks_overlayed_dir
+
+        for image_file_name in sorted(os.listdir(images_path)):
+            file_path_image = os.path.join(images_path_to_write, image_file_name)
+            image_id = image_file_name[:-4]
+
+            is_train = 0
+            is_valid = 0
+            is_test = 0
+
+            if dataset == "test_images":
+                file_path_mask = None
+                n_buildings = None
+                is_test = 1
+            else:
+                file_path_mask = os.path.join(masks_overlayed_dir_to_write, dataset, "masks", image_file_name[:-4]+".png")
+                n_buildings = None
+                if dataset == "val":
+                    is_valid = 1
+                else:
+                    is_train = 1
+
+            df_metadata = df_metadata.append({'ImageId': image_id,
+                                              'file_path_image': file_path_image,
+                                              'file_path_mask': file_path_mask,
+                                              'is_train': is_train,
+                                              'is_valid': is_valid,
+                                              'is_test': is_test,
+                                              'n_buildings': n_buildings}, ignore_index=True)
+
+        return df_metadata
+
+    metadata = pd.DataFrame()
+    if process_train_data:
+        train_metadata = _generate_metadata(dataset="train")
+        metadata = metadata.append(train_metadata, ignore_index=True)
+    if process_validation_data:
+        validation_metadata = _generate_metadata(dataset="val")
+        metadata = metadata.append(validation_metadata, ignore_index=True)
+    if process_test_data:
+        test_metadata = _generate_metadata(dataset="test")
+        metadata = metadata.append(test_metadata, ignore_index=True)
+    if not (process_test_data or process_train_data or process_validation_data):
+        raise ValueError('At least one of train_data, validation_data or test_data has to be set to True')
 
     return metadata
 
