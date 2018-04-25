@@ -15,6 +15,7 @@ from preparation import overlay_masks
 from utils import init_logger, read_params, create_submission, generate_metadata, set_seed, \
     generate_data_frame_chunks, read_masks
 from metrics import mean_precision_and_recall
+import json
 
 logger = init_logger()
 ctx = neptune.Context()
@@ -166,8 +167,11 @@ def _predict_pipeline(pipeline_name, dev_mode):
 
     submission = create_submission(meta_test, y_pred, logger)
 
-    submission_filepath = os.path.join(params.experiment_dir, 'submission.csv')
-    submission.to_csv(submission_filepath, index=None, encoding='utf-8')
+    submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
+    with open(submission_filepath, "w") as fp:
+        import pdb
+        pdb.set_trace()
+        fp.write(json.dumps(submission))
     logger.info('submission saved to {}'.format(submission_filepath))
     logger.info('submission head \n\n{}'.format(submission.head()))
 

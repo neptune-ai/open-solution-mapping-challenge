@@ -62,8 +62,9 @@ def get_logger():
 
 def decompose(labeled):
     nr_true = labeled.max()
+    print("Number of instances: {}".format(nr_true))
     masks = []
-    for i in range(1, nr_true + 1):
+    for i in range(1, min(nr_true + 1, 20)):
         msk = labeled.copy()
         msk[msk != i] = 0.
         msk[msk == i] = 255.
@@ -85,6 +86,7 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
     :return: submission if save==False else True
     '''
     annotations = []
+    logger.info('creating submission')
     for image_id, prediction in zip(meta["ImageId"].values, predictions):
         score = 1.0
         masks = decompose(prediction)
@@ -93,7 +95,7 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
             annotation["image_id"] = image_id
             annotation["category_id"] = 100
             annotation["score"] = score
-            annotation["segmentation"] = rle_from_binary(mask)
+            annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
             annotation["bbox"] = bounding_box_from_rle(annotation["segmentation"])
             annotations.append(annotation)
     if save:
@@ -112,7 +114,7 @@ def rle_from_binary(prediction):
 
 
 def bounding_box_from_rle(rle):
-    return pycocotools.toBbox(rle)
+    return pycocotools.mask.toBbox(rle)
 
 
 def read_params(ctx):

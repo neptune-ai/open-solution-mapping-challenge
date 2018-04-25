@@ -33,7 +33,9 @@ def unet(config, train_mode):
                       input_steps=[detached],
                       adapter={'y_pred': ([(detached.name, 'labeled_images')]),
                                },
-                      cache_dirpath=config.env.cache_dirpath)
+                      cache_dirpath=config.env.cache_dirpath,
+                      save_output=True,
+                      load_saved_output=True)
         return output
 
 
