@@ -22,6 +22,11 @@ def segmentation_loss(output, target, weight_bce=1.0, weight_dice=1.0):
 
 
 def multiclass_segmentation_loss(output, target):
+    target = target.long()
+    batch_size = target.size()[0]
+    height = target.size()[2]
+    width = target.size()[3]
+    target = target.view([batch_size, height, width])
     cross_entropy = nn.CrossEntropyLoss()
     return cross_entropy(output, target)
 

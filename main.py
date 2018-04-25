@@ -68,18 +68,18 @@ def _train_pipeline(pipeline_name, dev_mode):
     if bool(params.overwrite) and os.path.isdir(params.experiment_dir):
         shutil.rmtree(params.experiment_dir)
 
-    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
+    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)), low_memory=False)
     meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
-        meta_train = meta_train.sample(5, random_state=1234)
-        meta_valid = meta_valid.sample(3, random_state=1234)
+        meta_train = meta_train.sample(5000, random_state=1234)
+        meta_valid = meta_valid.sample(300, random_state=1234)
 
     data = {'input': {'meta': meta_train,
                       'meta_valid': meta_valid,
                       'train_mode': True,
-                      'target_sizes': meta_train[SIZE_COLUMNS].values,
+                      'target_sizes': [[300,300] for x in range(len(meta_train))],
                       },
             }
 
@@ -207,42 +207,36 @@ def _predict_in_chunks_pipeline(pipeline_name, dev_mode, chunk_size):
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-v', '--validation_size', help='percentage of training used for validation', default=0.1, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-s', '--simple_cv', help='use simple train test split', is_flag=True, required=False)
-def train_evaluate_predict_pipeline(pipeline_name, validation_size, dev_mode, simple_cv):
+def train_evaluate_predict_pipeline(pipeline_name, dev_mode):
     logger.info('training')
-    _train_pipeline(pipeline_name, validation_size, dev_mode, simple_cv)
+    _train_pipeline(pipeline_name, dev_mode)
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, validation_size, dev_mode, simple_cv)
+    _evaluate_pipeline(pipeline_name, dev_mode)
     logger.info('predicting')
     _predict_pipeline(pipeline_name, dev_mode)
 
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-v', '--validation_size', help='percentage of training used for validation', default=0.1, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-s', '--simple_cv', help='use simple train test split', is_flag=True, required=False)
-def train_evaluate_pipeline(pipeline_name, validation_size, dev_mode, simple_cv):
+def train_evaluate_pipeline(pipeline_name, dev_mode):
     logger.info('training')
-    _train_pipeline(pipeline_name, validation_size, dev_mode, simple_cv)
+    _train_pipeline(pipeline_name, dev_mode)
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, validation_size, dev_mode, simple_cv)
+    _evaluate_pipeline(pipeline_name, dev_mode)
 
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-v', '--validation_size', help='percentage of training used for validation', default=0.1, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-s', '--simple_cv', help='use simple train test split', is_flag=True, required=False)
-def evaluate_predict_pipeline(pipeline_name, validation_size, dev_mode, simple_cv):
+def evaluate_predict_pipeline(pipeline_name, dev_mode):
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, validation_size, dev_mode, simple_cv)
+    _evaluate_pipeline(pipeline_name, dev_mode)
     logger.info('predicting')
     _predict_pipeline(pipeline_name, dev_mode)
 
 
 if __name__ == "__main__":
     action()
-    #prepare_metadata(True, True, True, False)
+    #train_pipeline("unet", True)

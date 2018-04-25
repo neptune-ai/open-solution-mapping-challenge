@@ -5,7 +5,7 @@ from deepsense import neptune
 from torch.autograd import Variable
 
 from steps.pytorch.callbacks import NeptuneMonitor
-from utils import sigmoid
+from utils import softmax
 
 
 class NeptuneMonitorSegmentation(NeptuneMonitor):
@@ -65,14 +65,14 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
                 for name, output, target in zip(self.output_names, outputs_batch, targets_tensors):
                     if name not in self.outputs_to_plot:
                         continue
-                    prediction = sigmoid(np.squeeze(output.data.cpu().numpy(), axis=1))
+                    prediction = softmax(np.squeeze(output.data.cpu().numpy(), axis=1))
                     ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
                     prediction_masks[name] = np.stack([prediction, ground_truth], axis=1)
             else:
                 for name, target in zip(self.output_names, targets_tensors):
                     if name not in self.outputs_to_plot:
                         continue
-                    prediction = sigmoid(np.squeeze(outputs_batch.data.cpu().numpy(), axis=1))
+                    prediction = softmax(np.squeeze(outputs_batch.data.cpu().numpy(), axis=1))
                     ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
                     prediction_masks[name] = np.stack([prediction, ground_truth], axis=1)
             break
@@ -134,11 +134,11 @@ class NeptuneMonitorDCAN(NeptuneMonitor):
             for name, output, target in zip(self.output_names, outputs_batch, targets_tensors):
                 if isinstance(output, list):
                    for i, out in enumerate(output):
-                       prediction = sigmoid(np.squeeze(out.data.cpu().numpy(), axis=1))
+                       prediction = softmax(np.squeeze(out.data.cpu().numpy(), axis=1))
                        ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
                        prediction_masks[name+str(i)] = np.stack([prediction, ground_truth], axis=1)
                 else:
-                    prediction = sigmoid(np.squeeze(output.data.cpu().numpy(), axis=1))
+                    prediction = softmax(np.squeeze(output.data.cpu().numpy(), axis=1))
                     ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
                     prediction_masks[name] = np.stack([prediction, ground_truth], axis=1)
             break

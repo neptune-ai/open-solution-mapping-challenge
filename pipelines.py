@@ -23,7 +23,7 @@ def unet(config, train_mode):
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
 
-    if train_mode:
+    if False:
         return unet
     else:
         mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
