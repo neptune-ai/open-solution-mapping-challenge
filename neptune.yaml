@@ -1,7 +1,7 @@
 project: MC
 
 name: mapping_challenge_open_solution
-tags: [solution_1, prepare_masks, prepare_metadata]
+tags: [solution_1,]
 
 metric:
   channel: 'Final Validation Score'
@@ -22,10 +22,10 @@ exclude:
 
 parameters:
 # Cloud environment
-  data_dir:                        /public/minerva/open-solutions/mapping-challenge_data/
-  meta_dir:                        /public/minerva/open-solutions/mapping-challenge_data/
-  masks_overlayed_dir:             /public/minerva/open-solutions/mapping-challenge_data/masks_overlayed/
-  experiment_dir:                  /output/dsb/experiments/
+  data_dir:                        /public/mapping-challenge_data/
+  meta_dir:                        /public/mapping-challenge_data/
+  masks_overlayed_dir:             /public/mapping-challenge_data/masks_overlayed/
+  experiment_dir:                  /output/mapping-challenge/experiments/
 
 # Local Environment
 #  data_dir:               /path/to/data
@@ -40,12 +40,13 @@ parameters:
   competition_stage: 1
 
 # General parameters
-  image_h: 512
-  image_w: 512
+  image_h: 256
+  image_w: 256
   image_channels: 3
 
 # U-Net parameters (multi-output)
   nr_unet_outputs: 1
+  channels_per_output: 2
   n_filters: 16
   conv_kernel: 3
   pool_kernel: 3
@@ -53,14 +54,17 @@ parameters:
   repeat_blocks: 4
 
 # U-Net loss weights (multi-output)
-  mask: 1.0
+  mask: 0.3
+  contour: 0.5
+  contour_touching: 0.1
+  center: 0.1
   bce_mask: 1.0
   dice_mask: 1.0
 
 # Training schedule
-  epochs_nr: 500
-  batch_size_train: 4
-  batch_size_inference: 4
+  epochs_nr: 100
+  batch_size_train: 20
+  batch_size_inference: 20
   lr: 0.0001
   momentum: 0.9
   gamma: 0.99
@@ -80,4 +84,4 @@ parameters:
   min_nuclei_size: 20
 
 #Neptune monitor
-  unet_outputs_to_plot: '["mask",]'
+  unet_outputs_to_plot: '["multichannel_map",]'
