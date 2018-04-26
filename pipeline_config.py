@@ -99,7 +99,6 @@ SOLUTION_CONFIG = AttrDict({
             'early_stopping': {'patience': params.patience},
         },
     },
-    'thresholder': {'threshold': params.threshold},
     'dropper': {'min_size': params.min_nuclei_size},
     'postprocessor': {}
 })

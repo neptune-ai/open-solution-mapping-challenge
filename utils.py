@@ -86,7 +86,7 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
     :return: submission if save==False else True
     '''
     annotations = []
-    logger.info('creating submission')
+    logger.info('Creating submission')
     for image_id, prediction in zip(meta["ImageId"].values, predictions):
         score = 1.0
         masks = decompose(prediction)
@@ -95,6 +95,7 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
             annotation["image_id"] = image_id
             annotation["category_id"] = 100
             annotation["score"] = score
+            #TODO: fix encoding from mask to segmentation format
             annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
             annotation["bbox"] = bounding_box_from_rle(annotation["segmentation"])
             annotations.append(annotation)

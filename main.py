@@ -92,9 +92,9 @@ def _train_pipeline(pipeline_name, dev_mode):
     pipeline.clean_cache()
 
 
-#@action.command()
-#@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-#@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
+@action.command()
+@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
+@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
 def evaluate_pipeline(pipeline_name, dev_mode):
     logger.info('evaluating')
     _evaluate_pipeline(pipeline_name, dev_mode)
@@ -132,11 +132,11 @@ def _evaluate_pipeline(pipeline_name, dev_mode):
     ctx.channel_send('Recall', 0, recall)
 
 
-#@action.command()
-#@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-#@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-#@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
-#              required=False)
+@action.command()
+@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
+@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
+@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
+              required=False)
 def predict_pipeline(pipeline_name, dev_mode, chunk_size):
     logger.info('predicting')
     if chunk_size is not None:
@@ -169,8 +169,6 @@ def _predict_pipeline(pipeline_name, dev_mode):
 
     submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
     with open(submission_filepath, "w") as fp:
-        import pdb
-        pdb.set_trace()
         fp.write(json.dumps(submission))
     logger.info('submission saved to {}'.format(submission_filepath))
     logger.info('submission head \n\n{}'.format(submission.head()))
@@ -244,5 +242,4 @@ def evaluate_predict_pipeline(pipeline_name, dev_mode):
 
 
 if __name__ == "__main__":
-    #action()
-    predict_pipeline("unet", True, None)
+    action()

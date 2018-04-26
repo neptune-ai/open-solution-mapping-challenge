@@ -2,7 +2,7 @@ from functools import partial
 
 import loaders
 from models import PyTorchUNet
-from postprocessing import Thresholder, BuildingLabeler, Resizer
+from postprocessing import BuildingLabeler, Resizer, CategoryAssigner
 from steps.base import Step, Dummy
 from steps.preprocessing import XYSplit
 from utils import squeeze_inputs
@@ -21,7 +21,7 @@ def unet(config, train_mode):
                 transformer=PyTorchUNet(**config.unet),
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
-                save_output=save_output, load_saved_output=load_saved_output)
+                save_output=True, load_saved_output=load_saved_output)
 
     if False:
         return unet
@@ -35,7 +35,7 @@ def unet(config, train_mode):
                                },
                       cache_dirpath=config.env.cache_dirpath,
                       save_output=True,
-                      load_saved_output=True)
+                      load_saved_output=False)
         return output
 
 
@@ -53,7 +53,7 @@ def building_labeler(postprocessed_mask, config, save_output=True):
     labeler = Step(name='labeler',
                    transformer=BuildingLabeler(),
                    input_steps=[postprocessed_mask],
-                   adapter={'images': ([(postprocessed_mask.name, 'binarized_images')]),
+                   adapter={'images': ([(postprocessed_mask.name, 'categorized_images')]),
                             },
                    cache_dirpath=config.env.cache_dirpath,
                    save_output=save_output)
@@ -177,7 +177,7 @@ def mask_postprocessing(model, config, save_output=True):
                        cache_dirpath=config.env.cache_dirpath,
                        save_output=save_output)
     mask_thresholding = Step(name='mask_thresholding',
-                             transformer=Thresholder(**config.thresholder),
+                             transformer=CategoryAssigner(),
                              input_steps=[mask_resize],
                              adapter={'images': ([('mask_resize', 'resized_images')]),
                                       },
