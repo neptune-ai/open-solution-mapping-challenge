@@ -4,6 +4,7 @@ from tqdm import tqdm
 from skimage.transform import resize
 
 from steps.base import BaseTransformer
+from utils import categorize_image
 
 
 class BuildingLabeler(BaseTransformer):
@@ -49,7 +50,3 @@ def label_multichannel_image(mask):
 def label(mask):
     labeled, nr_true = ndi.label(mask)
     return labeled
-
-
-def categorize_image(image):
-    return np.argmax(image, axis=0)

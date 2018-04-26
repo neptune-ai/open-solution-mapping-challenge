@@ -321,3 +321,7 @@ def generate_data_frame_chunks(meta, chunk_size):
     for i in tqdm(range(chunk_nr)):
         meta_chunk = meta.iloc[i * chunk_size:(i + 1) * chunk_size]
         yield meta_chunk
+
+
+def categorize_image(image, channel_axis=0):
+    return np.argmax(image, axis=channel_axis)

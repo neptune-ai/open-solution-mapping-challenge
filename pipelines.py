@@ -21,22 +21,19 @@ def unet(config, train_mode):
                 transformer=PyTorchUNet(**config.unet),
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
-                save_output=True, load_saved_output=load_saved_output)
+                save_output=save_output, load_saved_output=load_saved_output)
 
-    if False:
-        return unet
-    else:
-        mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
-        detached = building_labeler(mask_postprocessed, config, save_output=save_output)
-        output = Step(name='output',
-                      transformer=Dummy(),
-                      input_steps=[detached],
-                      adapter={'y_pred': ([(detached.name, 'labeled_images')]),
-                               },
-                      cache_dirpath=config.env.cache_dirpath,
-                      save_output=True,
-                      load_saved_output=False)
-        return output
+    mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
+    detached = building_labeler(mask_postprocessed, config, save_output=save_output)
+    output = Step(name='output',
+                  transformer=Dummy(),
+                  input_steps=[detached],
+                  adapter={'y_pred': ([(detached.name, 'labeled_images')]),
+                           },
+                  cache_dirpath=config.env.cache_dirpath,
+                  save_output=save_output,
+                  load_saved_output=False)
+    return output
 
 
 def preprocessing(config, model_type, is_train, loader_mode=None):
@@ -166,7 +163,7 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
     return loader
 
 
-def mask_postprocessing(model, config, save_output=True):
+def mask_postprocessing(model, config, save_output=False):
     mask_resize = Step(name='mask_resize',
                        transformer=Resizer(),
                        input_data=['input'],
