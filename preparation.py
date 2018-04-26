@@ -45,7 +45,7 @@ def overlay_masks_from_annotations(annotations, image_size):
         m = cocomask.decode(rle)
         m = m.reshape(image_size)
         mask += m
-    return (255*(mask > 0)).astype('uint8')
+    return (255 * (mask > 0)).astype('uint8')
 
 
 def preprocess_image(img, target_size=(128, 128)):

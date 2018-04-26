@@ -11,7 +11,7 @@ params = read_params(ctx)
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
 Y_COLUMNS = ['file_path_mask']
-Y_COLUMNS_SCORING = ['file_path_masks']
+Y_COLUMNS_SCORING = ['ImageId']
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
@@ -83,7 +83,7 @@ SOLUTION_CONFIG = AttrDict({
                 'filepath': os.path.join(GLOBAL_CONFIG['exp_root'], 'checkpoints', 'unet', 'best.torch'),
                 'epoch_every': 1},
             'exp_lr_scheduler': {'gamma': params.gamma,
-                             'epoch_every': 1},
+                                 'epoch_every': 1},
             'plateau_lr_scheduler': {'lr_factor': params.lr_factor,
                                      'lr_patience': params.lr_patience,
                                      'epoch_every': 1},

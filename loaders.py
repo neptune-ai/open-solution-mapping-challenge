@@ -420,6 +420,7 @@ class PatchCombiner(BaseTransformer):
         prediction_image /= self.normalization_factor
         return prediction_image
 
+
 def binarize(x):
     x_ = x.convert('L')  # convert image to monochrome
     x_ = np.array(x_)

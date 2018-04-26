@@ -71,7 +71,8 @@ def _train_pipeline(pipeline_name, dev_mode):
     if bool(params.overwrite) and os.path.isdir(params.experiment_dir):
         shutil.rmtree(params.experiment_dir)
 
-    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)), low_memory=False)
+    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)),
+                       low_memory=False)
     meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
 
@@ -82,7 +83,7 @@ def _train_pipeline(pipeline_name, dev_mode):
     data = {'input': {'meta': meta_train,
                       'meta_valid': meta_valid,
                       'train_mode': True,
-                      'target_sizes': [[300,300] for x in range(len(meta_train))],
+                      'target_sizes': [[300, 300] for x in range(len(meta_train))],
                       },
             }
 
@@ -101,7 +102,6 @@ def evaluate_pipeline(pipeline_name, dev_mode):
 
 
 def _evaluate_pipeline(pipeline_name, dev_mode):
-
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
@@ -112,17 +112,17 @@ def _evaluate_pipeline(pipeline_name, dev_mode):
     data = {'input': {'meta': meta_train,
                       'meta_valid': meta_valid,
                       'train_mode': True,
-                      'target_sizes': [[300,300] for x in range(len(meta_valid))],
+                      'target_sizes': [[300, 300] for x in range(len(meta_valid))],
                       },
             }
 
-    y_true = read_masks(meta_valid[Y_COLUMNS_SCORING].values)
-
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    pipeline.clean_cache()
     output = pipeline.transform(data)
     pipeline.clean_cache()
     y_pred = output['y_pred']
+    pipeline.clean_cache()
+
+    y_true = read_masks(meta_valid[Y_COLUMNS_SCORING].values, params.data_dir, dataset="val")
 
     logger.info('Calculating mean precision and recall')
     (precision, recall) = mean_precision_and_recall(y_true, y_pred)
@@ -155,7 +155,7 @@ def _predict_pipeline(pipeline_name, dev_mode):
     data = {'input': {'meta': meta_test,
                       'meta_valid': None,
                       'train_mode': False,
-                      'target_sizes': [[300,300] for x in range(len(meta_test))],
+                      'target_sizes': [[300, 300] for x in range(len(meta_test))],
                       },
             }
 

@@ -52,5 +52,6 @@ def initialize_logger():
 
     return logger
 
+
 def get_logger():
     return logging.getLogger('steps')

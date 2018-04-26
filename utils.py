@@ -14,7 +14,8 @@ from PIL import Image
 from attrdict import AttrDict
 from tqdm import tqdm
 import json
-import pycocotools
+from pycocotools.coco import COCO
+from pycocotools import mask as cocomask
 
 
 def read_yaml(filepath):
@@ -23,18 +24,22 @@ def read_yaml(filepath):
     return AttrDict(config)
 
 
-def read_masks(masks_filepaths):
+def read_masks(image_ids, data_dir, dataset):
     masks = []
-    for mask_dir in tqdm(masks_filepaths):
-        mask = []
-        if len(mask_dir) == 1:
-            mask_dir = mask_dir[0]
-        for i, mask_filepath in enumerate(glob.glob('{}/*'.format(mask_dir))):
-            blob = np.asarray(Image.open(mask_filepath))
-            blob_binarized = (blob > 128.).astype(np.uint8) * i
-            mask.append(blob_binarized)
-        mask = np.sum(np.stack(mask, axis=0), axis=0).astype(np.uint8)
-        masks.append(mask)
+    annotation_file_name = "annotation.json"
+    annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
+    coco = COCO(annotation_file_path)
+    for image_id in tqdm(image_ids):
+        mask_set = []
+        image = coco.loadImgs(image_id)[0]
+        image_size = [image["height"], image["width"]]
+        annotation_ids = coco.getAnnIds(imgIds=image_id)
+        annotations = coco.loadAnns(annotation_ids)
+        for ann in annotations:
+            rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
+            m = cocomask.decode(rle)
+            mask_set.append(m)
+        masks.append(mask_set)
     return masks
 
 
@@ -95,7 +100,7 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
             annotation["image_id"] = image_id
             annotation["category_id"] = 100
             annotation["score"] = score
-            #TODO: fix encoding from mask to segmentation format
+            # TODO: fix encoding from mask to segmentation format
             annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
             annotation["bbox"] = bounding_box_from_rle(annotation["segmentation"])
             annotations.append(annotation)
@@ -111,11 +116,11 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
 
 def rle_from_binary(prediction):
     prediction = np.asfortranarray(prediction)
-    return pycocotools.mask.encode(prediction)
+    return cocomask.encode(prediction)
 
 
 def bounding_box_from_rle(rle):
-    return pycocotools.mask.toBbox(rle)
+    return cocomask.toBbox(rle)
 
 
 def read_params(ctx):
@@ -168,7 +173,8 @@ def generate_metadata(data_dir,
                 n_buildings = None
                 is_test = 1
             else:
-                file_path_mask = os.path.join(masks_overlayed_dir_to_write, dataset, "masks", image_file_name[:-4]+".png")
+                file_path_mask = os.path.join(masks_overlayed_dir_to_write, dataset, "masks",
+                                              image_file_name[:-4] + ".png")
                 n_buildings = None
                 if dataset == "val":
                     is_valid = 1
