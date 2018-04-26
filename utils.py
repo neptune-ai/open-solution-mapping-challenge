@@ -101,7 +101,6 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
             annotation["image_id"] = int(image_id)
             annotation["category_id"] = 100
             annotation["score"] = score
-            # TODO: fix encoding from mask to segmentation format
             annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
             annotation['segmentation']['counts'] = annotation['segmentation']['counts'].decode("UTF-8")
             annotation["bbox"] = bounding_box_from_rle(rle_from_binary(mask.astype('uint8')))
@@ -117,9 +116,7 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
 
 def rle_from_binary(prediction):
     prediction = np.asfortranarray(prediction)
-    rle = cocomask.encode(prediction)
-    rle['counts'] = rle['counts']
-    return rle
+    return cocomask.encode(prediction)
 
 
 def bounding_box_from_rle(rle):

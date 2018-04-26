@@ -222,7 +222,7 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
         self.image_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
                                                                       self.dataset_params.w)),
                                                    transforms.ToTensor(),
-                                                   transforms.Normalize(mean=[0.11], std=[0.09]),
+                                                   transforms.Normalize(mean=[0.0], std=[1.0]),
                                                    ])
         self.mask_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
                                                                      self.dataset_params.w)),

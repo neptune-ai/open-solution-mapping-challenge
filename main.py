@@ -77,13 +77,13 @@ def _train_pipeline(pipeline_name, dev_mode):
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
-        meta_train = meta_train.sample(5, random_state=1234)
-        meta_valid = meta_valid.sample(3, random_state=1234)
+        meta_train = meta_train.sample(500, random_state=1234)
+        meta_valid = meta_valid.sample(30, random_state=1234)
 
     data = {'input': {'meta': meta_train,
                       'meta_valid': meta_valid,
                       'train_mode': True,
-                      'target_sizes': [[300, 300] for x in range(len(meta_train))],
+                      'target_sizes': (300, 300)*len(meta_train),
                       },
             }
 
@@ -103,16 +103,15 @@ def evaluate_pipeline(pipeline_name, dev_mode):
 
 def _evaluate_pipeline(pipeline_name, dev_mode):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
-    meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
         meta_valid = meta_valid.sample(30, random_state=1234)
 
-    data = {'input': {'meta': meta_train,
-                      'meta_valid': meta_valid,
-                      'train_mode': True,
-                      'target_sizes': [[300, 300] for x in range(len(meta_valid))],
+    data = {'input': {'meta': meta_valid,
+                      'meta_valid': None,
+                      'train_mode': False,
+                      'target_sizes': (300, 300)*len(meta_valid),
                       },
             }
 
@@ -155,7 +154,7 @@ def _predict_pipeline(pipeline_name, dev_mode):
     data = {'input': {'meta': meta_test,
                       'meta_valid': None,
                       'train_mode': False,
-                      'target_sizes': [[300, 300] for x in range(len(meta_test))],
+                      'target_sizes': (300, 300)*len(meta_test),
                       },
             }
 
@@ -171,6 +170,7 @@ def _predict_pipeline(pipeline_name, dev_mode):
     with open(submission_filepath, "w") as fp:
         fp.write(json.dumps(submission))
     logger.info('submission saved to {}'.format(submission_filepath))
+    logger.info('submission head \n\n{}'.format(submission[0]))
 
 
 def _predict_in_chunks_pipeline(pipeline_name, dev_mode, chunk_size):
