@@ -2,7 +2,7 @@ from functools import partial
 
 import loaders
 from models import PyTorchUNet
-from postprocessing import Thresholder, BuildingLabeler
+from postprocessing import BuildingLabeler, Resizer, CategoryAssigner
 from steps.base import Step, Dummy
 from steps.preprocessing import XYSplit
 from utils import squeeze_inputs
@@ -23,18 +23,17 @@ def unet(config, train_mode):
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
 
-    if train_mode:
-        return unet
-    else:
-        mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
-        detached = building_labeler(mask_postprocessed, config, save_output=save_output)
-        output = Step(name='output',
-                      transformer=Dummy(),
-                      input_steps=[detached],
-                      adapter={'y_pred': ([(detached.name, 'labeled_images')]),
-                               },
-                      cache_dirpath=config.env.cache_dirpath)
-        return output
+    mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
+    detached = building_labeler(mask_postprocessed, config, save_output=save_output)
+    output = Step(name='output',
+                  transformer=Dummy(),
+                  input_steps=[detached],
+                  adapter={'y_pred': ([(detached.name, 'labeled_images')]),
+                           },
+                  cache_dirpath=config.env.cache_dirpath,
+                  save_output=save_output,
+                  load_saved_output=False)
+    return output
 
 
 def preprocessing(config, model_type, is_train, loader_mode=None):
@@ -51,7 +50,7 @@ def building_labeler(postprocessed_mask, config, save_output=True):
     labeler = Step(name='labeler',
                    transformer=BuildingLabeler(),
                    input_steps=[postprocessed_mask],
-                   adapter={'images': ([(postprocessed_mask.name, 'binarized_images')]),
+                   adapter={'images': ([(postprocessed_mask.name, 'categorized_images')]),
                             },
                    cache_dirpath=config.env.cache_dirpath,
                    save_output=save_output)
@@ -164,11 +163,20 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
     return loader
 
 
-def mask_postprocessing(model, config, save_output=True):
+def mask_postprocessing(model, config, save_output=False):
+    mask_resize = Step(name='mask_resize',
+                       transformer=Resizer(),
+                       input_data=['input'],
+                       input_steps=[model],
+                       adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
+                                'target_sizes': ([('input', 'target_sizes')]),
+                                },
+                       cache_dirpath=config.env.cache_dirpath,
+                       save_output=save_output)
     mask_thresholding = Step(name='mask_thresholding',
-                             transformer=Thresholder(**config.thresholder),
-                             input_steps=[model],
-                             adapter={'images': ([(model.name, 'mask_prediction')]),
+                             transformer=CategoryAssigner(),
+                             input_steps=[mask_resize],
+                             adapter={'images': ([('mask_resize', 'resized_images')]),
                                       },
                              cache_dirpath=config.env.cache_dirpath,
                              save_output=save_output)

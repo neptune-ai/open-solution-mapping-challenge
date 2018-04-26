@@ -36,7 +36,7 @@ def compute_precision_and_recall_at(ious, threshold):
     fn = np.sum(mx1 < threshold)
     precision = float(tp) / (tp + fp)
     recall = float(tp) / (tp + fn)
-    return (precision, recall)
+    return precision, recall
 
 
 def compute_eval_metric(gt, predictions):
@@ -56,15 +56,15 @@ def mean_precision_and_recall(y_true, y_pred):
 
 
 def calculate_iou_matrix(ground_truth, proposals):
-    mat = np.zeros([len(ground_truth),len(proposals)])
+    mat = np.zeros([len(ground_truth), len(proposals)])
     used_proposals = []
     for i, gt in enumerate(ground_truth):
-        for j,prop in enumerate(proposals):
+        for j, prop in enumerate(proposals):
             if j in used_proposals:
                 continue
-            iou_ = iou(gt,prop)
-            mat[i,j]=iou_
-            if iou_>0.5:
+            iou_ = iou(gt, prop)
+            mat[i, j] = iou_
+            if iou_ > 0.5:
                 used_proposals.append(j)
                 break
     return mat

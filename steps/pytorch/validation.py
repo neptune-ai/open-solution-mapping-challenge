@@ -18,10 +18,11 @@ class DiceLoss(nn.Module):
 def segmentation_loss(output, target, weight_bce=1.0, weight_dice=1.0):
     bce = nn.BCEWithLogitsLoss()
     dice = DiceLoss()
-    return weight_bce*bce(output, target) + weight_dice*dice(output, target)
+    return weight_bce * bce(output, target) + weight_dice * dice(output, target)
 
 
 def multiclass_segmentation_loss(output, target):
+    target = target.squeeze(1).long()
     cross_entropy = nn.CrossEntropyLoss()
     return cross_entropy(output, target)
 
