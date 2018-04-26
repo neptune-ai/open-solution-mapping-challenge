@@ -198,14 +198,14 @@ def _predict_in_chunks_pipeline(pipeline_name, dev_mode, chunk_size):
         y_pred = output['y_pred']
 
         submission_chunk = create_submission(meta_chunk, y_pred, logger)
-        submission_chunks.append(submission_chunk)
-
-    submission = pd.concat(submission_chunks, axis=0)
+        submission_chunks.extend(submission_chunk)
 
     submission_filepath = os.path.join(params.experiment_dir, 'submission.csv')
-    submission.to_csv(submission_filepath, index=None, encoding='utf-8')
+    submission = submission_chunks
+    with open(submission_filepath, "w") as fp:
+        fp.write(json.dumps(submission))
     logger.info('submission saved to {}'.format(submission_filepath))
-    logger.info('submission head \n\n{}'.format(submission.head()))
+    logger.info('submission head \n\n{}'.format(submission[0]))
 
 
 @action.command()

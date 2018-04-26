@@ -110,6 +110,7 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
         with open(submission_filepath, "w") as fp:
             fp.write(json.dumps(annotations))
             logger.info("Submission saved to {}".format(submission_filepath))
+            logger.info('submission head \n\n{}'.format(annotations[0]))
         return True
     else:
         return annotations
