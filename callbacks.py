@@ -72,8 +72,6 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
                 for name, target in zip(self.output_names, targets_tensors):
                     if name not in self.outputs_to_plot:
                         continue
-                    import pdb
-                    pdb.set_trace()#test
                     prediction = categorize_image(softmax(outputs_batch.data.cpu().numpy()), channel_axis=1)
                     ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
                     prediction_masks[name] = np.stack([prediction, ground_truth], axis=1)

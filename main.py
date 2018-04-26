@@ -171,7 +171,6 @@ def _predict_pipeline(pipeline_name, dev_mode):
     with open(submission_filepath, "w") as fp:
         fp.write(json.dumps(submission))
     logger.info('submission saved to {}'.format(submission_filepath))
-    logger.info('submission head \n\n{}'.format(submission.head()))
 
 
 def _predict_in_chunks_pipeline(pipeline_name, dev_mode, chunk_size):

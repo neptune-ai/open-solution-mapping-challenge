@@ -16,6 +16,7 @@ from tqdm import tqdm
 import json
 from pycocotools.coco import COCO
 from pycocotools import mask as cocomask
+from itertools import groupby
 
 
 def read_yaml(filepath):
@@ -97,12 +98,13 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
         masks = decompose(prediction)
         for mask_nr, mask in enumerate(masks):
             annotation = {}
-            annotation["image_id"] = image_id
+            annotation["image_id"] = int(image_id)
             annotation["category_id"] = 100
             annotation["score"] = score
             # TODO: fix encoding from mask to segmentation format
             annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
-            annotation["bbox"] = bounding_box_from_rle(annotation["segmentation"])
+            annotation['segmentation']['counts'] = annotation['segmentation']['counts'].decode("UTF-8")
+            annotation["bbox"] = bounding_box_from_rle(rle_from_binary(mask.astype('uint8')))
             annotations.append(annotation)
     if save:
         submission_filepath = os.path.join(experiment_dir, 'submission.json')
@@ -113,14 +115,15 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
     else:
         return annotations
 
-
 def rle_from_binary(prediction):
     prediction = np.asfortranarray(prediction)
-    return cocomask.encode(prediction)
+    rle = cocomask.encode(prediction)
+    rle['counts'] = rle['counts']
+    return rle
 
 
 def bounding_box_from_rle(rle):
-    return cocomask.toBbox(rle)
+    return list(cocomask.toBbox(rle))
 
 
 def read_params(ctx):
