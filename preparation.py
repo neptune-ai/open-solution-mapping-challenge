@@ -15,7 +15,7 @@ from utils import get_logger
 logger = get_logger()
 
 
-def overlay_masks(data_dir, dataset, target_dir, is_small=False):
+def overlay_masks(data_dir, dataset, target_dir, category_ids, is_small=False):
     if is_small:
         suffix = "-small"
     else:
@@ -27,13 +27,17 @@ def overlay_masks(data_dir, dataset, target_dir, is_small=False):
     for image_id in tqdm(image_ids):
         image = coco.loadImgs(image_id)[0]
         image_size = [image["height"], image["width"]]
-        annotation_ids = coco.getAnnIds(imgIds=image_id)
-        annotations = coco.loadAnns(annotation_ids)
-        mask = overlay_masks_from_annotations(annotations, image_size)
+        mask_overlayed = np.zeros(image_size)
+        for category_id in category_ids:
+            if category_id != None:
+                annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=[category_id, ])
+                annotations = coco.loadAnns(annotation_ids)
+                mask = overlay_masks_from_annotations(annotations, image_size)
+                mask_overlayed += mask * category_id
         target_filepath = os.path.join(target_dir, dataset, "masks", image["file_name"][:-4]) + ".png"
         os.makedirs(os.path.dirname(target_filepath), exist_ok=True)
         try:
-            imwrite(target_filepath, mask)
+            imwrite(target_filepath, mask_overlayed)
         except:
             logger.info("Failed to save image: {}".format(image_id))
 
@@ -45,7 +49,7 @@ def overlay_masks_from_annotations(annotations, image_size):
         m = cocomask.decode(rle)
         m = m.reshape(image_size)
         mask += m
-    return (255 * (mask > 0)).astype('uint8')
+    return np.where(mask > 0, 1, 0).astype('uint8')
 
 
 def preprocess_image(img, target_size=(128, 128)):
