@@ -60,7 +60,7 @@ $ neptune data upload YOUR/DATA/FOLDER
   experiment_dir:         /path/to/work/dir
 ```
 
-7. run experiment:
+9. run experiment:
 
     * local machine with neptune
     ```bash
