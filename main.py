@@ -83,7 +83,7 @@ def _train_pipeline(pipeline_name, dev_mode):
     data = {'input': {'meta': meta_train,
                       'meta_valid': meta_valid,
                       'train_mode': True,
-                      'target_sizes': [(300, 300)]*len(meta_train),
+                      'target_sizes': [(300, 300)] * len(meta_train),
                       },
             }
 
@@ -111,7 +111,7 @@ def _evaluate_pipeline(pipeline_name, dev_mode):
     data = {'input': {'meta': meta_valid,
                       'meta_valid': None,
                       'train_mode': False,
-                      'target_sizes': [(300, 300)]*len(meta_valid),
+                      'target_sizes': [(300, 300)] * len(meta_valid),
                       },
             }
 
@@ -154,7 +154,7 @@ def _predict_pipeline(pipeline_name, dev_mode):
     data = {'input': {'meta': meta_test,
                       'meta_valid': None,
                       'train_mode': False,
-                      'target_sizes': [(300, 300)]*len(meta_test),
+                      'target_sizes': [(300, 300)] * len(meta_test),
                       },
             }
 
@@ -187,7 +187,7 @@ def _predict_in_chunks_pipeline(pipeline_name, dev_mode, chunk_size):
         data = {'input': {'meta': meta_chunk,
                           'meta_valid': None,
                           'train_mode': False,
-                          'target_sizes': meta_chunk[SIZE_COLUMNS].values
+                          'target_sizes': [(300, 300)] * len(meta_chunk)
                           },
                 }
 
