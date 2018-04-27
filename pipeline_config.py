@@ -12,6 +12,7 @@ SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
 Y_COLUMNS = ['file_path_mask']
 Y_COLUMNS_SCORING = ['ImageId']
+CATEGORY_IDS = [None, 100]
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,

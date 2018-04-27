@@ -2,7 +2,7 @@ from functools import partial
 
 import loaders
 from models import PyTorchUNet
-from postprocessing import BuildingLabeler, Resizer, CategoryAssigner
+from postprocessing import BuildingLabeler, Resizer, CategoryMapper, MulticlassLabeler
 from steps.base import Step, Dummy
 from steps.preprocessing import XYSplit
 from utils import squeeze_inputs
@@ -24,7 +24,7 @@ def unet(config, train_mode):
                 save_output=save_output, load_saved_output=load_saved_output)
 
     mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
-    detached = building_labeler(mask_postprocessed, config, save_output=save_output)
+    detached = multiclass_object_labeler(mask_postprocessed, config, save_output=save_output)
     output = Step(name='output',
                   transformer=Dummy(),
                   input_steps=[detached],
@@ -49,6 +49,17 @@ def preprocessing(config, model_type, is_train, loader_mode=None):
 def building_labeler(postprocessed_mask, config, save_output=True):
     labeler = Step(name='labeler',
                    transformer=BuildingLabeler(),
+                   input_steps=[postprocessed_mask],
+                   adapter={'images': ([(postprocessed_mask.name, 'categorized_images')]),
+                            },
+                   cache_dirpath=config.env.cache_dirpath,
+                   save_output=save_output)
+    return labeler
+
+
+def multiclass_object_labeler(postprocessed_mask, config, save_output=True):
+    labeler = Step(name='labeler',
+                   transformer=MulticlassLabeler(),
                    input_steps=[postprocessed_mask],
                    adapter={'images': ([(postprocessed_mask.name, 'categorized_images')]),
                             },
@@ -173,14 +184,14 @@ def mask_postprocessing(model, config, save_output=False):
                                 },
                        cache_dirpath=config.env.cache_dirpath,
                        save_output=save_output)
-    mask_thresholding = Step(name='mask_thresholding',
-                             transformer=CategoryAssigner(),
-                             input_steps=[mask_resize],
-                             adapter={'images': ([('mask_resize', 'resized_images')]),
-                                      },
-                             cache_dirpath=config.env.cache_dirpath,
-                             save_output=save_output)
-    return mask_thresholding
+    category_mapper = Step(name='category_mapper',
+                           transformer=CategoryMapper(),
+                           input_steps=[mask_resize],
+                           adapter={'images': ([('mask_resize', 'resized_images')]),
+                                    },
+                           cache_dirpath=config.env.cache_dirpath,
+                           save_output=save_output)
+    return category_mapper
 
 
 PIPELINES = {'unet': {'train': partial(unet, train_mode=True),

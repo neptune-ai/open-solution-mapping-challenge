@@ -38,6 +38,7 @@ parameters:
   load_in_memory: 0
   pin_memory: 1
   competition_stage: 1
+  api_key: 'YOUR_CROWDAI_API_KEY'
 
 # General parameters
   image_h: 256
