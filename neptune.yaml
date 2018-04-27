@@ -1,7 +1,7 @@
 project: MC
 
 name: mapping_challenge_open_solution
-tags: [solution_1,]
+tags: [solution_1]
 
 metric:
   channel: 'Final Validation Score'

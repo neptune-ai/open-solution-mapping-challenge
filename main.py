@@ -31,16 +31,16 @@ def action():
 
 @action.command()
 @click.option('-tr', '--train_data', help='calculate for train data', is_flag=True, required=False)
-@click.option('-val', '--validation_data', help='calculate for validation data', is_flag=True, required=False)
+@click.option('-val', '--valid_data', help='calculate for validation data', is_flag=True, required=False)
 @click.option('-te', '--test_data', help='calculate for test data', is_flag=True, required=False)
 @click.option('-pub', '--public_paths', help='use public Neptune paths', is_flag=True, required=False)
-def prepare_metadata(train_data, validation_data, test_data, public_paths):
+def prepare_metadata(train_data, valid_data, test_data, public_paths):
     logger.info('creating metadata')
     meta = generate_metadata(data_dir=params.data_dir,
                              masks_overlayed_dir=params.masks_overlayed_dir,
                              competition_stage=params.competition_stage,
                              process_train_data=train_data,
-                             process_validation_data=validation_data,
+                             process_validation_data=valid_data,
                              process_test_data=test_data,
                              public_paths=public_paths)
 
@@ -219,13 +219,18 @@ def _predict_in_chunks(pipeline_name, submit_predictions, dev_mode, chunk_size):
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def train_evaluate_predict(pipeline_name, submit_predictions, dev_mode):
+@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
+              required=False)
+def train_evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
     logger.info('training')
     _train(pipeline_name, dev_mode)
     logger.info('evaluating')
     _evaluate(pipeline_name, dev_mode)
     logger.info('predicting')
-    _predict(pipeline_name, submit_predictions, dev_mode)
+    if chunk_size is not None:
+        _predict_in_chunks(pipeline_name, dev_mode, submit_predictions, chunk_size)
+    else:
+        _predict(pipeline_name, dev_mode, submit_predictions)
 
 
 @action.command()
@@ -242,11 +247,16 @@ def train_evaluate(pipeline_name, dev_mode):
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def evaluate_predict(pipeline_name, submit_predictions, dev_mode):
+@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
+              required=False)
+def evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
     logger.info('evaluating')
     _evaluate(pipeline_name, dev_mode)
     logger.info('predicting')
-    _predict(pipeline_name, submit_predictions, dev_mode)
+    if chunk_size is not None:
+        _predict_in_chunks(pipeline_name, dev_mode, submit_predictions, chunk_size)
+    else:
+        _predict(pipeline_name, dev_mode, submit_predictions)
 
 
 @action.command()
