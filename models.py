@@ -7,15 +7,6 @@ from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ValidationMon
 from steps.pytorch.models import Model
 from steps.pytorch.validation import multiclass_segmentation_loss
 from utils import softmax
-from torch import optim
-
-from callbacks import NeptuneMonitorSegmentation
-from steps.pytorch.architectures.unet import UNet
-from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ValidationMonitor, ModelCheckpoint, \
-    ExperimentTiming, ExponentialLRScheduler, EarlyStopping
-from steps.pytorch.models import Model
-from steps.pytorch.validation import multiclass_segmentation_loss
-from utils import softmax
 
 
 class PyTorchUNet(Model):

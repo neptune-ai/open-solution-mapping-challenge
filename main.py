@@ -174,7 +174,7 @@ def _predict(pipeline_name, dev_mode, submit_predictions):
     logger.info('submission head \n\n{}'.format(submission[0]))
 
     if submit_predictions:
-        _submit_predictions()
+        _make_submission(submission_filepath)
 
 
 def _predict_in_chunks(pipeline_name, submit_predictions, dev_mode, chunk_size):
@@ -212,7 +212,7 @@ def _predict_in_chunks(pipeline_name, submit_predictions, dev_mode, chunk_size):
     logger.info('submission head \n\n{}'.format(submission[0]))
 
     if submit_predictions:
-        _submit_predictions()
+        _make_submission(submission_filepath)
 
 
 @action.command()
@@ -260,17 +260,17 @@ def evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
 
 
 @action.command()
-def submit_predictions():
-    _submit_predictions()
+@click.option('-f', '--submission_filepath', help='filepath to json submission file', required=True)
+def submit_predictions(submission_filepath):
+    _make_submission(submission_filepath)
 
 
-def _submit_predictions():
+def _make_submission(submission_filepath):
     api_key = params.api_key
 
     challenge = crowdai.Challenge("crowdAIMappingChallenge", api_key)
-    submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
-    result = challenge.submit(submission_filepath)
-    print(result)
+    logger.info('submitting predictions to crowdai')
+    challenge.submit(submission_filepath)
 
 
 if __name__ == "__main__":
