@@ -6,6 +6,7 @@ from torch.autograd import Variable
 
 from steps.pytorch.callbacks import NeptuneMonitor
 from utils import softmax, categorize_image
+from pipeline_config import CATEGORY_IDS
 
 
 class NeptuneMonitorSegmentation(NeptuneMonitor):
@@ -63,17 +64,27 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
             outputs_batch = self.model(X)
             if len(outputs_batch) == len(self.output_names):
                 for name, output, target in zip(self.output_names, outputs_batch, targets_tensors):
-                    if name not in self.outputs_to_plot:
-                        continue
-                    prediction = softmax(np.squeeze(output.data.cpu().numpy(), axis=1))
-                    ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
-                    prediction_masks[name] = np.stack([prediction, ground_truth], axis=1)
+                    if name in self.outputs_to_plot:
+                        prediction = categorize_image(softmax(output.data.cpu().numpy()), channel_axis=1)
+                        ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
+                        n_channels = output.data.cpu().numpy().shape[1]
+                        for channel_nr in range(n_channels):
+                            category_id = CATEGORY_IDS[channel_nr]
+                            if category_id != None:
+                                channel_ground_truth = np.where(ground_truth == channel_nr, 1, 0)
+                                mask_key = '{}_{}'.format(name, category_id)
+                                prediction_masks[mask_key] = np.stack([prediction, channel_ground_truth], axis=1)
             else:
                 for name, target in zip(self.output_names, targets_tensors):
-                    if name not in self.outputs_to_plot:
-                        continue
-                    prediction = categorize_image(softmax(outputs_batch.data.cpu().numpy()), channel_axis=1)
-                    ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
-                    prediction_masks[name] = np.stack([prediction, ground_truth], axis=1)
+                    if name in self.outputs_to_plot:
+                        prediction = categorize_image(softmax(outputs_batch.data.cpu().numpy()), channel_axis=1)
+                        ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
+                        n_channels = outputs_batch.data.cpu().numpy().shape[1]
+                        for channel_nr in range(n_channels):
+                            category_id = CATEGORY_IDS[channel_nr]
+                            if category_id != None:
+                                channel_ground_truth = np.where(ground_truth == channel_nr, 1, 0)
+                                mask_key = '{}_{}'.format(name, category_id)
+                                prediction_masks[mask_key] = np.stack([prediction, channel_ground_truth], axis=1)
             break
         return prediction_masks
