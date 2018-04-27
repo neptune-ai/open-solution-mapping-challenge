@@ -16,6 +16,15 @@ class BuildingLabeler(BaseTransformer):
         return {'labeled_images': labeled_images}
 
 
+class MulticlassLabeler(BaseTransformer):
+    def transform(self, images):
+        labeled_images = []
+        for i, image in enumerate(images):
+            labeled_image = label_multiclass_image(image)
+            labeled_images.append(labeled_image)
+        return {'labeled_images': labeled_images}
+
+
 class Resizer(BaseTransformer):
     def transform(self, images, target_sizes):
         resized_images = []
@@ -39,14 +48,9 @@ def label(mask):
     return labeled
 
 
-def label_multichannel_image(mask):
+def label_multiclass_image(mask):
     labeled_channels = []
-    for channel in mask:
-        labeled_channels.append(label(channel))
+    for label_nr in range(0, mask.max()+1):
+        labeled_channels.append(label(mask==label_nr))
     labeled_image = np.stack(labeled_channels)
     return labeled_image
-
-
-def label(mask):
-    labeled, nr_true = ndi.label(mask)
-    return labeled

@@ -68,7 +68,6 @@ def get_logger():
 
 def decompose(labeled):
     nr_true = labeled.max()
-    print("Number of instances: {}".format(nr_true))
     masks = []
     for i in range(1, min(nr_true + 1, 20)):
         msk = labeled.copy()
@@ -82,7 +81,7 @@ def decompose(labeled):
         return masks
 
 
-def create_submission(meta, predictions, logger, save=False, experiment_dir='./'):
+def create_submission(meta, predictions, logger, category_ids, save=False, experiment_dir='./'):
     '''
     :param meta: pd.DataFrame with metadata
     :param predictions: list of labeled masks or numpy array of size [n_images, im_height, im_width]
@@ -95,16 +94,18 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
     logger.info('Creating submission')
     for image_id, prediction in zip(meta["ImageId"].values, predictions):
         score = 1.0
-        masks = decompose(prediction)
-        for mask_nr, mask in enumerate(masks):
-            annotation = {}
-            annotation["image_id"] = int(image_id)
-            annotation["category_id"] = 100
-            annotation["score"] = score
-            annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
-            annotation['segmentation']['counts'] = annotation['segmentation']['counts'].decode("UTF-8")
-            annotation["bbox"] = bounding_box_from_rle(rle_from_binary(mask.astype('uint8')))
-            annotations.append(annotation)
+        for category_nr, category_instances in enumerate(prediction):
+            if category_ids[category_nr] != None:
+                masks = decompose(category_instances)
+                for mask_nr, mask in enumerate(masks):
+                    annotation = {}
+                    annotation["image_id"] = int(image_id)
+                    annotation["category_id"] = category_ids[category_nr]
+                    annotation["score"] = score
+                    annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
+                    annotation['segmentation']['counts'] = annotation['segmentation']['counts'].decode("UTF-8")
+                    annotation["bbox"] = bounding_box_from_rle(rle_from_binary(mask.astype('uint8')))
+                    annotations.append(annotation)
     if save:
         submission_filepath = os.path.join(experiment_dir, 'submission.json')
         with open(submission_filepath, "w") as fp:

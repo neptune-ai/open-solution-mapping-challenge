@@ -38,6 +38,7 @@ parameters:
   load_in_memory: 0
   pin_memory: 1
   competition_stage: 1
+  api_key: 'f951ca6301aa2ae79177b94a55c2e301'
 
 # General parameters
   image_h: 256
