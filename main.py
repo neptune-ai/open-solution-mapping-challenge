@@ -192,7 +192,7 @@ def _predict_in_chunks_pipeline(pipeline_name, submit_predictions, dev_mode, chu
         data = {'input': {'meta': meta_chunk,
                           'meta_valid': None,
                           'train_mode': False,
-                          'target_sizes': [(300, 300)] * len(meta_chunk),
+                          'target_sizes': [(300, 300)] * len(meta_chunk)
                           },
                 }
 
