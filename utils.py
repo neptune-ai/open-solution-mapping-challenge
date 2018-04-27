@@ -116,6 +116,7 @@ def create_submission(meta, predictions, logger, category_ids, save=False, exper
     else:
         return annotations
 
+
 def rle_from_binary(prediction):
     prediction = np.asfortranarray(prediction)
     return cocomask.encode(prediction)
