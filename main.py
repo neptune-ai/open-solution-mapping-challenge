@@ -5,7 +5,6 @@ from multiprocessing import set_start_method
 set_start_method('spawn')
 
 import click
-import glob
 import pandas as pd
 from deepsense import neptune
 import crowdai
@@ -32,20 +31,20 @@ def action():
 
 @action.command()
 @click.option('-tr', '--train_data', help='calculate for train data', is_flag=True, required=False)
-@click.option('-val', '--validation_data', help='calculate for validation data', is_flag=True, required=False)
+@click.option('-val', '--valid_data', help='calculate for validation data', is_flag=True, required=False)
 @click.option('-te', '--test_data', help='calculate for test data', is_flag=True, required=False)
 @click.option('-pub', '--public_paths', help='use public Neptune paths', is_flag=True, required=False)
-def prepare_metadata(train_data, validation_data, test_data, public_paths):
+def prepare_metadata(train_data, valid_data, test_data, public_paths):
     logger.info('creating metadata')
     meta = generate_metadata(data_dir=params.data_dir,
                              masks_overlayed_dir=params.masks_overlayed_dir,
                              competition_stage=params.competition_stage,
                              process_train_data=train_data,
-                             process_validation_data=validation_data,
+                             process_validation_data=valid_data,
                              process_test_data=test_data,
                              public_paths=public_paths)
 
-    metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadataTMP.csv').format(params.competition_stage)
+    metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadata.csv').format(params.competition_stage)
     logger.info('saving metadata to {}'.format(metadata_filepath))
     meta.to_csv(metadata_filepath, index=None)
 
@@ -63,12 +62,12 @@ def prepare_masks():
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def train_pipeline(pipeline_name, dev_mode):
+def train(pipeline_name, dev_mode):
     logger.info('training')
-    _train_pipeline(pipeline_name, dev_mode)
+    _train(pipeline_name, dev_mode)
 
 
-def _train_pipeline(pipeline_name, dev_mode):
+def _train(pipeline_name, dev_mode):
     if bool(params.overwrite) and os.path.isdir(params.experiment_dir):
         shutil.rmtree(params.experiment_dir)
 
@@ -97,12 +96,12 @@ def _train_pipeline(pipeline_name, dev_mode):
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def evaluate_pipeline(pipeline_name, dev_mode):
+def evaluate(pipeline_name, dev_mode):
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode)
 
 
-def _evaluate_pipeline(pipeline_name, dev_mode):
+def _evaluate(pipeline_name, dev_mode):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_valid = meta[meta['is_valid'] == 1]
 
@@ -134,19 +133,19 @@ def _evaluate_pipeline(pipeline_name, dev_mode):
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
+@click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
 @click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
               required=False)
-def predict_pipeline(pipeline_name, submit_predictions, dev_mode, chunk_size):
+def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     logger.info('predicting')
     if chunk_size is not None:
-        _predict_in_chunks_pipeline(pipeline_name, submit_predictions, dev_mode, chunk_size)
+        _predict_in_chunks(pipeline_name, dev_mode, submit_predictions, chunk_size)
     else:
-        _predict_pipeline(pipeline_name, submit_predictions, dev_mode)
+        _predict(pipeline_name, dev_mode, submit_predictions)
 
 
-def _predict_pipeline(pipeline_name, submit_predictions, dev_mode):
+def _predict(pipeline_name, dev_mode, submit_predictions):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_test = meta[meta['is_test'] == 1]
 
@@ -175,10 +174,10 @@ def _predict_pipeline(pipeline_name, submit_predictions, dev_mode):
     logger.info('submission head \n\n{}'.format(submission[0]))
 
     if submit_predictions:
-        _submit_predictions()
+        _make_submission(submission_filepath)
 
 
-def _predict_in_chunks_pipeline(pipeline_name, submit_predictions, dev_mode, chunk_size):
+def _predict_in_chunks(pipeline_name, submit_predictions, dev_mode, chunk_size):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_test = meta[meta['is_test'] == 1]
 
@@ -213,55 +212,65 @@ def _predict_in_chunks_pipeline(pipeline_name, submit_predictions, dev_mode, chu
     logger.info('submission head \n\n{}'.format(submission[0]))
 
     if submit_predictions:
-        _submit_predictions()
+        _make_submission(submission_filepath)
 
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def train_evaluate_predict_pipeline(pipeline_name, submit_predictions, dev_mode):
+@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
+              required=False)
+def train_evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
     logger.info('training')
-    _train_pipeline(pipeline_name, dev_mode)
+    _train(pipeline_name, dev_mode)
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode)
     logger.info('predicting')
-    _predict_pipeline(pipeline_name, submit_predictions, dev_mode)
+    if chunk_size is not None:
+        _predict_in_chunks(pipeline_name, dev_mode, submit_predictions, chunk_size)
+    else:
+        _predict(pipeline_name, dev_mode, submit_predictions)
 
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def train_evaluate_pipeline(pipeline_name, dev_mode):
+def train_evaluate(pipeline_name, dev_mode):
     logger.info('training')
-    _train_pipeline(pipeline_name, dev_mode)
+    _train(pipeline_name, dev_mode)
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode)
 
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def evaluate_predict_pipeline(pipeline_name, submit_predictions, dev_mode):
+@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
+              required=False)
+def evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode)
     logger.info('predicting')
-    _predict_pipeline(pipeline_name, submit_predictions, dev_mode)
+    if chunk_size is not None:
+        _predict_in_chunks(pipeline_name, dev_mode, submit_predictions, chunk_size)
+    else:
+        _predict(pipeline_name, dev_mode, submit_predictions)
 
 
 @action.command()
-def submit_predictions():
-    _submit_predictions()
+@click.option('-f', '--submission_filepath', help='filepath to json submission file', required=True)
+def submit_predictions(submission_filepath):
+    _make_submission(submission_filepath)
 
 
-def _submit_predictions():
+def _make_submission(submission_filepath):
     api_key = params.api_key
 
     challenge = crowdai.Challenge("crowdAIMappingChallenge", api_key)
-    submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
-    result = challenge.submit(submission_filepath)
-    print(result)
+    logger.info('submitting predictions to crowdai')
+    challenge.submit(submission_filepath)
 
 
 if __name__ == "__main__":

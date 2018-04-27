@@ -1,6 +1,6 @@
 import os
-import shutil
 import pprint
+import shutil
 
 import numpy as np
 from scipy import sparse

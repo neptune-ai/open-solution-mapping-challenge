@@ -4,7 +4,7 @@ import loaders
 from models import PyTorchUNet
 from postprocessing import BuildingLabeler, Resizer, CategoryMapper, MulticlassLabeler
 from steps.base import Step, Dummy
-from steps.preprocessing import XYSplit
+from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
 
 

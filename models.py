@@ -1,6 +1,3 @@
-from functools import partial
-
-import numpy as np
 from torch import optim
 
 from callbacks import NeptuneMonitorSegmentation

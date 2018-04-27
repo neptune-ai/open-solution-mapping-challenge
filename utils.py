@@ -1,10 +1,10 @@
-import glob
+import json
 import logging
+import math
 import os
 import random
 import sys
 from itertools import product
-import math
 
 import numpy as np
 import pandas as pd
@@ -12,11 +12,9 @@ import torch
 import yaml
 from PIL import Image
 from attrdict import AttrDict
-from tqdm import tqdm
-import json
-from pycocotools.coco import COCO
 from pycocotools import mask as cocomask
-from itertools import groupby
+from pycocotools.coco import COCO
+from tqdm import tqdm
 
 
 def read_yaml(filepath):
@@ -109,7 +107,7 @@ def create_submission(meta, predictions, logger, category_ids, save=False, exper
     if save:
         submission_filepath = os.path.join(experiment_dir, 'submission.json')
         with open(submission_filepath, "w") as fp:
-            fp.write(json.dumps(annotations))
+            fp.write(str(json.dumps(annotations)))
             logger.info("Submission saved to {}".format(submission_filepath))
             logger.info('submission head \n\n{}'.format(annotations[0]))
         return True
@@ -142,8 +140,11 @@ def generate_metadata(data_dir,
                       process_test_data=True,
                       public_paths=False,
                       competition_stage=1):
+    if competition_stage != 1:
+        raise NotImplementedError('only stage_1 is supported for now')
+
     def _generate_metadata(dataset):
-        assert dataset in ["train", "test", "val"], "Uknown dataset!"
+        assert dataset in ["train", "test", "val"], "Unknown dataset!"
         df_metadata = pd.DataFrame(columns=['ImageId', 'file_path_image', 'file_path_mask',
                                             'is_train', 'is_valid', 'is_test', 'n_buildings'])
 
@@ -320,7 +321,6 @@ def set_seed(seed):
 def generate_data_frame_chunks(meta, chunk_size):
     n_rows = meta.shape[0]
     chunk_nr = math.ceil(n_rows / chunk_size)
-    meta_chunks = []
     for i in tqdm(range(chunk_nr)):
         meta_chunk = meta.iloc[i * chunk_size:(i + 1) * chunk_size]
         yield meta_chunk

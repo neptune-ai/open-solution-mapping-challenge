@@ -1,6 +1,6 @@
 import numpy as np
-from sklearn.externals import joblib
 from gensim.models import KeyedVectors
+from sklearn.externals import joblib
 
 from ..base import BaseTransformer
 

@@ -1,15 +1,13 @@
-import glob
 import os
 
 import numpy as np
-import scipy.ndimage as ndi
 import torch
-from PIL import Image
 from imageio import imwrite
+from pycocotools import mask as cocomask
+from pycocotools.coco import COCO
 from skimage.transform import resize
 from tqdm import tqdm
-from pycocotools.coco import COCO
-from pycocotools import mask as cocomask
+
 from utils import get_logger
 
 logger = get_logger()

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import ndimage as ndi
-from tqdm import tqdm
 from skimage.transform import resize
+from tqdm import tqdm
 
 from steps.base import BaseTransformer
 from utils import categorize_image

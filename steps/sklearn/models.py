@@ -1,12 +1,12 @@
-from attrdict import AttrDict
+import lightgbm as lgb
 import numpy as np
 import sklearn.linear_model as lr
-from sklearn import svm
-from sklearn import ensemble
-from sklearn.externals import joblib
+from attrdict import AttrDict
 from catboost import CatBoostClassifier
+from sklearn import ensemble
+from sklearn import svm
+from sklearn.externals import joblib
 from xgboost import XGBClassifier
-import lightgbm as lgb
 
 from steps.base import BaseTransformer
 from steps.utils import get_logger

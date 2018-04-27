@@ -1,5 +1,5 @@
-from attrdict import AttrDict
 import lightgbm as lgb
+from attrdict import AttrDict
 from sklearn.externals import joblib
 
 from steps.base import BaseTransformer
