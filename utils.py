@@ -115,6 +115,7 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
     else:
         return annotations
 
+
 def rle_from_binary(prediction):
     prediction = np.asfortranarray(prediction)
     return cocomask.encode(prediction)
@@ -140,8 +141,11 @@ def generate_metadata(data_dir,
                       process_test_data=True,
                       public_paths=False,
                       competition_stage=1):
+    if competition_stage != 1:
+        raise NotImplementedError('only stage_1 is supported for now')
+
     def _generate_metadata(dataset):
-        assert dataset in ["train", "test", "val"], "Uknown dataset!"
+        assert dataset in ["train", "test", "val"], "Unknown dataset!"
         df_metadata = pd.DataFrame(columns=['ImageId', 'file_path_image', 'file_path_mask',
                                             'is_train', 'is_valid', 'is_test', 'n_buildings'])
 

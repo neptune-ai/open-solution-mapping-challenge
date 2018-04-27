@@ -5,11 +5,10 @@ from multiprocessing import set_start_method
 set_start_method('spawn')
 
 import click
-import glob
 import pandas as pd
 from deepsense import neptune
 
-from pipeline_config import SOLUTION_CONFIG, SIZE_COLUMNS, Y_COLUMNS_SCORING
+from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING
 from pipelines import PIPELINES
 from preparation import overlay_masks
 from utils import init_logger, read_params, create_submission, generate_metadata, set_seed, \
@@ -44,7 +43,7 @@ def prepare_metadata(train_data, validation_data, test_data, public_paths):
                              process_test_data=test_data,
                              public_paths=public_paths)
 
-    metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadataTMP.csv').format(params.competition_stage)
+    metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadata.csv').format(params.competition_stage)
     logger.info('saving metadata to {}'.format(metadata_filepath))
     meta.to_csv(metadata_filepath, index=None)
 
@@ -62,12 +61,12 @@ def prepare_masks():
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def train_pipeline(pipeline_name, dev_mode):
+def train(pipeline_name, dev_mode):
     logger.info('training')
-    _train_pipeline(pipeline_name, dev_mode)
+    _train(pipeline_name, dev_mode)
 
 
-def _train_pipeline(pipeline_name, dev_mode):
+def _train(pipeline_name, dev_mode):
     if bool(params.overwrite) and os.path.isdir(params.experiment_dir):
         shutil.rmtree(params.experiment_dir)
 
@@ -96,12 +95,12 @@ def _train_pipeline(pipeline_name, dev_mode):
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def evaluate_pipeline(pipeline_name, dev_mode):
+def evaluate(pipeline_name, dev_mode):
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode)
 
 
-def _evaluate_pipeline(pipeline_name, dev_mode):
+def _evaluate(pipeline_name, dev_mode):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_valid = meta[meta['is_valid'] == 1]
 
@@ -136,15 +135,15 @@ def _evaluate_pipeline(pipeline_name, dev_mode):
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
 @click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
               required=False)
-def predict_pipeline(pipeline_name, dev_mode, chunk_size):
+def predict(pipeline_name, dev_mode, chunk_size):
     logger.info('predicting')
     if chunk_size is not None:
         _predict_in_chunks_pipeline(pipeline_name, dev_mode, chunk_size)
     else:
-        _predict_pipeline(pipeline_name, dev_mode)
+        _predict(pipeline_name, dev_mode)
 
 
-def _predict_pipeline(pipeline_name, dev_mode):
+def _predict(pipeline_name, dev_mode):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_test = meta[meta['is_test'] == 1]
 
@@ -200,7 +199,7 @@ def _predict_in_chunks_pipeline(pipeline_name, dev_mode, chunk_size):
         submission_chunk = create_submission(meta_chunk, y_pred, logger)
         submission_chunks.extend(submission_chunk)
 
-    submission_filepath = os.path.join(params.experiment_dir, 'submission.csv')
+    submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
     submission = submission_chunks
     with open(submission_filepath, "w") as fp:
         fp.write(json.dumps(submission))
@@ -211,33 +210,33 @@ def _predict_in_chunks_pipeline(pipeline_name, dev_mode, chunk_size):
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def train_evaluate_predict_pipeline(pipeline_name, dev_mode):
+def train_evaluate_predict(pipeline_name, dev_mode):
     logger.info('training')
-    _train_pipeline(pipeline_name, dev_mode)
+    _train(pipeline_name, dev_mode)
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode)
     logger.info('predicting')
-    _predict_pipeline(pipeline_name, dev_mode)
+    _predict(pipeline_name, dev_mode)
 
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def train_evaluate_pipeline(pipeline_name, dev_mode):
+def train_evaluate(pipeline_name, dev_mode):
     logger.info('training')
-    _train_pipeline(pipeline_name, dev_mode)
+    _train(pipeline_name, dev_mode)
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode)
 
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def evaluate_predict_pipeline(pipeline_name, dev_mode):
+def evaluate_predict(pipeline_name, dev_mode):
     logger.info('evaluating')
-    _evaluate_pipeline(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode)
     logger.info('predicting')
-    _predict_pipeline(pipeline_name, dev_mode)
+    _predict(pipeline_name, dev_mode)
 
 
 if __name__ == "__main__":
