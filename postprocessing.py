@@ -21,7 +21,7 @@ class Resizer(BaseTransformer):
         resized_images = []
         for image, target_size in tqdm(zip(images, target_sizes)):
             n_channels = image.shape[0]
-            resized_image = resize(image, [n_channels, ] + target_size, mode='constant')
+            resized_image = resize(image, (n_channels, ) + target_size, mode='constant')
             resized_images.append(resized_image)
         return {'resized_images': resized_images}
 
