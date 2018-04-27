@@ -184,14 +184,14 @@ def mask_postprocessing(model, config, save_output=False):
                                 },
                        cache_dirpath=config.env.cache_dirpath,
                        save_output=save_output)
-    category_assign = Step(name='category_assign',
+    category_mapper = Step(name='category_mapper',
                            transformer=CategoryMapper(),
                            input_steps=[mask_resize],
                            adapter={'images': ([('mask_resize', 'resized_images')]),
                                     },
                            cache_dirpath=config.env.cache_dirpath,
                            save_output=save_output)
-    return category_assign
+    return category_mapper
 
 
 PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
