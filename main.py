@@ -254,6 +254,7 @@ def evaluate_predict_pipeline(pipeline_name, submit_predictions, dev_mode):
 def submit_predictions():
     _submit_predictions()
 
+
 def _submit_predictions():
     api_key = params.api_key
 

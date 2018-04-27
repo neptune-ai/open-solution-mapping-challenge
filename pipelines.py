@@ -2,7 +2,7 @@ from functools import partial
 
 import loaders
 from models import PyTorchUNet
-from postprocessing import BuildingLabeler, Resizer, CategoryAssigner, MulticlassLabeler
+from postprocessing import BuildingLabeler, Resizer, CategoryMapper, MulticlassLabeler
 from steps.base import Step, Dummy
 from steps.preprocessing import XYSplit
 from utils import squeeze_inputs
@@ -185,12 +185,12 @@ def mask_postprocessing(model, config, save_output=False):
                        cache_dirpath=config.env.cache_dirpath,
                        save_output=save_output)
     category_assign = Step(name='category_assign',
-                             transformer=CategoryAssigner(),
-                             input_steps=[mask_resize],
-                             adapter={'images': ([('mask_resize', 'resized_images')]),
-                                      },
-                             cache_dirpath=config.env.cache_dirpath,
-                             save_output=save_output)
+                           transformer=CategoryMapper(),
+                           input_steps=[mask_resize],
+                           adapter={'images': ([('mask_resize', 'resized_images')]),
+                                    },
+                           cache_dirpath=config.env.cache_dirpath,
+                           save_output=save_output)
     return category_assign
 
 
