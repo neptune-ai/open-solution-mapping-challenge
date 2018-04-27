@@ -21,7 +21,7 @@ def unet(config, train_mode):
                 transformer=PyTorchUNet(**config.unet),
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
-                save_output=True, load_saved_output=True)
+                save_output=save_output, load_saved_output=load_saved_output)
 
     mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
     detached = building_labeler(mask_postprocessed, config, save_output=save_output)
