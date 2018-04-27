@@ -1,15 +1,14 @@
+import json
 import re
 import string
 
-import json
+import nltk
 import numpy as np
 import pandas as pd
-
-from sklearn.externals import joblib
-import nltk
-from nltk.tokenize import TweetTokenizer
-from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.corpus import stopwords
+from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.tokenize import TweetTokenizer
+from sklearn.externals import joblib
 
 from steps.base import BaseTransformer
 

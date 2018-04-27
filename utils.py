@@ -1,10 +1,10 @@
-import glob
+import json
 import logging
+import math
 import os
 import random
 import sys
 from itertools import product
-import math
 
 import numpy as np
 import pandas as pd
@@ -12,11 +12,9 @@ import torch
 import yaml
 from PIL import Image
 from attrdict import AttrDict
-from tqdm import tqdm
-import json
-from pycocotools.coco import COCO
 from pycocotools import mask as cocomask
-from itertools import groupby
+from pycocotools.coco import COCO
+from tqdm import tqdm
 
 
 def read_yaml(filepath):
@@ -68,7 +66,6 @@ def get_logger():
 
 def decompose(labeled):
     nr_true = labeled.max()
-    print("Number of instances: {}".format(nr_true))
     masks = []
     for i in range(1, min(nr_true + 1, 20)):
         msk = labeled.copy()
@@ -82,7 +79,7 @@ def decompose(labeled):
         return masks
 
 
-def create_submission(meta, predictions, logger, save=False, experiment_dir='./'):
+def create_submission(meta, predictions, logger, category_ids, save=False, experiment_dir='./'):
     '''
     :param meta: pd.DataFrame with metadata
     :param predictions: list of labeled masks or numpy array of size [n_images, im_height, im_width]
@@ -95,16 +92,18 @@ def create_submission(meta, predictions, logger, save=False, experiment_dir='./'
     logger.info('Creating submission')
     for image_id, prediction in zip(meta["ImageId"].values, predictions):
         score = 1.0
-        masks = decompose(prediction)
-        for mask_nr, mask in enumerate(masks):
-            annotation = {}
-            annotation["image_id"] = int(image_id)
-            annotation["category_id"] = 100
-            annotation["score"] = score
-            annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
-            annotation['segmentation']['counts'] = annotation['segmentation']['counts'].decode("UTF-8")
-            annotation["bbox"] = bounding_box_from_rle(rle_from_binary(mask.astype('uint8')))
-            annotations.append(annotation)
+        for category_nr, category_instances in enumerate(prediction):
+            if category_ids[category_nr] != None:
+                masks = decompose(category_instances)
+                for mask_nr, mask in enumerate(masks):
+                    annotation = {}
+                    annotation["image_id"] = int(image_id)
+                    annotation["category_id"] = category_ids[category_nr]
+                    annotation["score"] = score
+                    annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
+                    annotation['segmentation']['counts'] = annotation['segmentation']['counts'].decode("UTF-8")
+                    annotation["bbox"] = bounding_box_from_rle(rle_from_binary(mask.astype('uint8')))
+                    annotations.append(annotation)
     if save:
         submission_filepath = os.path.join(experiment_dir, 'submission.json')
         with open(submission_filepath, "w") as fp:
@@ -322,7 +321,6 @@ def set_seed(seed):
 def generate_data_frame_chunks(meta, chunk_size):
     n_rows = meta.shape[0]
     chunk_nr = math.ceil(n_rows / chunk_size)
-    meta_chunks = []
     for i in tqdm(range(chunk_nr)):
         meta_chunk = meta.iloc[i * chunk_size:(i + 1) * chunk_size]
         yield meta_chunk

@@ -8,7 +8,6 @@ import torchvision.transforms as transforms
 from PIL import Image
 from attrdict import AttrDict
 from skimage.transform import resize
-from sklearn.externals import joblib
 from torch.utils.data import Dataset, DataLoader
 
 from augmentation import affine_seq, color_seq, patching_seq

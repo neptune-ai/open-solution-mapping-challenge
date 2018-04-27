@@ -1,5 +1,6 @@
-import torch.nn as nn
 import math
+
+import torch.nn as nn
 
 
 class Reshape(nn.Module):
