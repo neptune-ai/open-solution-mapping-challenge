@@ -26,7 +26,7 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, is_small=False):
     image_ids = coco.getImgIds()
     for image_id in tqdm(image_ids):
         image = coco.loadImgs(image_id)[0]
-        image_size = [image["height"], image["width"]]
+        image_size = (image["height"], image["width"])
         mask_overlayed = np.zeros(image_size).astype('uint8')
         for category_nr, category_id in enumerate(category_ids):
             if category_id != None:
