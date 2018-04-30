@@ -89,6 +89,7 @@ def create_submission(meta, predictions, logger, category_ids, save=False, exper
     :return: submission if save==False else True
     '''
     annotations = []
+    annotations_counter = 1
     logger.info('Creating submission')
     for image_id, prediction in zip(meta["ImageId"].values, predictions):
         score = 1.0
@@ -97,6 +98,7 @@ def create_submission(meta, predictions, logger, category_ids, save=False, exper
                 masks = decompose(category_instances)
                 for mask_nr, mask in enumerate(masks):
                     annotation = {}
+                    annotation["id"] = annotations_counter
                     annotation["image_id"] = int(image_id)
                     annotation["category_id"] = category_ids[category_nr]
                     annotation["score"] = score
@@ -104,6 +106,7 @@ def create_submission(meta, predictions, logger, category_ids, save=False, exper
                     annotation['segmentation']['counts'] = annotation['segmentation']['counts'].decode("UTF-8")
                     annotation["bbox"] = bounding_box_from_rle(rle_from_binary(mask.astype('uint8')))
                     annotations.append(annotation)
+                    annotations_counter += 1
     if save:
         submission_filepath = os.path.join(experiment_dir, 'submission.json')
         with open(submission_filepath, "w") as fp:

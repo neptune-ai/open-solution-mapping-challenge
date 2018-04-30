@@ -79,7 +79,7 @@ def _train(pipeline_name, dev_mode):
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
-        meta_train = meta_train.sample(20, random_state=1234)
+        meta_train = meta_train.sample(30, random_state=1234)
         meta_valid = meta_valid.sample(10, random_state=1234)
 
     data = {'input': {'meta': meta_train,
@@ -167,14 +167,16 @@ def _evaluate_in_chunks(pipeline_name, dev_mode, chunk_size):
 
     submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
     submission = submission_chunks
+
     with open(submission_filepath, "w") as fp:
         fp.write(json.dumps(submission))
 
     annotation_file_name = "annotation.json"
     annotation_file_path = os.path.join(params.data_dir, "val", annotation_file_name)
 
+
     coco = COCO(annotation_file_path)
-    coco_results = COCO(submission_filepath)
+    coco_results = coco.loadRes(submission_filepath)
     coco_image_ids = meta_valid[Y_COLUMNS_SCORING].values
 
     # Evaluate
@@ -239,7 +241,7 @@ def _predict(pipeline_name, dev_mode, submit_predictions):
         _make_submission(submission_filepath)
 
 
-def _predict_in_chunks(pipeline_name, submit_predictions, dev_mode, chunk_size):
+def _predict_in_chunks(pipeline_name, dev_mode, submit_predictions, chunk_size):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_test = meta[meta['is_test'] == 1]
 
