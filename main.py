@@ -8,6 +8,7 @@ import click
 import pandas as pd
 from deepsense import neptune
 import crowdai
+from pycocotools.coco import COCO
 
 from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS
 from pipelines import PIPELINES
@@ -15,6 +16,7 @@ from preparation import overlay_masks
 from utils import init_logger, read_params, create_submission, generate_metadata, set_seed, \
     generate_data_frame_chunks, read_masks
 from metrics import mean_precision_and_recall
+from cocoeval import COCOeval
 import json
 
 logger = init_logger()
@@ -96,9 +98,14 @@ def _train(pipeline_name, dev_mode):
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def evaluate(pipeline_name, dev_mode):
+@click.option('-c', '--chunk_size', help='size of the chunks to run evaluation on', type=int, default=None,
+              required=False)
+def evaluate(pipeline_name, dev_mode, chunk_size):
     logger.info('evaluating')
-    _evaluate(pipeline_name, dev_mode)
+    if chunk_size is not None:
+        _evaluate_in_chunks(pipeline_name, dev_mode, chunk_size)
+    else:
+        _evaluate(pipeline_name, dev_mode)
 
 
 def _evaluate(pipeline_name, dev_mode):
@@ -129,6 +136,61 @@ def _evaluate(pipeline_name, dev_mode):
     logger.info('Mean recall on validation is {}'.format(recall))
     ctx.channel_send('Precision', 0, precision)
     ctx.channel_send('Recall', 0, recall)
+
+
+def _evaluate_in_chunks(pipeline_name, dev_mode, chunk_size):
+    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
+    meta_valid = meta[meta['is_valid'] == 1]
+
+    if dev_mode:
+        meta_valid = meta_valid.sample(30, random_state=1234)
+
+    logger.info('processing metadata of shape {}'.format(meta_valid.shape))
+
+    submission_chunks = []
+    for meta_chunk in generate_data_frame_chunks(meta_valid, chunk_size):
+        data = {'input': {'meta': meta_chunk,
+                          'meta_valid': None,
+                          'train_mode': False,
+                          'target_sizes': [(300, 300)] * len(meta_chunk)
+                          },
+                }
+
+        pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
+        pipeline.clean_cache()
+        output = pipeline.transform(data)
+        pipeline.clean_cache()
+        y_pred = output['y_pred']
+
+        submission_chunk = create_submission(meta_chunk, y_pred, logger, CATEGORY_IDS)
+        submission_chunks.extend(submission_chunk)
+
+    submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
+    submission = submission_chunks
+    with open(submission_filepath, "w") as fp:
+        fp.write(json.dumps(submission))
+
+    annotation_file_name = "annotation.json"
+    annotation_file_path = os.path.join(params.data_dir, "val", annotation_file_name)
+
+    coco = COCO(annotation_file_path)
+    coco_results = COCO(submission_filepath)
+    coco_image_ids = meta_valid[Y_COLUMNS_SCORING].values
+
+    # Evaluate
+    logger.info('Calculating mean precision and recall')
+    cocoEval = COCOeval(coco, coco_results)
+    cocoEval.params.imgIds = coco_image_ids
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+
+    ap = cocoEval._summarize(ap=1, iouThr=0.5, areaRng="all", maxDets=100)
+    ar = cocoEval._summarize(ap=0, areaRng="all", maxDets=100)
+
+    logger.info('Mean precision on validation is {}'.format(ap))
+    logger.info('Mean recall on validation is {}'.format(ar))
+    ctx.channel_send('Precision', 0, ap)
+    ctx.channel_send('Recall', 0, ar)
 
 
 @action.command()
