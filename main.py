@@ -168,7 +168,7 @@ def _evaluate_in_chunks(pipeline_name, dev_mode, chunk_size):
 
     submission = submission_chunks
 
-    with tempfile.NamedTemporaryFile() as fp:
+    with tempfile.NamedTemporaryFile(mode='w') as fp:
         fp.write(json.dumps(submission))
 
         annotation_file_name = "annotation.json"
