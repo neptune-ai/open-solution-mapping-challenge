@@ -74,7 +74,7 @@ def _train(pipeline_name, dev_mode):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)),
                        low_memory=False)
     meta_train = meta[meta['is_train'] == 1]
-    meta_valid = meta[meta['is_train'] == 1]
+    meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
         meta_train = meta_train.sample(20, random_state=1234)
