@@ -77,8 +77,8 @@ def _train(pipeline_name, dev_mode):
     meta_valid = meta[meta['is_train'] == 1]
 
     if dev_mode:
-        meta_train = meta_train.sample(40, random_state=1234)
-        meta_valid = meta_valid.sample(40, random_state=1234)
+        meta_train = meta_train.sample(20, random_state=1234)
+        meta_valid = meta_valid.sample(10, random_state=1234)
 
     data = {'input': {'meta': meta_train,
                       'meta_valid': meta_valid,
@@ -111,7 +111,7 @@ def _evaluate(pipeline_name, dev_mode):
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
-        meta_valid = meta_valid.sample(40, random_state=1234)
+        meta_valid = meta_valid.sample(30, random_state=1234)
 
     data = {'input': {'meta': meta_valid,
                       'meta_valid': None,
@@ -138,7 +138,7 @@ def _evaluate(pipeline_name, dev_mode):
 
 def _evaluate_in_chunks(pipeline_name, dev_mode, chunk_size):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
-    meta_valid = meta[meta['is_train'] == 1]
+    meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
         meta_valid = meta_valid.sample(30, random_state=1234)
@@ -166,7 +166,7 @@ def _evaluate_in_chunks(pipeline_name, dev_mode, chunk_size):
 
     logger.info('Calculating mean precision and recall')
     ap, ar = coco_evaluation(evaluation_chunks, image_ids=meta_valid[Y_COLUMNS_SCORING].values,
-                             data_dir=params.data_dir, dataset='train')
+                             data_dir=params.data_dir, dataset='val')
     logger.info('Mean precision on validation is {}'.format(ap))
     logger.info('Mean recall on validation is {}'.format(ar))
     ctx.channel_send('Precision', 0, ap)
