@@ -18,6 +18,7 @@ from utils import init_logger, read_params, create_submission, generate_metadata
 from metrics import mean_precision_and_recall
 from cocoeval import COCOeval
 import json
+import tempfile
 
 logger = init_logger()
 ctx = neptune.Context()
@@ -165,34 +166,32 @@ def _evaluate_in_chunks(pipeline_name, dev_mode, chunk_size):
         submission_chunk = create_submission(meta_chunk, y_pred, logger, CATEGORY_IDS)
         submission_chunks.extend(submission_chunk)
 
-    submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
     submission = submission_chunks
 
-    with open(submission_filepath, "w") as fp:
+    with tempfile.NamedTemporaryFile() as fp:
         fp.write(json.dumps(submission))
 
-    annotation_file_name = "annotation.json"
-    annotation_file_path = os.path.join(params.data_dir, "val", annotation_file_name)
+        annotation_file_name = "annotation.json"
+        annotation_file_path = os.path.join(params.data_dir, "val", annotation_file_name)
 
+        coco = COCO(annotation_file_path)
+        coco_results = coco.loadRes(fp.name)
+        coco_image_ids = meta_valid[Y_COLUMNS_SCORING].values
 
-    coco = COCO(annotation_file_path)
-    coco_results = coco.loadRes(submission_filepath)
-    coco_image_ids = meta_valid[Y_COLUMNS_SCORING].values
+        # Evaluate
+        logger.info('Calculating mean precision and recall')
+        cocoEval = COCOeval(coco, coco_results)
+        cocoEval.params.imgIds = coco_image_ids
+        cocoEval.evaluate()
+        cocoEval.accumulate()
 
-    # Evaluate
-    logger.info('Calculating mean precision and recall')
-    cocoEval = COCOeval(coco, coco_results)
-    cocoEval.params.imgIds = coco_image_ids
-    cocoEval.evaluate()
-    cocoEval.accumulate()
+        ap = cocoEval._summarize(ap=1, iouThr=0.5, areaRng="all", maxDets=100)
+        ar = cocoEval._summarize(ap=0, areaRng="all", maxDets=100)
 
-    ap = cocoEval._summarize(ap=1, iouThr=0.5, areaRng="all", maxDets=100)
-    ar = cocoEval._summarize(ap=0, areaRng="all", maxDets=100)
-
-    logger.info('Mean precision on validation is {}'.format(ap))
-    logger.info('Mean recall on validation is {}'.format(ar))
-    ctx.channel_send('Precision', 0, ap)
-    ctx.channel_send('Recall', 0, ar)
+        logger.info('Mean precision on validation is {}'.format(ap))
+        logger.info('Mean recall on validation is {}'.format(ar))
+        ctx.channel_send('Precision', 0, ap)
+        ctx.channel_send('Recall', 0, ar)
 
 
 @action.command()
