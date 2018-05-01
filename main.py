@@ -8,17 +8,14 @@ import click
 import pandas as pd
 from deepsense import neptune
 import crowdai
-from pycocotools.coco import COCO
 
 from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS
 from pipelines import PIPELINES
 from preparation import overlay_masks
 from utils import init_logger, read_params, create_submission, generate_metadata, set_seed, \
-    generate_data_frame_chunks, read_masks
+    generate_data_frame_chunks, read_masks, coco_evaluation
 from metrics import mean_precision_and_recall
-from cocoeval import COCOeval
 import json
-import tempfile
 
 logger = init_logger()
 ctx = neptune.Context()
@@ -148,7 +145,7 @@ def _evaluate_in_chunks(pipeline_name, dev_mode, chunk_size):
 
     logger.info('processing metadata of shape {}'.format(meta_valid.shape))
 
-    submission_chunks = []
+    evaluation_chunks = []
     for meta_chunk in generate_data_frame_chunks(meta_valid, chunk_size):
         data = {'input': {'meta': meta_chunk,
                           'meta_valid': None,
@@ -163,35 +160,17 @@ def _evaluate_in_chunks(pipeline_name, dev_mode, chunk_size):
         pipeline.clean_cache()
         y_pred = output['y_pred']
 
-        submission_chunk = create_submission(meta_chunk, y_pred, logger, CATEGORY_IDS)
-        submission_chunks.extend(submission_chunk)
+        evaluation_chunk = create_submission(meta_chunk, y_pred, logger, CATEGORY_IDS)
+        evaluation_chunks.extend(evaluation_chunk)
 
-    submission = submission_chunks
 
-    with tempfile.NamedTemporaryFile(mode='w') as fp:
-        fp.write(json.dumps(submission))
-
-        annotation_file_name = "annotation.json"
-        annotation_file_path = os.path.join(params.data_dir, "val", annotation_file_name)
-
-        coco = COCO(annotation_file_path)
-        coco_results = coco.loadRes(fp.name)
-        coco_image_ids = meta_valid[Y_COLUMNS_SCORING].values
-
-        # Evaluate
-        logger.info('Calculating mean precision and recall')
-        cocoEval = COCOeval(coco, coco_results)
-        cocoEval.params.imgIds = coco_image_ids
-        cocoEval.evaluate()
-        cocoEval.accumulate()
-
-        ap = cocoEval._summarize(ap=1, iouThr=0.5, areaRng="all", maxDets=100)
-        ar = cocoEval._summarize(ap=0, areaRng="all", maxDets=100)
-
-        logger.info('Mean precision on validation is {}'.format(ap))
-        logger.info('Mean recall on validation is {}'.format(ar))
-        ctx.channel_send('Precision', 0, ap)
-        ctx.channel_send('Recall', 0, ar)
+    logger.info('Calculating mean precision and recall')
+    ap, ar = coco_evaluation(evaluation_chunks, image_ids=meta_valid[Y_COLUMNS_SCORING].values,
+                             data_dir=params.data_dir, dataset='val')
+    logger.info('Mean precision on validation is {}'.format(ap))
+    logger.info('Mean recall on validation is {}'.format(ar))
+    ctx.channel_send('Precision', 0, ap)
+    ctx.channel_send('Recall', 0, ar)
 
 
 @action.command()

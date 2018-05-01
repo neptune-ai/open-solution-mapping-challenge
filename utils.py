@@ -14,7 +14,9 @@ from PIL import Image
 from attrdict import AttrDict
 from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
+from cocoeval import COCOeval
 from tqdm import tqdm
+import tempfile
 
 
 def read_yaml(filepath):
@@ -331,3 +333,23 @@ def generate_data_frame_chunks(meta, chunk_size):
 
 def categorize_image(image, channel_axis=0):
     return np.argmax(image, axis=channel_axis)
+
+def coco_evaluation(output, image_ids, data_dir, dataset):
+    annotation_file_name = "annotation.json"
+    annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
+    coco = COCO(annotation_file_path)
+    coco_image_ids = image_ids
+
+    with tempfile.NamedTemporaryFile(mode='w') as fp:
+        fp.write(json.dumps(output))
+
+        coco_results = coco.loadRes(fp.name)
+        cocoEval = COCOeval(coco, coco_results)
+        cocoEval.params.imgIds = coco_image_ids
+        cocoEval.evaluate()
+        cocoEval.accumulate()
+
+        ap = cocoEval._summarize(ap=1, iouThr=0.5, areaRng="all", maxDets=100)
+        ar = cocoEval._summarize(ap=0, areaRng="all", maxDets=100)
+
+    return ap, ar
