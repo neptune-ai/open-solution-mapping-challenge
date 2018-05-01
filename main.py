@@ -166,7 +166,7 @@ def _evaluate_in_chunks(pipeline_name, dev_mode, chunk_size):
 
     logger.info('Calculating mean precision and recall')
     ap, ar = coco_evaluation(evaluation_chunks, image_ids=meta_valid[Y_COLUMNS_SCORING].values,
-                             data_dir=params.data_dir, dataset='val')
+                             data_dir=params.data_dir, dataset='val', category_ids=CATEGORY_IDS)
     logger.info('Mean precision on validation is {}'.format(ap))
     logger.info('Mean recall on validation is {}'.format(ar))
     ctx.channel_send('Precision', 0, ap)
