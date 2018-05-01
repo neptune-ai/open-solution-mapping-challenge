@@ -346,7 +346,6 @@ def coco_evaluation(output, image_ids, data_dir, dataset, category_ids):
     cocoEval.params.catIds = category_ids
     cocoEval.evaluate()
     cocoEval.accumulate()
+    cocoEval.summarize()
 
-    stats = cocoEval.summarize()
-
-    return stats[1], stats[8]
+    return cocoEval.stats[1], cocoEval.stats[8]
