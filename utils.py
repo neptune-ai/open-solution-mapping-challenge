@@ -339,11 +339,9 @@ def coco_evaluation(output, image_ids, data_dir, dataset):
     annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
 
     coco = COCO(annotation_file_path)
-    coco_image_ids = image_ids
-
     coco_results = coco.loadRes(output)
     cocoEval = COCOeval(coco, coco_results)
-    cocoEval.params.imgIds = coco_image_ids
+    cocoEval.params.imgIds = image_ids
     cocoEval.evaluate()
     cocoEval.accumulate()
 
