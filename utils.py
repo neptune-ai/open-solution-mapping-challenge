@@ -80,7 +80,7 @@ def decompose(labeled):
         return masks
 
 
-def create_submission(meta, predictions, logger, category_ids, save=False, experiment_dir='./'):
+def create_annotations(meta, predictions, logger, category_ids, save=False, experiment_dir='./'):
     '''
     :param meta: pd.DataFrame with metadata
     :param predictions: list of labeled masks or numpy array of size [n_images, im_height, im_width]
@@ -331,12 +331,10 @@ def categorize_image(image, channel_axis=0):
     return np.argmax(image, axis=channel_axis)
 
 
-def coco_evaluation(output, image_ids, data_dir, dataset, category_ids):
-    annotation_file_name = "annotation.json"
-    annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
+def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids):
 
-    coco = COCO(annotation_file_path)
-    coco_results = coco.loadRes(output)
+    coco = COCO(gt_filepath)
+    coco_results = coco.loadRes(prediction_filepath)
     cocoEval = COCOeval(coco, coco_results)
     cocoEval.params.imgIds = image_ids
     cocoEval.params.catIds = category_ids
@@ -345,3 +343,48 @@ def coco_evaluation(output, image_ids, data_dir, dataset, category_ids):
     cocoEval.summarize()
 
     return cocoEval.stats[1], cocoEval.stats[8]
+
+
+def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size):
+    if chunk_size is not None:
+        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size)
+    else:
+        return _generate_prediction(meta_data, pipeline, logger, category_ids)
+
+
+def _generate_prediction(meta_data, pipeline, logger, category_ids):
+    data = {'input': {'meta': meta_data,
+                      'meta_valid': None,
+                      'train_mode': False,
+                      'target_sizes': [(300, 300)] * len(meta_data),
+                      },
+            }
+
+    pipeline.clean_cache()
+    output = pipeline.transform(data)
+    pipeline.clean_cache()
+    y_pred = output['y_pred']
+
+    prediction = create_annotations(meta_data, y_pred, logger, category_ids)
+    return prediction
+
+
+def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size):
+    prediction = []
+    for meta_chunk in generate_data_frame_chunks(meta_data, chunk_size):
+        data = {'input': {'meta': meta_chunk,
+                          'meta_valid': None,
+                          'train_mode': False,
+                          'target_sizes': [(300, 300)] * len(meta_chunk)
+                          },
+                }
+
+        pipeline.clean_cache()
+        output = pipeline.transform(data)
+        pipeline.clean_cache()
+        y_pred = output['y_pred']
+
+        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids)
+        prediction.extend(prediction_chunk)
+
+    return prediction
