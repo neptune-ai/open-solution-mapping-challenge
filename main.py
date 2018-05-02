@@ -12,7 +12,8 @@ import crowdai
 from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS
 from pipelines import PIPELINES
 from preparation import overlay_masks
-from utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, generate_prediction
+from utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
+    create_annotations, generate_data_frame_chunks
 import json
 
 logger = init_logger()
@@ -115,8 +116,7 @@ def _evaluate(pipeline_name, dev_mode, chunk_size):
     with open(prediction_filepath, "w") as fp:
         fp.write(json.dumps(prediction))
 
-    annotation_file_name = "annotation.json"
-    annotation_file_path = os.path.join(params.data_dir, 'val', annotation_file_name)
+    annotation_file_path = os.path.join(params.data_dir, 'val', "annotation.json")
 
     logger.info('Calculating mean precision and recall')
     average_precision, average_recall = coco_evaluation(gt_filepath=annotation_file_path,
@@ -214,5 +214,51 @@ def _make_submission(submission_filepath):
     challenge.submit(submission_filepath)
 
 
+def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size):
+    if chunk_size is not None:
+        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size)
+    else:
+        return _generate_prediction(meta_data, pipeline, logger, category_ids)
+
+
+def _generate_prediction(meta_data, pipeline, logger, category_ids):
+    data = {'input': {'meta': meta_data,
+                      'meta_valid': None,
+                      'train_mode': False,
+                      'target_sizes': [(300, 300)] * len(meta_data),
+                      },
+            }
+
+    pipeline.clean_cache()
+    output = pipeline.transform(data)
+    pipeline.clean_cache()
+    y_pred = output['y_pred']
+
+    prediction = create_annotations(meta_data, y_pred, logger, category_ids)
+    return prediction
+
+
+def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size):
+    prediction = []
+    for meta_chunk in generate_data_frame_chunks(meta_data, chunk_size):
+        data = {'input': {'meta': meta_chunk,
+                          'meta_valid': None,
+                          'train_mode': False,
+                          'target_sizes': [(300, 300)] * len(meta_chunk)
+                          },
+                }
+
+        pipeline.clean_cache()
+        output = pipeline.transform(data)
+        pipeline.clean_cache()
+        y_pred = output['y_pred']
+
+        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids)
+        prediction.extend(prediction_chunk)
+
+    return prediction
+
+
 if __name__ == "__main__":
     action()
+
