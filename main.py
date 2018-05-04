@@ -55,6 +55,7 @@ def prepare_masks():
         overlay_masks(data_dir=params.data_dir,
                       dataset=dataset,
                       target_dir=params.masks_overlayed_dir,
+                      category_ids=CATEGORY_IDS,
                       is_small=False)
 
 
