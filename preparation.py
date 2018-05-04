@@ -23,7 +23,7 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=None, is_sm
     annotation_file_name = "annotation{}.json".format(suffix)
     annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
     coco = COCO(annotation_file_path)
-    image_ids = coco.getImgIds()[:10]#test
+    image_ids = coco.getImgIds()
     for image_id in tqdm(image_ids):
         image = coco.loadImgs(image_id)[0]
         image_size = (image["height"], image["width"])

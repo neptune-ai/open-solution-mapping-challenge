@@ -136,6 +136,7 @@ def read_params(ctx):
 
 def generate_metadata(data_dir,
                       masks_overlayed_dir,
+                      masks_overlayed_eroded_dir,
                       process_train_data=True,
                       process_validation_data=True,
                       process_test_data=True,
@@ -146,7 +147,7 @@ def generate_metadata(data_dir,
 
     def _generate_metadata(dataset):
         assert dataset in ["train", "test", "val"], "Unknown dataset!"
-        df_metadata = pd.DataFrame(columns=['ImageId', 'file_path_image', 'file_path_mask',
+        df_metadata = pd.DataFrame(columns=['ImageId', 'file_path_image', 'file_path_mask', 'file_path_mask_eroded'
                                             'is_train', 'is_valid', 'is_test', 'n_buildings'])
 
         if dataset == "test":
@@ -160,10 +161,14 @@ def generate_metadata(data_dir,
 
         if public_paths:
             images_path_to_write = os.path.join(public_path, dataset)
-            masks_overlayed_dir_to_write = os.path.join(public_path, "masks_overlayed")
+            mask_overlayed_suffix = os.path.join(masks_overlayed_dir, "")
+            masks_overlayed_dir_to_write = os.path.join(public_path, mask_overlayed_suffix.split("/")[-2])
+            mask_overlayed_eroded_suffix = os.path.join(masks_overlayed_eroded_dir, "")
+            masks_overlayed_eroded_dir_to_write = os.path.join(public_path, mask_overlayed_eroded_suffix.split("/")[:-2])
         else:
             images_path_to_write = images_path
             masks_overlayed_dir_to_write = masks_overlayed_dir
+            masks_overlayed_eroded_dir_to_write = masks_overlayed_eroded_dir
 
         for image_file_name in sorted(os.listdir(images_path)):
             file_path_image = os.path.join(images_path_to_write, image_file_name)
@@ -175,11 +180,14 @@ def generate_metadata(data_dir,
 
             if dataset == "test_images":
                 file_path_mask = None
+                file_path_mask_eroded = None
                 n_buildings = None
                 is_test = 1
             else:
                 file_path_mask = os.path.join(masks_overlayed_dir_to_write, dataset, "masks",
                                               image_file_name[:-4] + ".png")
+                file_path_mask_eroded = os.path.join(masks_overlayed_eroded_dir_to_write, dataset, "masks",
+                                                     image_file_name[:-4] + ".png")
                 n_buildings = None
                 if dataset == "val":
                     is_valid = 1
@@ -189,6 +197,7 @@ def generate_metadata(data_dir,
             df_metadata = df_metadata.append({'ImageId': image_id,
                                               'file_path_image': file_path_image,
                                               'file_path_mask': file_path_mask,
+                                              'file_path_mask_eroded': file_path_mask_eroded,
                                               'is_train': is_train,
                                               'is_valid': is_valid,
                                               'is_test': is_test,

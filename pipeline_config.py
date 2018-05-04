@@ -95,5 +95,5 @@ SOLUTION_CONFIG = AttrDict({
         },
     },
     'dropper': {'min_size': params.min_nuclei_size},
-    'postprocessor': {}
+    'postprocessor': {'dilate_selem_size': params.dilate_selem_size}
 })

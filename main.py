@@ -37,6 +37,7 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
     logger.info('creating metadata')
     meta = generate_metadata(data_dir=params.data_dir,
                              masks_overlayed_dir=params.masks_overlayed_dir,
+                             masks_overlayed_eroded_dir=params.masks_overlayed_eroded_dir,
                              competition_stage=params.competition_stage,
                              process_train_data=train_data,
                              process_validation_data=valid_data,
@@ -49,16 +50,19 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 
 
 @action.command()
-@click.option('-e', '--erode', help='size of structure element for mask erosion', required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def prepare_masks(erode, dev_mode):
-    if erode is not None:
-        erode = int(erode)
+def prepare_masks(dev_mode):
+    if params.erode_selem_size > 0:
+        erode = params.erode_selem_size
+        data_dir = params.masks_overlayed_eroded_dir
+    else:
+        erode = None
+        data_dir = params.masks_overlayed_dir
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
         overlay_masks(data_dir=params.data_dir,
                       dataset=dataset,
-                      target_dir=params.masks_overlayed_dir,
+                      target_dir=data_dir,
                       category_ids=CATEGORY_IDS,
                       erode=erode,
                       is_small=dev_mode)

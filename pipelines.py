@@ -2,7 +2,7 @@ from functools import partial
 
 import loaders
 from models import PyTorchUNet
-from postprocessing import BuildingLabeler, Resizer, CategoryMapper, MulticlassLabeler
+from postprocessing import BuildingLabeler, Resizer, CategoryMapper, MulticlassLabeler, MaskDilator
 from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
@@ -24,6 +24,15 @@ def unet(config, train_mode):
                 save_output=save_output, load_saved_output=load_saved_output)
 
     mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
+    if config.postprocessor["dilate_selem_size"] > 0:
+        mask_postprocessed = Step(name='mask_dilation',
+                                  transformer=MaskDilator(**config.postprocessor),
+                                  input_steps=[mask_postprocessed],
+                                  adapter={'images': ([(mask_postprocessed.name, 'categorized_images')]),
+                                           },
+                                  cache_dirpath=config.env.cache_dirpath,
+                                  save_output=save_output,
+                                  load_saved_output=False)
     detached = multiclass_object_labeler(mask_postprocessed, config, save_output=save_output)
     output = Step(name='output',
                   transformer=Dummy(),
