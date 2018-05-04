@@ -49,14 +49,19 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 
 
 @action.command()
-def prepare_masks():
+@click.option('-e', '--erode', help='size of structure element for mask erosion', required=False)
+@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
+def prepare_masks(erode, dev_mode):
+    if erode is not None:
+        erode = int(erode)
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
         overlay_masks(data_dir=params.data_dir,
                       dataset=dataset,
                       target_dir=params.masks_overlayed_dir,
                       category_ids=CATEGORY_IDS,
-                      is_small=False)
+                      erode=erode,
+                      is_small=dev_mode)
 
 
 @action.command()

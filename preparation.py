@@ -15,7 +15,7 @@ from postprocessing import label
 logger = get_logger()
 
 
-def overlay_masks(data_dir, dataset, target_dir, category_ids, eroded=False, is_small=False):
+def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=None, is_small=False):
     if is_small:
         suffix = "-small"
     else:
@@ -23,7 +23,7 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, eroded=False, is_
     annotation_file_name = "annotation{}.json".format(suffix)
     annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
     coco = COCO(annotation_file_path)
-    image_ids = coco.getImgIds()
+    image_ids = coco.getImgIds()[:10]#test
     for image_id in tqdm(image_ids):
         image = coco.loadImgs(image_id)[0]
         image_size = (image["height"], image["width"])
@@ -33,10 +33,10 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, eroded=False, is_
                 annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=[category_id, ])
                 annotations = coco.loadAnns(annotation_ids)
                 mask = overlay_masks_from_annotations(annotations, image_size)
-                mask_overlayed = np.where(mask, category_nr, mask_overlayed)
-                if eroded:
-                    mask_e = overlay_eroded_masks_from_annotations(annotations, image_size)
+                if erode is not None:
+                    mask_e = overlay_eroded_masks_from_annotations(annotations, image_size, erode)
                     mask = add_dropped_objects(mask, mask_e)
+                mask_overlayed = np.where(mask, category_nr, mask_overlayed)
         target_filepath = os.path.join(target_dir, dataset, "masks", image["file_name"][:-4]) + ".png"
         os.makedirs(os.path.dirname(target_filepath), exist_ok=True)
         try:
@@ -55,9 +55,9 @@ def overlay_masks_from_annotations(annotations, image_size):
     return np.where(mask > 0, 1, 0).astype('uint8')
 
 
-def overlay_eroded_masks_from_annotations(annotations, image_size):
+def overlay_eroded_masks_from_annotations(annotations, image_size, selem_size):
     mask = np.zeros(image_size)
-    selem = rectangle(4, 4)
+    selem = rectangle(selem_size, selem_size)
     for ann in annotations:
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
         m = cocomask.decode(rle)
@@ -84,5 +84,5 @@ def add_dropped_objects(original, processed):
     labeled = label(original)
     for i in range(1, labeled.max() + 1):
         if np.sum((original == i) * processed) == 0:
-            reconstructed += (original == i).astype('uint8')
+            reconstructed += (labeled == i).astype('uint8')
     return reconstructed
