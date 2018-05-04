@@ -9,38 +9,42 @@ from utils import categorize_image
 
 class BuildingLabeler(BaseTransformer):
     def transform(self, images):
-        labeled_images = []
+        return {'labeled_images': self._transform(images)}
+
+    def _transform(self, images):
         for i, image in enumerate(images):
             labeled_image = label(image)
-            labeled_images.append(labeled_image)
-        return {'labeled_images': labeled_images}
+            yield labeled_image
 
 
 class MulticlassLabeler(BaseTransformer):
     def transform(self, images):
-        labeled_images = []
+        return {'labeled_images': self._transform(images)}
+
+    def _transform(self, images):
         for i, image in enumerate(images):
             labeled_image = label_multiclass_image(image)
-            labeled_images.append(labeled_image)
-        return {'labeled_images': labeled_images}
+            yield labeled_image
 
 
 class Resizer(BaseTransformer):
     def transform(self, images, target_sizes):
-        resized_images = []
+        return {'resized_images': self._transform(images, target_sizes)}
+
+    def _transform(self, images, target_sizes):
         for image, target_size in tqdm(zip(images, target_sizes)):
             n_channels = image.shape[0]
             resized_image = resize(image, (n_channels,) + target_size, mode='constant')
-            resized_images.append(resized_image)
-        return {'resized_images': resized_images}
+            yield resized_image
 
 
 class CategoryMapper(BaseTransformer):
     def transform(self, images):
-        categorized_images = []
+        return {'categorized_images': self._transform(images)}
+
+    def _transform(self, images):
         for image in tqdm(images):
-            categorized_images.append(categorize_image(image))
-        return {'categorized_images': categorized_images}
+            yield categorize_image(image)
 
 
 def label(mask):
