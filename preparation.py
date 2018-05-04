@@ -7,13 +7,15 @@ from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
 from skimage.transform import resize
 from tqdm import tqdm
+from skimage.morphology import binary_erosion, rectangle
 
 from utils import get_logger
+from postprocessing import label
 
 logger = get_logger()
 
 
-def overlay_masks(data_dir, dataset, target_dir, category_ids, is_small=False):
+def overlay_masks(data_dir, dataset, target_dir, category_ids, eroded=False, is_small=False):
     if is_small:
         suffix = "-small"
     else:
@@ -32,6 +34,9 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, is_small=False):
                 annotations = coco.loadAnns(annotation_ids)
                 mask = overlay_masks_from_annotations(annotations, image_size)
                 mask_overlayed = np.where(mask, category_nr, mask_overlayed)
+                if eroded:
+                    mask_e = overlay_eroded_masks_from_annotations(annotations, image_size)
+                    mask = add_dropped_objects(mask, mask_e)
         target_filepath = os.path.join(target_dir, dataset, "masks", image["file_name"][:-4]) + ".png"
         os.makedirs(os.path.dirname(target_filepath), exist_ok=True)
         try:
@@ -50,6 +55,18 @@ def overlay_masks_from_annotations(annotations, image_size):
     return np.where(mask > 0, 1, 0).astype('uint8')
 
 
+def overlay_eroded_masks_from_annotations(annotations, image_size):
+    mask = np.zeros(image_size)
+    selem = rectangle(4, 4)
+    for ann in annotations:
+        rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
+        m = cocomask.decode(rle)
+        m = m.reshape(image_size)
+        m = binary_erosion(m, selem=selem)
+        mask += m
+    return np.where(mask > 0, 1, 0).astype('uint8')
+
+
 def preprocess_image(img, target_size=(128, 128)):
     img = resize(img, target_size, mode='constant')
     x = np.expand_dims(img, axis=0)
@@ -60,3 +77,12 @@ def preprocess_image(img, target_size=(128, 128)):
     else:
         x = torch.autograd.Variable(x, volatile=True)
     return x
+
+
+def add_dropped_objects(original, processed):
+    reconstructed = processed
+    labeled = label(original)
+    for i in range(1, labeled.max() + 1):
+        if np.sum((original == i) * processed) == 0:
+            reconstructed += (original == i).astype('uint8')
+    return reconstructed
