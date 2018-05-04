@@ -225,6 +225,7 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
                                                    ])
         self.mask_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
                                                                      self.dataset_params.w)),
+                                                  transforms.Lambda(to_monochrome),
                                                   transforms.Lambda(to_tensor),
                                                   ])
         self.image_augment_with_target = ImgAug(affine_seq)
@@ -423,6 +424,12 @@ def binarize(x):
     x_ = x.convert('L')  # convert image to monochrome
     x_ = np.array(x_)
     x_ = (x_ > 125).astype(np.float32)
+    return x_
+
+
+def to_monochrome(x):
+    x_ = x.convert('L')
+    x_ = np.array(x_).astype(np.float32)  # convert image to monochrome
     return x_
 
 
