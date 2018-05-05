@@ -43,6 +43,46 @@ class CategoryMapper(BaseTransformer):
         return {'categorized_images': categorized_images}
 
 
+class BuildingLabelerStream(BaseTransformer):
+    def transform(self, images):
+        return {'labeled_images': self._transform(images)}
+
+    def _transform(self, images):
+        for i, image in enumerate(images):
+            labeled_image = label(image)
+            yield labeled_image
+
+
+class MulticlassLabelerStream(BaseTransformer):
+    def transform(self, images):
+        return {'labeled_images': self._transform(images)}
+
+    def _transform(self, images):
+        for i, image in enumerate(images):
+            labeled_image = label_multiclass_image(image)
+            yield labeled_image
+
+
+class ResizerStream(BaseTransformer):
+    def transform(self, images, target_sizes):
+        return {'resized_images': self._transform(images, target_sizes)}
+
+    def _transform(self, images, target_sizes):
+        for image, target_size in tqdm(zip(images, target_sizes)):
+            n_channels = image.shape[0]
+            resized_image = resize(image, (n_channels,) + target_size, mode='constant')
+            yield resized_image
+
+
+class CategoryMapperStream(BaseTransformer):
+    def transform(self, images):
+        return {'categorized_images': self._transform(images)}
+
+    def _transform(self, images):
+        for image in tqdm(images):
+            yield categorize_image(image)
+
+
 def label(mask):
     labeled, nr_true = ndi.label(mask)
     return labeled

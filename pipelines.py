@@ -1,11 +1,18 @@
 from functools import partial
 
 import loaders
-from models import PyTorchUNet
-from postprocessing import BuildingLabeler, Resizer, CategoryMapper, MulticlassLabeler
 from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
+
+from models import PyTorchUNet
+from postprocessing import BuildingLabeler, Resizer, CategoryMapper, MulticlassLabeler
+
+# Streaming version, only for single output model
+
+# from models import PyTorchUNetStream as PyTorchUNet
+# from postprocessing import BuildingLabelerStream as BuildingLabeler, ResizerStream as Resizer, \
+#     CategoryMapperStream as CategoryMapper, MulticlassLabelerStream as MulticlassLabeler
 
 
 def unet(config, train_mode):
