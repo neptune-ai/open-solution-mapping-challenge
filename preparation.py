@@ -83,7 +83,6 @@ def add_dropped_objects(original, processed):
     reconstructed = processed
     labeled = label(original)
     for i in range(1, labeled.max() + 1):
-        print(i)
         if np.sum((labeled == i) * processed) == 0:
             reconstructed += (labeled == i).astype('uint8')
     return reconstructed
