@@ -147,7 +147,7 @@ def generate_metadata(data_dir,
 
     def _generate_metadata(dataset):
         assert dataset in ["train", "test", "val"], "Unknown dataset!"
-        df_metadata = pd.DataFrame(columns=['ImageId', 'file_path_image', 'file_path_mask', 'file_path_mask_eroded'
+        df_metadata = pd.DataFrame(columns=['ImageId', 'file_path_image', 'file_path_mask', 'file_path_mask_eroded',
                                             'is_train', 'is_valid', 'is_test', 'n_buildings'])
 
         if dataset == "test":
