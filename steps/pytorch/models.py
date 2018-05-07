@@ -151,7 +151,10 @@ class Model(BaseTransformer):
         if torch.cuda.is_available():
             self.model.cpu()
             self.model.load_state_dict(torch.load(filepath))
-            self.model.cuda()
+            if len(self.cuda_devices)>1:
+                self.model = nn.DataParallel(self.model, device_ids=self.cuda_devices).cuda()
+            else:
+                self.model = self.model.cuda(device=self.cuda_devices[0])
         else:
             self.model.load_state_dict(torch.load(filepath, map_location=lambda storage, loc: storage))
         return self
