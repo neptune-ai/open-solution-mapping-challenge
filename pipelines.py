@@ -1,11 +1,12 @@
 from functools import partial
 
 import loaders
-from models import PyTorchUNet
-from postprocessing import Resizer, CategoryMapper, MulticlassLabeler
 from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
+from models import PyTorchUNet, PyTorchUNetStream
+from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, \
+    ResizerStream, CategoryMapperStream, MulticlassLabelerStream
 
 
 def unet(config, train_mode):
@@ -18,7 +19,7 @@ def unet(config, train_mode):
 
     loader = preprocessing(config, model_type='single', is_train=train_mode)
     unet = Step(name='unet',
-                transformer=PyTorchUNet(**config.unet),
+                transformer= PyTorchUNetStream(**config.unet) if config.execution.stream_mode else PyTorchUNet(**config.unet),
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
@@ -45,9 +46,10 @@ def preprocessing(config, model_type, is_train, loader_mode=None):
         raise NotImplementedError
     return loader
 
+
 def multiclass_object_labeler(postprocessed_mask, config, save_output=True):
     labeler = Step(name='labeler',
-                   transformer=MulticlassLabeler(),
+                   transformer=MulticlassLabelerStream() if config.execution.stream_mode else MulticlassLabeler(),
                    input_steps=[postprocessed_mask],
                    adapter={'images': ([(postprocessed_mask.name, 'categorized_images')]),
                             },
@@ -164,7 +166,7 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
 
 def mask_postprocessing(model, config, save_output=False):
     mask_resize = Step(name='mask_resize',
-                       transformer=Resizer(),
+                       transformer=ResizerStream() if config.execution.stream_mode else Resizer(),
                        input_data=['input'],
                        input_steps=[model],
                        adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
@@ -173,7 +175,7 @@ def mask_postprocessing(model, config, save_output=False):
                        cache_dirpath=config.env.cache_dirpath,
                        save_output=save_output)
     category_mapper = Step(name='category_mapper',
-                           transformer=CategoryMapper(),
+                           transformer=CategoryMapperStream() if config.execution.stream_mode else CategoryMapper(),
                            input_steps=[mask_resize],
                            adapter={'images': ([('mask_resize', 'resized_images')]),
                                     },
