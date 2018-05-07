@@ -7,15 +7,6 @@ from steps.base import BaseTransformer
 from utils import categorize_image
 
 
-class BuildingLabeler(BaseTransformer):
-    def transform(self, images):
-        labeled_images = []
-        for i, image in enumerate(images):
-            labeled_image = label(image)
-            labeled_images.append(labeled_image)
-        return {'labeled_images': labeled_images}
-
-
 class MulticlassLabeler(BaseTransformer):
     def transform(self, images):
         labeled_images = []
@@ -41,16 +32,6 @@ class CategoryMapper(BaseTransformer):
         for image in tqdm(images):
             categorized_images.append(categorize_image(image))
         return {'categorized_images': categorized_images}
-
-
-class BuildingLabelerStream(BaseTransformer):
-    def transform(self, images):
-        return {'labeled_images': self._transform(images)}
-
-    def _transform(self, images):
-        for i, image in enumerate(images):
-            labeled_image = label(image)
-            yield labeled_image
 
 
 class MulticlassLabelerStream(BaseTransformer):
