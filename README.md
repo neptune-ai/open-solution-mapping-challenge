@@ -1,5 +1,5 @@
 # open-solution-mapping-challenge
-Open solution to the Mapping Challenge [Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge)
+Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge)
 
 ## Goal
 Deliver open source, ready-to-use and extendable solution to this competition. This solution should - by itself - establish solid benchmark, as well as provide good base for your custom ideas and experiments.

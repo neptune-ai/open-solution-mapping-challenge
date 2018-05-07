@@ -4,7 +4,6 @@ import loaders
 from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
-
 from models import PyTorchUNet, PyTorchUNetStream
 from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, \
     ResizerStream, CategoryMapperStream, MulticlassLabelerStream
