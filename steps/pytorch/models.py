@@ -51,8 +51,6 @@ class Model(BaseTransformer):
         self._initialize_model_weights()
 
         if torch.cuda.is_available():
-            if not isinstance(self.cuda_devices, list):
-                self.cuda_devices = [self.cuda_devices,]
             if len(self.cuda_devices)>1:
                 self.model = nn.DataParallel(self.model, device_ids=self.cuda_devices).cuda()
             else:
