@@ -170,6 +170,7 @@ def _predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     if submit_predictions:
         _make_submission(submission_filepath)
 
+
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
@@ -271,4 +272,3 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
 
 if __name__ == "__main__":
     action()
-

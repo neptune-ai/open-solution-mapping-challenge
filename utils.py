@@ -164,7 +164,8 @@ def generate_metadata(data_dir,
             mask_overlayed_suffix = os.path.join(masks_overlayed_dir, "")
             masks_overlayed_dir_to_write = os.path.join(public_path, mask_overlayed_suffix.split("/")[-2])
             mask_overlayed_eroded_suffix = os.path.join(masks_overlayed_eroded_dir, "")
-            masks_overlayed_eroded_dir_to_write = os.path.join(public_path, mask_overlayed_eroded_suffix.split("/")[:-2])
+            masks_overlayed_eroded_dir_to_write = os.path.join(public_path,
+                                                               mask_overlayed_eroded_suffix.split("/")[:-2])
         else:
             images_path_to_write = images_path
             masks_overlayed_dir_to_write = masks_overlayed_dir
@@ -341,7 +342,6 @@ def categorize_image(image, channel_axis=0):
 
 
 def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids):
-
     coco = COCO(gt_filepath)
     coco_results = coco.loadRes(prediction_filepath)
     cocoEval = COCOeval(coco, coco_results)

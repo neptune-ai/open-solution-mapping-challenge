@@ -47,6 +47,7 @@ class CategoryMapper(BaseTransformer):
 class MaskDilator(BaseTransformer):
     def __init__(self, dilate_selem_size):
         self.selem_size = dilate_selem_size
+
     def transform(self, images):
         dilated_images = []
         for image in tqdm(images):
