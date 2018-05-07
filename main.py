@@ -54,15 +54,15 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 def prepare_masks(dev_mode):
     if params.erode_selem_size > 0:
         erode = params.erode_selem_size
-        data_dir = params.masks_overlayed_eroded_dir
+        target_dir = params.masks_overlayed_eroded_dir
     else:
         erode = None
-        data_dir = params.masks_overlayed_dir
+        target_dir = params.masks_overlayed_dir
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
         overlay_masks(data_dir=params.data_dir,
                       dataset=dataset,
-                      target_dir=data_dir,
+                      target_dir=target_dir,
                       category_ids=CATEGORY_IDS,
                       erode=erode,
                       is_small=dev_mode)
