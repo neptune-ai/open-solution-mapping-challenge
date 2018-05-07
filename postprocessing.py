@@ -7,15 +7,6 @@ from steps.base import BaseTransformer
 from utils import categorize_image
 
 
-class BuildingLabeler(BaseTransformer):
-    def transform(self, images):
-        labeled_images = []
-        for i, image in enumerate(images):
-            labeled_image = label(image)
-            labeled_images.append(labeled_image)
-        return {'labeled_images': labeled_images}
-
-
 class MulticlassLabeler(BaseTransformer):
     def transform(self, images):
         labeled_images = []
