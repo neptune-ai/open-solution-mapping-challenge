@@ -26,7 +26,6 @@ class Model(BaseTransformer):
         self.optimizer = None
         self.loss_function = None
         self.callbacks = None
-        self.cuda_devices = self.training_config['cuda']
 
     @property
     def output_names(self):
@@ -51,10 +50,7 @@ class Model(BaseTransformer):
         self._initialize_model_weights()
 
         if torch.cuda.is_available():
-            if len(self.cuda_devices)>1:
-                self.model = nn.DataParallel(self.model, device_ids=self.cuda_devices).cuda()
-            else:
-                self.model = self.model.cuda(device=self.cuda_devices[0])
+            self.model = nn.DataParallel(self.model).cuda()
 
         self.callbacks.set_params(self, validation_datagen=validation_datagen)
         self.callbacks.on_train_begin()
@@ -151,10 +147,7 @@ class Model(BaseTransformer):
         if torch.cuda.is_available():
             self.model.cpu()
             self.model.load_state_dict(torch.load(filepath))
-            if len(self.cuda_devices)>1:
-                self.model = nn.DataParallel(self.model, device_ids=self.cuda_devices).cuda()
-            else:
-                self.model = self.model.cuda(device=self.cuda_devices[0])
+            self.model = nn.DataParallel(self.model).cuda()
         else:
             self.model.load_state_dict(torch.load(filepath, map_location=lambda storage, loc: storage))
         return self

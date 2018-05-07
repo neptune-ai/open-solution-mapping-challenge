@@ -72,7 +72,6 @@ SOLUTION_CONFIG = AttrDict({
                                                  },
                                 },
         'training_config': {'epochs': params.epochs_nr,
-                            'cuda': eval(params.cuda_devices)
                             },
         'callbacks_config': {
             'model_checkpoint': {
