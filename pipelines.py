@@ -2,7 +2,7 @@ from functools import partial
 
 import loaders
 from models import PyTorchUNet
-from postprocessing import BuildingLabeler, Resizer, CategoryMapper, MulticlassLabeler
+from postprocessing import Resizer, CategoryMapper, MulticlassLabeler
 from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
@@ -44,18 +44,6 @@ def preprocessing(config, model_type, is_train, loader_mode=None):
     else:
         raise NotImplementedError
     return loader
-
-
-def building_labeler(postprocessed_mask, config, save_output=True):
-    labeler = Step(name='labeler',
-                   transformer=BuildingLabeler(),
-                   input_steps=[postprocessed_mask],
-                   adapter={'images': ([(postprocessed_mask.name, 'categorized_images')]),
-                            },
-                   cache_dirpath=config.env.cache_dirpath,
-                   save_output=save_output)
-    return labeler
-
 
 def multiclass_object_labeler(postprocessed_mask, config, save_output=True):
     labeler = Step(name='labeler',

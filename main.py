@@ -12,9 +12,8 @@ import crowdai
 from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS
 from pipelines import PIPELINES
 from preparation import overlay_masks
-from utils import init_logger, read_params, create_submission, generate_metadata, set_seed, \
-    generate_data_frame_chunks, read_masks
-from metrics import mean_precision_and_recall
+from utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
+    create_annotations, generate_data_frame_chunks
 import json
 
 logger = init_logger()
@@ -56,6 +55,7 @@ def prepare_masks():
         overlay_masks(data_dir=params.data_dir,
                       dataset=dataset,
                       target_dir=params.masks_overlayed_dir,
+                      category_ids=CATEGORY_IDS,
                       is_small=False)
 
 
@@ -96,39 +96,38 @@ def _train(pipeline_name, dev_mode):
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def evaluate(pipeline_name, dev_mode):
+@click.option('-c', '--chunk_size', help='size of the chunks to run evaluation on', type=int, default=None,
+              required=False)
+def evaluate(pipeline_name, dev_mode, chunk_size):
     logger.info('evaluating')
-    _evaluate(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode, chunk_size)
 
 
-def _evaluate(pipeline_name, dev_mode):
+def _evaluate(pipeline_name, dev_mode, chunk_size):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
         meta_valid = meta_valid.sample(30, random_state=1234)
 
-    data = {'input': {'meta': meta_valid,
-                      'meta_valid': None,
-                      'train_mode': False,
-                      'target_sizes': [(300, 300)] * len(meta_valid),
-                      },
-            }
-
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    output = pipeline.transform(data)
-    pipeline.clean_cache()
-    y_pred = output['y_pred']
-    pipeline.clean_cache()
+    prediction = generate_prediction(meta_valid, pipeline, logger, CATEGORY_IDS, chunk_size)
 
-    y_true = read_masks(meta_valid[Y_COLUMNS_SCORING].values, params.data_dir, dataset="val")
+    prediction_filepath = os.path.join(params.experiment_dir, 'prediction.json')
+    with open(prediction_filepath, "w") as fp:
+        fp.write(json.dumps(prediction))
+
+    annotation_file_path = os.path.join(params.data_dir, 'val', "annotation.json")
 
     logger.info('Calculating mean precision and recall')
-    (precision, recall) = mean_precision_and_recall(y_true, y_pred)
-    logger.info('Mean precision on validation is {}'.format(precision))
-    logger.info('Mean recall on validation is {}'.format(recall))
-    ctx.channel_send('Precision', 0, precision)
-    ctx.channel_send('Recall', 0, recall)
+    average_precision, average_recall = coco_evaluation(gt_filepath=annotation_file_path,
+                                                        prediction_filepath=prediction_filepath,
+                                                        image_ids=meta_valid[Y_COLUMNS_SCORING].values,
+                                                        category_ids=CATEGORY_IDS[1:])
+    logger.info('Mean precision on validation is {}'.format(average_precision))
+    logger.info('Mean recall on validation is {}'.format(average_recall))
+    ctx.channel_send('Precision', 0, average_precision)
+    ctx.channel_send('Recall', 0, average_recall)
 
 
 @action.command()
@@ -139,34 +138,20 @@ def _evaluate(pipeline_name, dev_mode):
               required=False)
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     logger.info('predicting')
-    if chunk_size is not None:
-        _predict_in_chunks(pipeline_name, dev_mode, submit_predictions, chunk_size)
-    else:
-        _predict(pipeline_name, dev_mode, submit_predictions)
+    _predict(pipeline_name, dev_mode, submit_predictions, chunk_size)
 
 
-def _predict(pipeline_name, dev_mode, submit_predictions):
+def _predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_test = meta[meta['is_test'] == 1]
 
     if dev_mode:
         meta_test = meta_test.sample(2, random_state=1234)
 
-    data = {'input': {'meta': meta_test,
-                      'meta_valid': None,
-                      'train_mode': False,
-                      'target_sizes': [(300, 300)] * len(meta_test),
-                      },
-            }
-
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    pipeline.clean_cache()
-    output = pipeline.transform(data)
-    pipeline.clean_cache()
-    y_pred = output['y_pred']
+    prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, chunk_size)
 
-    submission = create_submission(meta_test, y_pred, logger, CATEGORY_IDS)
-
+    submission = prediction
     submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
     with open(submission_filepath, "w") as fp:
         fp.write(json.dumps(submission))
@@ -175,72 +160,32 @@ def _predict(pipeline_name, dev_mode, submit_predictions):
 
     if submit_predictions:
         _make_submission(submission_filepath)
-
-
-def _predict_in_chunks(pipeline_name, submit_predictions, dev_mode, chunk_size):
-    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
-    meta_test = meta[meta['is_test'] == 1]
-
-    if dev_mode:
-        meta_test = meta_test.sample(9, random_state=1234)
-
-    logger.info('processing metadata of shape {}'.format(meta_test.shape))
-
-    submission_chunks = []
-    for meta_chunk in generate_data_frame_chunks(meta_test, chunk_size):
-        data = {'input': {'meta': meta_chunk,
-                          'meta_valid': None,
-                          'train_mode': False,
-                          'target_sizes': [(300, 300)] * len(meta_chunk)
-                          },
-                }
-
-        pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-        pipeline.clean_cache()
-        output = pipeline.transform(data)
-        pipeline.clean_cache()
-        y_pred = output['y_pred']
-
-        submission_chunk = create_submission(meta_chunk, y_pred, logger, CATEGORY_IDS)
-        submission_chunks.extend(submission_chunk)
-
-    submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
-    submission = submission_chunks
-    with open(submission_filepath, "w") as fp:
-        fp.write(json.dumps(submission))
-    logger.info('submission saved to {}'.format(submission_filepath))
-    logger.info('submission head \n\n{}'.format(submission[0]))
-
-    if submit_predictions:
-        _make_submission(submission_filepath)
-
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
-              required=False)
+@click.option('-c', '--chunk_size', help='size of the chunks to run evaluation and prediction on', type=int,
+              default=None, required=False)
 def train_evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
     logger.info('training')
     _train(pipeline_name, dev_mode)
     logger.info('evaluating')
-    _evaluate(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode, chunk_size)
     logger.info('predicting')
-    if chunk_size is not None:
-        _predict_in_chunks(pipeline_name, dev_mode, submit_predictions, chunk_size)
-    else:
-        _predict(pipeline_name, dev_mode, submit_predictions)
+    _predict(pipeline_name, dev_mode, submit_predictions, chunk_size)
 
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def train_evaluate(pipeline_name, dev_mode):
+@click.option('-c', '--chunk_size', help='size of the chunks to run evaluation and prediction on', type=int,
+              default=None, required=False)
+def train_evaluate(pipeline_name, dev_mode, chunk_size):
     logger.info('training')
     _train(pipeline_name, dev_mode)
     logger.info('evaluating')
-    _evaluate(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode, chunk_size)
 
 
 @action.command()
@@ -251,12 +196,9 @@ def train_evaluate(pipeline_name, dev_mode):
               required=False)
 def evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
     logger.info('evaluating')
-    _evaluate(pipeline_name, dev_mode)
+    _evaluate(pipeline_name, dev_mode, chunk_size)
     logger.info('predicting')
-    if chunk_size is not None:
-        _predict_in_chunks(pipeline_name, dev_mode, submit_predictions, chunk_size)
-    else:
-        _predict(pipeline_name, dev_mode, submit_predictions)
+    _predict(pipeline_name, dev_mode, submit_predictions, chunk_size)
 
 
 @action.command()
@@ -273,5 +215,51 @@ def _make_submission(submission_filepath):
     challenge.submit(submission_filepath)
 
 
+def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size):
+    if chunk_size is not None:
+        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size)
+    else:
+        return _generate_prediction(meta_data, pipeline, logger, category_ids)
+
+
+def _generate_prediction(meta_data, pipeline, logger, category_ids):
+    data = {'input': {'meta': meta_data,
+                      'meta_valid': None,
+                      'train_mode': False,
+                      'target_sizes': [(300, 300)] * len(meta_data),
+                      },
+            }
+
+    pipeline.clean_cache()
+    output = pipeline.transform(data)
+    pipeline.clean_cache()
+    y_pred = output['y_pred']
+
+    prediction = create_annotations(meta_data, y_pred, logger, category_ids)
+    return prediction
+
+
+def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size):
+    prediction = []
+    for meta_chunk in generate_data_frame_chunks(meta_data, chunk_size):
+        data = {'input': {'meta': meta_chunk,
+                          'meta_valid': None,
+                          'train_mode': False,
+                          'target_sizes': [(300, 300)] * len(meta_chunk)
+                          },
+                }
+
+        pipeline.clean_cache()
+        output = pipeline.transform(data)
+        pipeline.clean_cache()
+        y_pred = output['y_pred']
+
+        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids)
+        prediction.extend(prediction_chunk)
+
+    return prediction
+
+
 if __name__ == "__main__":
     action()
+

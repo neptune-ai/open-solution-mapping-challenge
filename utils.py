@@ -14,6 +14,7 @@ from PIL import Image
 from attrdict import AttrDict
 from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
 from tqdm import tqdm
 
 
@@ -79,7 +80,7 @@ def decompose(labeled):
         return masks
 
 
-def create_submission(meta, predictions, logger, category_ids, save=False, experiment_dir='./'):
+def create_annotations(meta, predictions, logger, category_ids, save=False, experiment_dir='./'):
     '''
     :param meta: pd.DataFrame with metadata
     :param predictions: list of labeled masks or numpy array of size [n_images, im_height, im_width]
@@ -328,3 +329,17 @@ def generate_data_frame_chunks(meta, chunk_size):
 
 def categorize_image(image, channel_axis=0):
     return np.argmax(image, axis=channel_axis)
+
+
+def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids):
+
+    coco = COCO(gt_filepath)
+    coco_results = coco.loadRes(prediction_filepath)
+    cocoEval = COCOeval(coco, coco_results)
+    cocoEval.params.imgIds = image_ids
+    cocoEval.params.catIds = category_ids
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    cocoEval.summarize()
+
+    return cocoEval.stats[1], cocoEval.stats[8]
