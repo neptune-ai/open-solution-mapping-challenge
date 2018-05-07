@@ -72,6 +72,7 @@ parameters:
   patience: 30
   lr_factor: 0.3
   lr_patience: 30
+  cuda_devices: '[0,1,2,3]'
 
 # Regularization
   use_batch_norm: 1

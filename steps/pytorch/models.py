@@ -26,6 +26,7 @@ class Model(BaseTransformer):
         self.optimizer = None
         self.loss_function = None
         self.callbacks = None
+        self.cuda_devices = self.training_config['cuda']
 
     @property
     def output_names(self):
@@ -50,9 +51,12 @@ class Model(BaseTransformer):
         self._initialize_model_weights()
 
         if torch.cuda.is_available():
-            self.model = self.model.cuda()
-        else:
-            self.model = self.model
+            if not isinstance(self.cuda_devices, list):
+                self.cuda_devices = [self.cuda_devices,]
+            if len(self.cuda_devices)>1:
+                self.model = nn.DataParallel(self.model, device_ids=self.cuda_devices).cuda()
+            else:
+                self.model = self.model.cuda(device=self.cuda_devices[0])
 
         self.callbacks.set_params(self, validation_datagen=validation_datagen)
         self.callbacks.on_train_begin()
