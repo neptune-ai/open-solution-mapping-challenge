@@ -57,7 +57,7 @@ def prepare_masks(dev_mode):
         erode = params.erode_selem_size
         target_dir = params.masks_overlayed_eroded_dir
     else:
-        erode = None
+        erode = 0
         target_dir = params.masks_overlayed_dir
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))

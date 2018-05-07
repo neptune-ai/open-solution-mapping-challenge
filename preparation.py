@@ -15,7 +15,7 @@ from postprocessing import label
 logger = get_logger()
 
 
-def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=None, is_small=False):
+def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, is_small=False):
     if is_small:
         suffix = "-small"
     else:
@@ -33,7 +33,7 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=None, is_sm
                 annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=[category_id, ])
                 annotations = coco.loadAnns(annotation_ids)
                 mask = overlay_masks_from_annotations(annotations, image_size)
-                if erode is not None:
+                if erode > 0:
                     mask_e = overlay_eroded_masks_from_annotations(annotations, image_size, erode)
                     mask = add_dropped_objects(mask, mask_e)
                 mask_overlayed = np.where(mask, category_nr, mask_overlayed)
