@@ -50,9 +50,7 @@ class Model(BaseTransformer):
         self._initialize_model_weights()
 
         if torch.cuda.is_available():
-            self.model = self.model.cuda()
-        else:
-            self.model = self.model
+            self.model = nn.DataParallel(self.model).cuda()
 
         self.callbacks.set_params(self, validation_datagen=validation_datagen)
         self.callbacks.on_train_begin()
@@ -149,7 +147,7 @@ class Model(BaseTransformer):
         if torch.cuda.is_available():
             self.model.cpu()
             self.model.load_state_dict(torch.load(filepath))
-            self.model.cuda()
+            self.model = nn.DataParallel(self.model).cuda()
         else:
             self.model.load_state_dict(torch.load(filepath, map_location=lambda storage, loc: storage))
         return self
