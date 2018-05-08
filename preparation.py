@@ -34,8 +34,8 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, is_small
                 annotations = coco.loadAnns(annotation_ids)
                 mask = overlay_masks_from_annotations(annotations, image_size)
                 if erode > 0:
-                    mask_e = overlay_eroded_masks_from_annotations(annotations, image_size, erode)
-                    mask = add_dropped_objects(mask, mask_e)
+                    mask_eroded = overlay_eroded_masks_from_annotations(annotations, image_size, erode)
+                    mask = add_dropped_objects(mask, mask_eroded)
                 mask_overlayed = np.where(mask, category_nr, mask_overlayed)
         target_filepath = os.path.join(target_dir, dataset, "masks", image["file_name"][:-4]) + ".png"
         os.makedirs(os.path.dirname(target_filepath), exist_ok=True)
@@ -80,9 +80,9 @@ def preprocess_image(img, target_size=(128, 128)):
 
 
 def add_dropped_objects(original, processed):
-    reconstructed = processed
+    reconstructed = processed.copy()
     labeled = label(original)
     for i in range(1, labeled.max() + 1):
-        if np.sum((labeled == i) * processed) == 0:
-            reconstructed += (labeled == i).astype('uint8')
-    return reconstructed
+        if np.any(np.where(~(labeled==i) & processed)):
+            reconstructed += (labeled == i)
+    return reconstructed.astype('uint8')
