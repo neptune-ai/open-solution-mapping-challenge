@@ -25,13 +25,15 @@ parameters:
 #  data_dir:                        /YOUR_PATH_TO_DATA_ON_CLOUD
 #  meta_dir:                        /YOUR_PATH_TO_DATA_ON_CLOUD
 #  masks_overlayed_dir:             /YOUR_PATH_TO_DATA_ON_CLOUD/masks_overlayed
+#  masks_overlayed_eroded_dir:      /YOUR_PATH_TO_DATA_ON_CLOUD/masks_overlayed_eroded/
 #  experiment_dir:                  /YOUR_PATH_TO_OUTPUT_FOLDER_ON_CLOUD/experiments
 
 # Local Environment
-  data_dir:               /path/to/data
-  meta_dir:               /path/to/data
-  masks_overlayed_dir:    /path/to/masks_overlayed
-  experiment_dir:         /path/to/work/dir
+  data_dir:                   /path/to/data
+  meta_dir:                   /path/to/data
+  masks_overlayed_dir:        /path/to/masks_overlayed
+  masks_overlayed_eroded_dir: /path/to/masks_overlayed_eroded
+  experiment_dir:             /path/to/work/dir
 
   overwrite: 0
   num_workers: 4
@@ -39,6 +41,7 @@ parameters:
   pin_memory: 1
   competition_stage: 1
   api_key: YOUR_CROWDAI_API_KEY
+  stream_mode: False
 
 # General parameters
   image_h: 256
@@ -56,11 +59,8 @@ parameters:
 
 # U-Net loss weights (multi-output)
   mask: 0.3
-  contour: 0.5
-  contour_touching: 0.1
-  center: 0.1
   bce_mask: 1.0
-  dice_mask: 1.0
+  dice_mask: 2.0
 
 # Training schedule
   epochs_nr: 100
@@ -83,6 +83,8 @@ parameters:
 # Postprocessing
   threshold: 0.5
   min_nuclei_size: 20
+  erode_selem_size: 5
+  dilate_selem_size: 5
 
 #Neptune monitor
   unet_outputs_to_plot: '["multichannel_map",]'

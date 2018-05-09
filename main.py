@@ -20,7 +20,8 @@ logger = init_logger()
 ctx = neptune.Context()
 params = read_params(ctx)
 
-set_seed(1234)
+seed = 1234
+set_seed(seed)
 
 
 @click.group()
@@ -37,6 +38,7 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
     logger.info('creating metadata')
     meta = generate_metadata(data_dir=params.data_dir,
                              masks_overlayed_dir=params.masks_overlayed_dir,
+                             masks_overlayed_eroded_dir=params.masks_overlayed_eroded_dir,
                              competition_stage=params.competition_stage,
                              process_train_data=train_data,
                              process_validation_data=valid_data,
@@ -49,14 +51,22 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 
 
 @action.command()
-def prepare_masks():
+@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
+def prepare_masks(dev_mode):
+    if params.erode_selem_size > 0:
+        erode = params.erode_selem_size
+        target_dir = params.masks_overlayed_eroded_dir
+    else:
+        erode = 0
+        target_dir = params.masks_overlayed_dir
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
         overlay_masks(data_dir=params.data_dir,
                       dataset=dataset,
-                      target_dir=params.masks_overlayed_dir,
+                      target_dir=target_dir,
                       category_ids=CATEGORY_IDS,
-                      is_small=False)
+                      erode=erode,
+                      is_small=dev_mode)
 
 
 @action.command()
@@ -77,8 +87,8 @@ def _train(pipeline_name, dev_mode):
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
-        meta_train = meta_train.sample(20, random_state=1234)
-        meta_valid = meta_valid.sample(10, random_state=1234)
+        meta_train = meta_train.sample(20, random_state=seed)
+        meta_valid = meta_valid.sample(10, random_state=seed)
 
     data = {'input': {'meta': meta_train,
                       'meta_valid': meta_valid,
@@ -108,7 +118,7 @@ def _evaluate(pipeline_name, dev_mode, chunk_size):
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
-        meta_valid = meta_valid.sample(30, random_state=1234)
+        meta_valid = meta_valid.sample(30, random_state=seed)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(meta_valid, pipeline, logger, CATEGORY_IDS, chunk_size)
@@ -146,7 +156,7 @@ def _predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     meta_test = meta[meta['is_test'] == 1]
 
     if dev_mode:
-        meta_test = meta_test.sample(2, random_state=1234)
+        meta_test = meta_test.sample(2, random_state=seed)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, chunk_size)
@@ -160,6 +170,7 @@ def _predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
 
     if submit_predictions:
         _make_submission(submission_filepath)
+
 
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
@@ -262,4 +273,3 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
 
 if __name__ == "__main__":
     action()
-

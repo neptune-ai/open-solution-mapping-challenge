@@ -10,7 +10,7 @@ params = read_params(ctx)
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
-Y_COLUMNS = ['file_path_mask']
+Y_COLUMNS = ['file_path_mask_eroded']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
 
@@ -20,7 +20,8 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'num_classes': 2,
                  'img_H-W': (params.image_h, params.image_w),
                  'batch_size_train': params.batch_size_train,
-                 'batch_size_inference': params.batch_size_inference
+                 'batch_size_inference': params.batch_size_inference,
+                 'stream_mode': params.stream_mode
                  }
 
 SOLUTION_CONFIG = AttrDict({
@@ -95,5 +96,5 @@ SOLUTION_CONFIG = AttrDict({
         },
     },
     'dropper': {'min_size': params.min_nuclei_size},
-    'postprocessor': {}
+    'postprocessor': {'dilate_selem_size': params.dilate_selem_size}
 })
