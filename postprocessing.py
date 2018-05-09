@@ -8,15 +8,6 @@ from steps.base import BaseTransformer
 from utils import categorize_image
 
 
-class BuildingLabeler(BaseTransformer):
-    def transform(self, images):
-        labeled_images = []
-        for i, image in enumerate(images):
-            labeled_image = label(image)
-            labeled_images.append(labeled_image)
-        return {'labeled_images': labeled_images}
-
-
 class MulticlassLabeler(BaseTransformer):
     def transform(self, images):
         labeled_images = []
@@ -53,6 +44,36 @@ class MaskDilator(BaseTransformer):
         for image in tqdm(images):
             dilated_images.append(dilate_image(image, self.selem_size))
         return {'categorized_images': dilated_images}
+
+
+class MulticlassLabelerStream(BaseTransformer):
+    def transform(self, images):
+        return {'labeled_images': self._transform(images)}
+
+    def _transform(self, images):
+        for i, image in enumerate(images):
+            labeled_image = label_multiclass_image(image)
+            yield labeled_image
+
+
+class ResizerStream(BaseTransformer):
+    def transform(self, images, target_sizes):
+        return {'resized_images': self._transform(images, target_sizes)}
+
+    def _transform(self, images, target_sizes):
+        for image, target_size in tqdm(zip(images, target_sizes)):
+            n_channels = image.shape[0]
+            resized_image = resize(image, (n_channels,) + target_size, mode='constant')
+            yield resized_image
+
+
+class CategoryMapperStream(BaseTransformer):
+    def transform(self, images):
+        return {'categorized_images': self._transform(images)}
+
+    def _transform(self, images):
+        for image in tqdm(images):
+            yield categorize_image(image)
 
 
 def label(mask):

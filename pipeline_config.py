@@ -20,7 +20,8 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'num_classes': 2,
                  'img_H-W': (params.image_h, params.image_w),
                  'batch_size_train': params.batch_size_train,
-                 'batch_size_inference': params.batch_size_inference
+                 'batch_size_inference': params.batch_size_inference,
+                 'stream_mode': params.stream_mode
                  }
 
 SOLUTION_CONFIG = AttrDict({
