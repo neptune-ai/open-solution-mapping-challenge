@@ -83,7 +83,7 @@ SOLUTION_CONFIG = AttrDict({
             'plateau_lr_scheduler': {'lr_factor': params.lr_factor,
                                      'lr_patience': params.lr_patience,
                                      'epoch_every': 1},
-            'training_monitor': {'batch_every': 0,
+            'training_monitor': {'batch_every': 1,
                                  'epoch_every': 1},
             'experiment_timing': {'batch_every': 0,
                                   'epoch_every': 1},

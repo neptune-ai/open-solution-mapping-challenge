@@ -10,7 +10,7 @@ from attrdict import AttrDict
 from skimage.transform import resize
 from torch.utils.data import Dataset, DataLoader
 
-from augmentation import affine_seq, color_seq, patching_seq
+from augmentation import fast_seq, affine_seq, color_seq, patching_seq
 from steps.base import BaseTransformer
 from steps.pytorch.utils import ImgAug
 from utils import from_pil, to_pil
@@ -51,7 +51,8 @@ class MetadataImageSegmentationDataset(Dataset):
             if self.train_mode and self.image_augment_with_target is not None:
                 Xi, Mi = from_pil(Xi, Mi)
                 Xi, Mi = self.image_augment_with_target(Xi, Mi)
-                Xi = self.image_augment(Xi)
+                if self.image_augment is not None:
+                    Xi = self.image_augment(Xi)
                 Xi, Mi = to_pil(Xi, Mi)
 
             if self.mask_transform is not None:
@@ -95,7 +96,8 @@ class ImageSegmentationDataset(Dataset):
             if self.train_mode and self.image_augment_with_target is not None:
                 Xi, Mi = from_pil(Xi, Mi)
                 Xi, Mi = self.image_augment_with_target(Xi, Mi)
-                Xi = self.image_augment(Xi)
+                if self.image_augment is not None:
+                    Xi = self.image_augment(Xi)
                 Xi, Mi = to_pil(Xi, Mi)
 
             if self.mask_transform is not None:
@@ -150,7 +152,8 @@ class MetadataImageSegmentationMultitaskDataset(Dataset):
             if self.train_mode and self.image_augment_with_target is not None:
                 data = from_pil(*data)
                 data = self.image_augment_with_target(*data)
-                data[0] = self.image_augment(data[0])
+                if self.image_augment is not None:
+                    data[0] = self.image_augment(data[0])
                 data = to_pil(*data)
 
             if self.mask_transform is not None:
@@ -196,7 +199,8 @@ class ImageSegmentationMultitaskDataset(Dataset):
             if self.train_mode and self.image_augment_with_target is not None:
                 data = from_pil(*data)
                 data = self.image_augment_with_target(*data)
-                data[0] = self.image_augment(data[0])
+                if self.image_augment is not None:
+                    data[0] = self.image_augment(data[0])
                 data = to_pil(*data)
 
             if self.mask_transform is not None:
@@ -228,8 +232,8 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
                                                   transforms.Lambda(to_monochrome),
                                                   transforms.Lambda(to_tensor),
                                                   ])
-        self.image_augment_with_target = ImgAug(affine_seq)
-        self.image_augment = ImgAug(color_seq)
+        self.image_augment_with_target = ImgAug(fast_seq)
+        self.image_augment = None
 
         self.dataset = None
 
