@@ -20,7 +20,8 @@ logger = init_logger()
 ctx = neptune.Context()
 params = read_params(ctx)
 
-set_seed(1234)
+seed = 1234
+set_seed(seed)
 
 
 @click.group()
@@ -37,6 +38,7 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
     logger.info('creating metadata')
     meta = generate_metadata(data_dir=params.data_dir,
                              masks_overlayed_dir=params.masks_overlayed_dir,
+                             masks_overlayed_eroded_dir=params.masks_overlayed_eroded_dir,
                              competition_stage=params.competition_stage,
                              process_train_data=train_data,
                              process_validation_data=valid_data,
@@ -93,8 +95,8 @@ def _train(pipeline_name, dev_mode):
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
-        meta_train = meta_train.sample(20, random_state=1234)
-        meta_valid = meta_valid.sample(10, random_state=1234)
+        meta_train = meta_train.sample(20, random_state=seed)
+        meta_valid = meta_valid.sample(10, random_state=seed)
 
     data = {'input': {'meta': meta_train,
                       'meta_valid': meta_valid,
@@ -124,7 +126,7 @@ def _evaluate(pipeline_name, dev_mode, chunk_size):
     meta_valid = meta[meta['is_valid'] == 1]
 
     if dev_mode:
-        meta_valid = meta_valid.sample(30, random_state=1234)
+        meta_valid = meta_valid.sample(30, random_state=seed)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(meta_valid, pipeline, logger, CATEGORY_IDS, chunk_size)
@@ -162,7 +164,7 @@ def _predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     meta_test = meta[meta['is_test'] == 1]
 
     if dev_mode:
-        meta_test = meta_test.sample(2, random_state=1234)
+        meta_test = meta_test.sample(2, random_state=seed)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, chunk_size)

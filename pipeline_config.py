@@ -10,7 +10,7 @@ params = read_params(ctx)
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
-Y_COLUMNS = ['file_path_mask']
+Y_COLUMNS = ['file_path_mask_eroded']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
 
@@ -96,5 +96,5 @@ SOLUTION_CONFIG = AttrDict({
         },
     },
     'dropper': {'min_size': params.min_nuclei_size},
-    'postprocessor': {}
+    'postprocessor': {'dilate_selem_size': params.dilate_selem_size}
 })
