@@ -19,7 +19,8 @@ def unet(config, train_mode):
 
     loader = preprocessing(config, model_type='single', is_train=train_mode)
     unet = Step(name='unet',
-                transformer= PyTorchUNetStream(**config.unet) if config.execution.stream_mode else PyTorchUNet(**config.unet),
+                transformer=PyTorchUNetStream(**config.unet) if config.execution.stream_mode else PyTorchUNet(
+                    **config.unet),
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
@@ -27,7 +28,9 @@ def unet(config, train_mode):
     mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
     if config.postprocessor["dilate_selem_size"] > 0:
         mask_postprocessed = Step(name='mask_dilation',
-                                  transformer=MaskDilatorStream(**config.postprocessor) if config.execution.stream_mode else MaskDilator(**config.unet),
+                                  transformer=MaskDilatorStream(
+                                      **config.postprocessor) if config.execution.stream_mode else MaskDilator(
+                                      **config.postprocessor),
                                   input_steps=[mask_postprocessed],
                                   adapter={'images': ([(mask_postprocessed.name, 'categorized_images')]),
                                            },

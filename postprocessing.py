@@ -77,12 +77,15 @@ class CategoryMapperStream(BaseTransformer):
 
 
 class MaskDilatorStream(BaseTransformer):
+    def __init__(self, dilate_selem_size):
+        self.selem_size = dilate_selem_size
+
     def transform(self, images):
         return {'categorized_images': self._transform(images)}
 
     def _transform(self, images):
         for image in tqdm(images):
-            yield dilate_image(image)
+            yield dilate_image(image, self.selem_size)
 
 
 def label(mask):
