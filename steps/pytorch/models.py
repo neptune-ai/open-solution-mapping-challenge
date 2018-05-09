@@ -131,7 +131,6 @@ class Model(BaseTransformer):
                 for name, output in zip(self.output_names, outputs_batch):
                     output_ = output.data.cpu().numpy()
                     outputs.setdefault(name, []).append(output_)
-
             if batch_id == steps:
                 break
         self.model.train()
