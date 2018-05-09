@@ -86,3 +86,27 @@ def add_dropped_objects(original, processed):
         if np.any(np.where(~(labeled==i) & processed)):
             reconstructed += (labeled == i)
     return reconstructed.astype('uint8')
+
+
+def try_overlay_and_calc_weight(data_dir, dataset, target_dir, category_ids, erode=0, is_small=False):
+    if is_small:
+        suffix = "-small"
+    else:
+        suffix = ""
+    annotation_file_name = "annotation{}.json".format(suffix)
+    annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
+    coco = COCO(annotation_file_path)
+    image_ids = coco.getImgIds()
+    for image_id in tqdm(image_ids):
+        image = coco.loadImgs(image_id)[0]
+        image_size = (image["height"], image["width"])
+        mask_overlayed = np.zeros(image_size).astype('uint8')
+        for category_nr, category_id in enumerate(category_ids):
+            if category_id != None:
+                annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=[category_id, ])
+                annotations = coco.loadAnns(annotation_ids)
+                mask = overlay_masks_from_annotations(annotations, image_size)
+                if erode > 0:
+                    mask_eroded = overlay_eroded_masks_from_annotations(annotations, image_size, erode)
+                    mask = add_dropped_objects(mask, mask_eroded)
+                mask_overlayed = np.where(mask, category_nr, mask_overlayed)
