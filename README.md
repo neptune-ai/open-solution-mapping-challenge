@@ -35,7 +35,7 @@ main.py train_evaluate_predict --pipeline_name unet --chunk_size 5000
 7. check your leaderboard score!
 
 ## Usage: Detailed
-1. clone this repository: `git clone https://github.com/neptune-ml/open-solution-talking-data.git`
+1. clone this repository: `git clone https://github.com/minerva-ml/open-solution-talking-data.git`
 2. install [PyTorch](http://pytorch.org/) and `torchvision`
 3. install requirements: `pip3 install -r requirements.txt`
 4. register to [Neptune](https://neptune.ml/ 'machine learning lab') *(if you wish to use it)* login via:
@@ -88,8 +88,8 @@ $ neptune data upload YOUR/DATA/FOLDER
 ## User support
 There are several ways to seek help:
 1. crowdai [discussion](https://www.crowdai.org/challenges/mapping-challenge/topics) is our primary way of communication.
-1. You can submit an [issue](https://github.com/neptune-ml/open-solution-mapping-challenge/issues) directly in this repo.
+1. You can submit an [issue](https://github.com/minerva-ml/open-solution-mapping-challenge/issues) directly in this repo.
 
 ## Contributing
 1. Check [CONTRIBUTING](CONTRIBUTING.md) for more information.
-1. Check [issues](https://github.com/neptune-ml/open-mapping-challenge/issues) and [project](https://github.com/neptune-ml/open-solution-mapping-challenge/projects/1) to check if there is something you would like to contribute to.
+1. Check [issues](https://github.com/minerva-ml/open-mapping-challenge/issues) and [project](https://github.com/minerva-ml/open-solution-mapping-challenge/projects/1) to check if there is something you would like to contribute to.
