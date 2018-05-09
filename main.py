@@ -56,7 +56,7 @@ def prepare_masks(dev_mode):
         for dataset in ["train", "val"]:
             for erosion_percent in erode:
                 logger.info('Overlaying masks, dataset: {}'.format(dataset))
-                target_dir = "{}_{}".format(params.masks_overlayed_eroded_dir, erosion_percent)
+                target_dir = "{}_{}".format(params.masks_overlayed_eroded_dir[:-1], erosion_percent)
                 overlay_masks(data_dir=params.data_dir,
                               dataset=dataset,
                               target_dir=target_dir,
