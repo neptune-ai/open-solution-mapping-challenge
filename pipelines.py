@@ -5,8 +5,8 @@ from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
 from models import PyTorchUNet, PyTorchUNetStream
-from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator\
-    ResizerStream, CategoryMapperStream, MulticlassLabelerStream
+from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, \
+    ResizerStream, CategoryMapperStream, MulticlassLabelerStream, MaskDilatorStream
 
 
 def unet(config, train_mode):
@@ -27,7 +27,7 @@ def unet(config, train_mode):
     mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
     if config.postprocessor["dilate_selem_size"] > 0:
         mask_postprocessed = Step(name='mask_dilation',
-                                  transformer=MaskDilator(**config.postprocessor),
+                                  transformer=MaskDilatorStream(**config.postprocessor) if config.execution.stream_mode else MaskDilator(**config.unet),
                                   input_steps=[mask_postprocessed],
                                   adapter={'images': ([(mask_postprocessed.name, 'categorized_images')]),
                                            },

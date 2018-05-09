@@ -76,6 +76,15 @@ class CategoryMapperStream(BaseTransformer):
             yield categorize_image(image)
 
 
+class MaskDilatorStream(BaseTransformer):
+    def transform(self, images):
+        return {'categorized_images': self._transform(images)}
+
+    def _transform(self, images):
+        for image in tqdm(images):
+            yield dilate_image(image)
+
+
 def label(mask):
     labeled, nr_true = ndi.label(mask)
     return labeled
