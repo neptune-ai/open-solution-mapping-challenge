@@ -49,14 +49,30 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 
 
 @action.command()
-def prepare_masks():
-    for dataset in ["train", "val"]:
-        logger.info('Overlaying masks, dataset: {}'.format(dataset))
-        overlay_masks(data_dir=params.data_dir,
-                      dataset=dataset,
-                      target_dir=params.masks_overlayed_dir,
-                      category_ids=CATEGORY_IDS,
-                      is_small=False)
+@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
+def prepare_masks(dev_mode):
+    erode = eval(params.erosion_percents)
+    if erode != [0]:
+        for dataset in ["train", "val"]:
+            for erosion_percent in erode:
+                logger.info('Overlaying masks, dataset: {}'.format(dataset))
+                target_dir = "{}_{}".format(params.masks_overlayed_eroded_dir, erosion_percent)
+                overlay_masks(data_dir=params.data_dir,
+                              dataset=dataset,
+                              target_dir=target_dir,
+                              category_ids=CATEGORY_IDS,
+                              erode=erosion_percent,
+                              is_small=dev_mode)
+    else:
+        target_dir = params.masks_overlayed_dir
+        for dataset in ["train", "val"]:
+            logger.info('Overlaying masks, dataset: {}'.format(dataset))
+            overlay_masks(data_dir=params.data_dir,
+                          dataset=dataset,
+                          target_dir=target_dir,
+                          category_ids=CATEGORY_IDS,
+                          erode=0,
+                          is_small=dev_mode)
 
 
 @action.command()
@@ -161,6 +177,7 @@ def _predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     if submit_predictions:
         _make_submission(submission_filepath)
 
+
 @action.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
@@ -262,4 +279,3 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
 
 if __name__ == "__main__":
     action()
-

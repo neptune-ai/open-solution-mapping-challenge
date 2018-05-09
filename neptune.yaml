@@ -84,6 +84,7 @@ parameters:
 # Postprocessing
   threshold: 0.5
   min_nuclei_size: 20
+  erosion_percents: '[10,20,30]'
 
 #Neptune monitor
   unet_outputs_to_plot: '["multichannel_map",]'
