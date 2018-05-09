@@ -1,7 +1,7 @@
 import os
 import shutil
-# from multiprocessing import set_start_method
-# set_start_method('spawn')
+from multiprocessing import set_start_method
+set_start_method('spawn')
 
 import click
 import pandas as pd
