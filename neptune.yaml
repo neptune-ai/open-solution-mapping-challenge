@@ -86,5 +86,14 @@ parameters:
   erode_selem_size: 5
   dilate_selem_size: 5
 
+  #CRF
+  apply_crf: False
+  nr_iter: 5
+  compat_gaussian: 3
+  sxy_gaussian: 1
+  compat_bilateral: 10
+  sxy_bilateral: 1
+  srgb: 50
+
 #Neptune monitor
   unet_outputs_to_plot: '["multichannel_map",]'

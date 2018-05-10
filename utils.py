@@ -356,22 +356,26 @@ def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids):
     return cocoEval.stats[1], cocoEval.stats[8]
 
 
-def dense_crf(img, output_probs):
+def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilateral=10, sxy_bilateral=1, srgb=50):
 
     h = output_probs.shape[1]
     w = output_probs.shape[2]
 
     d = DenseCRF2D(w, h, 2)
     U = unary_from_softmax(output_probs)
-    img = img.transpose(1, 2, 0)
-    img = np.ascontiguousarray(img, dtype=np.uint8)
+    org_img = denormalize_img(img, mean=[0.0], std=[1.0]) * 255.
+    org_img = org_img.transpose(1, 2, 0)
+    org_img = np.ascontiguousarray(org_img, dtype=np.uint8)
 
     d.setUnaryEnergy(U)
 
-    d.addPairwiseGaussian(sxy=1, compat=3)
-    d.addPairwiseBilateral(sxy=1, srgb=50, rgbim=img, compat=10)
+    d.addPairwiseGaussian(sxy=sxy_gaussian, compat=compat_gaussian)
+    d.addPairwiseBilateral(sxy=sxy_bilateral, srgb=srgb, rgbim=org_img, compat=compat_bilateral)
 
     Q = d.inference(5)
     Q = np.array(Q).reshape(output_probs.shape)
 
     return Q
+
+def denormalize_img(image, mean=[0.0], std=[1.0]):
+    return image * std + mean

@@ -96,5 +96,13 @@ SOLUTION_CONFIG = AttrDict({
         },
     },
     'dropper': {'min_size': params.min_nuclei_size},
-    'postprocessor': {'dilate_selem_size': params.dilate_selem_size}
+    'postprocessor': {'dilate_selem_size': params.dilate_selem_size,
+                      'crf': {'apply_crf': params.apply_crf,
+                              'nr_iter': params.nr_iter,
+                              'compat_gaussian': params.compat_gaussian,
+                              'sxy_gaussian': params.sxy_gaussian,
+                              'compat_bilateral': params.compat_bilateral,
+                              'sxy_bilateral': params.sxy_bilateral,
+                              'srgb': params.srgb
+                              }}
 })

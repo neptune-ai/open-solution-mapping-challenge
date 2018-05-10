@@ -47,29 +47,35 @@ class MaskDilator(BaseTransformer):
 
 
 class DenseCRF(BaseTransformer):
-    def transform(self, images, datagen):
+    def __init__(self, compat_gaussian, sxy_gaussian, compat_bilateral, sxy_bilateral, srgb, **kwargs):
+        self.compat_gaussian = compat_gaussian
+        self.sxy_gaussian = sxy_gaussian
+        self.compat_bilateral = compat_bilateral
+        self.sxy_bilateral = sxy_bilateral
+        self.srgb = srgb
+
+    def transform(self, images, org_images_gen):
+        crf_images = []
+        org_images = self.get_org_images(org_images_gen)
+        for image, org_image in tqdm(zip(images, org_images)):
+            crf_image = dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
+                                  self.compat_bilateral, self.sxy_bilateral, self.srgb)
+            crf_images.append(crf_image)
+        return {'crf_images': crf_images}
+
+    def get_org_images(self, org_images_gen):
         org_images = []
-        batch_gen, steps = datagen
+        batch_gen, steps = org_images_gen
         for batch_id, data in enumerate(batch_gen):
             if isinstance(data, list):
                 X = data[0]
             else:
                 X = data
             for image in X.numpy():
-                image *= 255.
-                image = image.astype(int)
                 org_images.append(image)
             if batch_id == steps:
                 break
-
-        crf_images = []
-        i = 1
-        for image, org_image in tqdm(zip(images, org_images)):
-            print(i)
-            i += 1
-            crf_image = dense_crf(org_image, image)
-            crf_images.append(crf_image)
-        return {'crf_images': crf_images}
+        return org_images
 
 
 class MulticlassLabelerStream(BaseTransformer):
@@ -112,6 +118,37 @@ class MaskDilatorStream(BaseTransformer):
     def _transform(self, images):
         for image in tqdm(images):
             yield dilate_image(image, self.selem_size)
+
+
+class DenseCRFStream(BaseTransformer):
+    def __init__(self, compat_gaussian, sxy_gaussian, compat_bilateral, sxy_bilateral, srgb, **kwargs):
+        self.compat_gaussian = compat_gaussian
+        self.sxy_gaussian = sxy_gaussian
+        self.compat_bilateral = compat_bilateral
+        self.sxy_bilateral = sxy_bilateral
+        self.srgb = srgb
+
+    def transform(self, images, org_images_gen):
+        return {'crf_images': self._transform(images, org_images_gen)}
+
+    def _transform(self, images, org_images_gen):
+        org_images = self.get_org_images(org_images_gen)
+        for image, org_image in tqdm(zip(images, org_images)):
+            crf_image = dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
+                                  self.compat_bilateral, self.sxy_bilateral, self.srgb)
+            yield crf_image
+
+    def get_org_images(self, datagen):
+        batch_gen, steps = datagen
+        for batch_id, data in enumerate(batch_gen):
+            if isinstance(data, list):
+                X = data[0]
+            else:
+                X = data
+            for image in X.numpy():
+                yield image
+            if batch_id == steps:
+                break
 
 
 def label(mask):

@@ -6,7 +6,7 @@ from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
 from models import PyTorchUNet, PyTorchUNetStream
 from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, DenseCRF, \
-    ResizerStream, CategoryMapperStream, MulticlassLabelerStream, MaskDilatorStream
+    ResizerStream, CategoryMapperStream, MulticlassLabelerStream, MaskDilatorStream, DenseCRFStream
 
 
 def unet(config, train_mode):
@@ -177,24 +177,36 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
 
 
 def mask_postprocessing(loader, model, config, save_output=False):
-    dense_crf = Step(name='dense_crf',
-                     transformer=DenseCRF(),
-                     input_steps=[loader, model],
-                     adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
-                              'datagen': ([(loader.name, 'datagen')]),
-                              },
-                     cache_dirpath=config.env.cache_dirpath,
-                     save_output=save_output)
+    if config.postprocessor.crf.apply_crf:
+        dense_crf = Step(name='dense_crf',
+                         transformer=DenseCRFStream(**config.postprocessor.crf) if config.execution.stream_mode \
+                             else DenseCRF(**config.postprocessor.crf),
+                         input_steps=[loader, model],
+                         adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
+                                  'org_images_gen': ([(loader.name, 'datagen')]),
+                                  },
+                         cache_dirpath=config.env.cache_dirpath,
+                         save_output=save_output)
 
-    mask_resize = Step(name='mask_resize',
-                       transformer=ResizerStream() if config.execution.stream_mode else Resizer(),
-                       input_data=['input'],
-                       input_steps=[dense_crf],
-                       adapter={'images': ([('dense_crf', 'crf_images')]),
-                                'target_sizes': ([('input', 'target_sizes')]),
-                                },
-                       cache_dirpath=config.env.cache_dirpath,
-                       save_output=save_output)
+        mask_resize = Step(name='mask_resize',
+                           transformer=ResizerStream() if config.execution.stream_mode else Resizer(),
+                           input_data=['input'],
+                           input_steps=[dense_crf],
+                           adapter={'images': ([('dense_crf', 'crf_images')]),
+                                    'target_sizes': ([('input', 'target_sizes')]),
+                                    },
+                           cache_dirpath=config.env.cache_dirpath,
+                           save_output=save_output)
+    else:
+        mask_resize = Step(name='mask_resize',
+                           transformer=ResizerStream() if config.execution.stream_mode else Resizer(),
+                           input_data=['input'],
+                           input_steps=[model],
+                           adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
+                                    'target_sizes': ([('input', 'target_sizes')]),
+                                    },
+                           cache_dirpath=config.env.cache_dirpath,
+                           save_output=save_output)
 
     category_mapper = Step(name='category_mapper',
                            transformer=CategoryMapperStream() if config.execution.stream_mode else CategoryMapper(),
