@@ -1,11 +1,10 @@
 import numpy as np
-from scipy import ndimage as ndi
 from skimage.transform import resize
 from skimage.morphology import binary_dilation, rectangle
 from tqdm import tqdm
 
 from steps.base import BaseTransformer
-from utils import categorize_image
+from utils import categorize_image, label
 
 
 class MulticlassLabeler(BaseTransformer):
@@ -86,11 +85,6 @@ class MaskDilatorStream(BaseTransformer):
     def _transform(self, images):
         for image in tqdm(images):
             yield dilate_image(image, self.selem_size)
-
-
-def label(mask):
-    labeled, nr_true = ndi.label(mask)
-    return labeled
 
 
 def label_multiclass_image(mask):

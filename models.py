@@ -8,7 +8,7 @@ from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ValidationMon
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
 from steps.pytorch.models import Model
 from steps.pytorch.validation import multiclass_segmentation_loss
-from utils import softmax
+from utils import softmax, label
 
 
 class PyTorchUNet(Model):
@@ -102,3 +102,7 @@ def callbacks_unet(callbacks_config):
         callbacks=[experiment_timing, training_monitor, validation_monitor,
                    model_checkpoints, lr_scheduler, early_stopping, neptune_monitor,
                    ])
+
+
+def multiclass_weighted_segmentation_loss(output, target):
+    pass

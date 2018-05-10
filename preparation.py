@@ -8,14 +8,16 @@ from pycocotools.coco import COCO
 from skimage.transform import resize
 from tqdm import tqdm
 from skimage.morphology import binary_erosion, rectangle
+from scipy.ndimage.morphology import distance_transform_edt
 
-from utils import get_logger
-from postprocessing import label
+from utils import get_logger, label, get_weights
 
 logger = get_logger()
 
 
 def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, is_small=False):
+    try_overlay_and_calc_weight(data_dir, dataset, target_dir, category_ids, erode, is_small)#test
+    return #test
     if is_small:
         suffix = "-small"
     else:
@@ -57,12 +59,25 @@ def overlay_masks_from_annotations(annotations, image_size):
 
 def overlay_eroded_masks_from_annotations(annotations, image_size, area_percent):
     mask = np.zeros(image_size)
+    distances = np.zeros(image_size)
     for ann in annotations:
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
         m = cocomask.decode(rle)
         m = m.reshape(image_size)
         m_eroded = get_eroded_mask(m, area_percent)
+        if distances.sum() == 0:
+            distances = distance_transform_edt(1 - m_eroded)
+        else:
+            distances = np.dstack([distances, distance_transform_edt(1 - m_eroded)])
         mask += m_eroded
+    if np.sum(distances)!=0:
+        if len(distances.shape)>2:
+            distances.sort(axis=2)
+            weights = get_weights(distances[:,:,0], distances[:,:,1], 1, 10, 5)
+        else:
+            weights = get_weights(0, distances, 1, 10, 5)
+    else:
+        weights = np.ones(image_size)
     return np.where(mask > 0, 1, 0).astype('uint8')
 
 
@@ -88,6 +103,7 @@ def add_dropped_objects(original, processed):
 
 
 def try_overlay_and_calc_weight(data_dir, dataset, target_dir, category_ids, erode=0, is_small=False):
+    logger.info("Start")
     if is_small:
         suffix = "-small"
     else:
@@ -109,6 +125,8 @@ def try_overlay_and_calc_weight(data_dir, dataset, target_dir, category_ids, ero
                     mask_eroded = overlay_eroded_masks_from_annotations(annotations, image_size, erode)
                     mask = add_dropped_objects(mask, mask_eroded)
                 mask_overlayed = np.where(mask, category_nr, mask_overlayed)
+    print(len(image_ids))#test
+    logger.info("End")
 
 
 def get_selem_size(mask, percent):
@@ -140,3 +158,4 @@ def get_eroded_mask(mask, percent):
         selem = rectangle(selem_size, selem_size)
         mask_eroded = binary_erosion(mask, selem)
     return mask_eroded
+
