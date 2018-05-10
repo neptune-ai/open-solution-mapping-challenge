@@ -5,7 +5,7 @@ from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
 from models import PyTorchUNet, PyTorchUNetStream
-from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, \
+from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, DenseCRF, \
     ResizerStream, CategoryMapperStream, MulticlassLabelerStream, MaskDilatorStream
 
 
@@ -25,7 +25,7 @@ def unet(config, train_mode):
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
 
-    mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
+    mask_postprocessed = mask_postprocessing(loader, unet, config, save_output=save_output)
     if config.postprocessor["dilate_selem_size"] > 0:
         mask_postprocessed = Step(name='mask_dilation',
                                   transformer=MaskDilatorStream(
@@ -176,16 +176,26 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
     return loader
 
 
-def mask_postprocessing(model, config, save_output=False):
+def mask_postprocessing(loader, model, config, save_output=False):
+    dense_crf = Step(name='dense_crf',
+                     transformer=DenseCRF(),
+                     input_steps=[loader, model],
+                     adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
+                              'datagen': ([(loader.name, 'datagen')]),
+                              },
+                     cache_dirpath=config.env.cache_dirpath,
+                     save_output=save_output)
+
     mask_resize = Step(name='mask_resize',
                        transformer=ResizerStream() if config.execution.stream_mode else Resizer(),
                        input_data=['input'],
-                       input_steps=[model],
-                       adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
+                       input_steps=[dense_crf],
+                       adapter={'images': ([('dense_crf', 'crf_images')]),
                                 'target_sizes': ([('input', 'target_sizes')]),
                                 },
                        cache_dirpath=config.env.cache_dirpath,
                        save_output=save_output)
+
     category_mapper = Step(name='category_mapper',
                            transformer=CategoryMapperStream() if config.execution.stream_mode else CategoryMapper(),
                            input_steps=[mask_resize],

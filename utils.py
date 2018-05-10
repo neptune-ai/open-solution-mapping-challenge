@@ -16,6 +16,8 @@ from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from tqdm import tqdm
+from pydensecrf.densecrf import DenseCRF2D
+from pydensecrf.utils import unary_from_softmax
 
 
 def read_yaml(filepath):
@@ -352,3 +354,24 @@ def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids):
     cocoEval.summarize()
 
     return cocoEval.stats[1], cocoEval.stats[8]
+
+
+def dense_crf(img, output_probs):
+
+    h = output_probs.shape[1]
+    w = output_probs.shape[2]
+
+    d = DenseCRF2D(w, h, 2)
+    U = unary_from_softmax(output_probs)
+    img = img.transpose(1, 2, 0)
+    img = np.ascontiguousarray(img, dtype=np.uint8)
+
+    d.setUnaryEnergy(U)
+
+    d.addPairwiseGaussian(sxy=1, compat=3)
+    d.addPairwiseBilateral(sxy=1, srgb=50, rgbim=img, compat=10)
+
+    Q = d.inference(5)
+    Q = np.array(Q).reshape(output_probs.shape)
+
+    return Q

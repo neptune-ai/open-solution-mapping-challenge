@@ -5,7 +5,7 @@ from skimage.morphology import binary_dilation, rectangle
 from tqdm import tqdm
 
 from steps.base import BaseTransformer
-from utils import categorize_image
+from utils import categorize_image, dense_crf
 
 
 class MulticlassLabeler(BaseTransformer):
@@ -44,6 +44,32 @@ class MaskDilator(BaseTransformer):
         for image in tqdm(images):
             dilated_images.append(dilate_image(image, self.selem_size))
         return {'categorized_images': dilated_images}
+
+
+class DenseCRF(BaseTransformer):
+    def transform(self, images, datagen):
+        org_images = []
+        batch_gen, steps = datagen
+        for batch_id, data in enumerate(batch_gen):
+            if isinstance(data, list):
+                X = data[0]
+            else:
+                X = data
+            for image in X.numpy():
+                image *= 255.
+                image = image.astype(int)
+                org_images.append(image)
+            if batch_id == steps:
+                break
+
+        crf_images = []
+        i = 1
+        for image, org_image in tqdm(zip(images, org_images)):
+            print(i)
+            i += 1
+            crf_image = dense_crf(org_image, image)
+            crf_images.append(crf_image)
+        return {'crf_images': crf_images}
 
 
 class MulticlassLabelerStream(BaseTransformer):
