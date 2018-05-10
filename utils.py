@@ -90,7 +90,7 @@ def create_annotations(meta, predictions, logger, category_ids, save=False, expe
     :return: submission if save==False else True
     '''
     annotations = []
-    logger.info('Creating submission')
+    logger.info('Creating annotations')
     for image_id, prediction in zip(meta["ImageId"].values, predictions):
         score = 1.0
         for category_nr, category_instances in enumerate(prediction):

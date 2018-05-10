@@ -146,8 +146,12 @@ class Model(BaseTransformer):
 
         if torch.cuda.is_available():
             self.model.cpu()
+            if not (isinstance(self.model, nn.DataParallel)):
+                self.model = nn.DataParallel(self.model)#test
+            print("Typ: ", type(self.model))
+            print("Loading from: ", filepath)#test
             self.model.load_state_dict(torch.load(filepath))
-            self.model = nn.DataParallel(self.model).cuda()
+            self.model = self.model.cuda()
         else:
             self.model.load_state_dict(torch.load(filepath, map_location=lambda storage, loc: storage))
         return self
