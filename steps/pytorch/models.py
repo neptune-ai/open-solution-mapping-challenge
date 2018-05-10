@@ -49,8 +49,10 @@ class Model(BaseTransformer):
     def fit(self, datagen, validation_datagen=None):
         self._initialize_model_weights()
 
+        self.model = nn.DataParallel(self.model)
+
         if torch.cuda.is_available():
-            self.model = nn.DataParallel(self.model).cuda()
+            self.model = self.model.cuda()
 
         self.callbacks.set_params(self, validation_datagen=validation_datagen)
         self.callbacks.on_train_begin()
@@ -144,10 +146,13 @@ class Model(BaseTransformer):
     def load(self, filepath):
         self.model.eval()
 
+        if not isinstance(self.model, nn.DataParallel):
+            self.model = nn.DataParallel(self.model)
+
         if torch.cuda.is_available():
             self.model.cpu()
             self.model.load_state_dict(torch.load(filepath))
-            self.model = nn.DataParallel(self.model).cuda()
+            self.model = self.model.cuda()
         else:
             self.model.load_state_dict(torch.load(filepath, map_location=lambda storage, loc: storage))
         return self
