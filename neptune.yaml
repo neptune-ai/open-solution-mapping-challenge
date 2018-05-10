@@ -83,7 +83,7 @@ parameters:
 # Postprocessing
   threshold: 0.5
   min_nuclei_size: 20
-  erode_selem_size: 5
+  erosion_percentages: '[10,20,30]'
   dilate_selem_size: 5
 
 #Neptune monitor
