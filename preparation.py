@@ -16,8 +16,6 @@ logger = get_logger()
 
 
 def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, is_small=False):
-    try_overlay_and_calc_weight(data_dir, dataset, target_dir, category_ids, erode, is_small)#test
-    return #test
     if is_small:
         suffix = "-small"
     else:
@@ -49,10 +47,15 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, is_small
 
 def overlay_masks_from_annotations(annotations, image_size):
     mask = np.zeros(image_size)
+    distances = np.zeros(image_size)
     for ann in annotations:
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
         m = cocomask.decode(rle)
         m = m.reshape(image_size)
+        if distances.sum() == 0:
+            distances = distance_transform_edt(1 - m)
+        else:
+            distances = np.dstack([distances, distance_transform_edt(1 - m)])
         mask += m
     return np.where(mask > 0, 1, 0).astype('uint8')
 
@@ -70,14 +73,6 @@ def overlay_eroded_masks_from_annotations(annotations, image_size, area_percent)
         else:
             distances = np.dstack([distances, distance_transform_edt(1 - m_eroded)])
         mask += m_eroded
-    if np.sum(distances)!=0:
-        if len(distances.shape)>2:
-            distances.sort(axis=2)
-            weights = get_weights(distances[:,:,0], distances[:,:,1], 1, 10, 5)
-        else:
-            weights = get_weights(0, distances, 1, 10, 5)
-    else:
-        weights = np.ones(image_size)
     return np.where(mask > 0, 1, 0).astype('uint8')
 
 
