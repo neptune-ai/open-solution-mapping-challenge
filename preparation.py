@@ -55,13 +55,13 @@ def overlay_masks_from_annotations(annotations, image_size):
     return np.where(mask > 0, 1, 0).astype('uint8')
 
 
-def overlay_eroded_masks_from_annotations(annotations, image_size, area_percent):
+def overlay_eroded_masks_from_annotations(annotations, image_size, area_fraction):
     mask = np.zeros(image_size)
     for ann in annotations:
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
         m = cocomask.decode(rle)
         m = m.reshape(image_size)
-        m_eroded = get_eroded_mask(m, area_percent)
+        m_eroded = get_eroded_mask(m, area_fraction)
         mask += m_eroded
     return np.where(mask > 0, 1, 0).astype('uint8')
 
@@ -99,7 +99,6 @@ def get_eroded_mask(mask, percent):
     new_percent = percent
     iterations = 0
     while abs(diff) > 5 and iterations < 4:
-        iterations += 1
         selem_size = get_selem_size(mask, new_percent)
         selem = rectangle(selem_size, selem_size)
         mask_eroded = binary_erosion(mask, selem=selem)
@@ -107,7 +106,8 @@ def get_eroded_mask(mask, percent):
         mask_eroded_area = np.sum(mask_eroded)
         percent_obtained = 100 * (1 - mask_eroded_area / mask_area)
         diff = percent - percent_obtained
-        new_percent = new_percent + diff
+        new_percent += diff
+        iterations += 1
     if iterations > 3 and abs(diff) > 5:
         if diff < 0 and selem_size > 2:
             selem_size -= 1
