@@ -183,7 +183,7 @@ def mask_postprocessing(loader, model, config, save_output=False):
                              else DenseCRF(**config.postprocessor.crf),
                          input_steps=[loader, model],
                          adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
-                                  'org_images_gen': ([(loader.name, 'datagen')]),
+                                  'raw_images_generator': ([(loader.name, 'datagen')]),
                                   },
                          cache_dirpath=config.env.cache_dirpath,
                          save_output=save_output)

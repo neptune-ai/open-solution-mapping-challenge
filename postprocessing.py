@@ -3,9 +3,12 @@ from scipy import ndimage as ndi
 from skimage.transform import resize
 from skimage.morphology import binary_dilation, rectangle
 from tqdm import tqdm
+from pydensecrf.densecrf import DenseCRF2D
+from pydensecrf.utils import unary_from_softmax
 
 from steps.base import BaseTransformer
-from utils import categorize_image, dense_crf
+from utils import categorize_image, denormalize_img
+from pipeline_config import MEAN, STD
 
 
 class MulticlassLabeler(BaseTransformer):
@@ -54,28 +57,28 @@ class DenseCRF(BaseTransformer):
         self.sxy_bilateral = sxy_bilateral
         self.srgb = srgb
 
-    def transform(self, images, org_images_gen):
+    def transform(self, images, raw_images_generator):
         crf_images = []
-        org_images = self.get_org_images(org_images_gen)
-        for image, org_image in tqdm(zip(images, org_images)):
+        original_images = self.get_original_images(raw_images_generator)
+        for image, org_image in tqdm(zip(images, original_images)):
             crf_image = dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
                                   self.compat_bilateral, self.sxy_bilateral, self.srgb)
             crf_images.append(crf_image)
         return {'crf_images': crf_images}
 
-    def get_org_images(self, org_images_gen):
-        org_images = []
-        batch_gen, steps = org_images_gen
+    def get_original_images(self, datagen):
+        original_images = []
+        batch_gen, steps = datagen
         for batch_id, data in enumerate(batch_gen):
             if isinstance(data, list):
                 X = data[0]
             else:
                 X = data
             for image in X.numpy():
-                org_images.append(image)
+                original_images.append(image)
             if batch_id == steps:
                 break
-        return org_images
+        return original_images
 
 
 class MulticlassLabelerStream(BaseTransformer):
@@ -128,17 +131,17 @@ class DenseCRFStream(BaseTransformer):
         self.sxy_bilateral = sxy_bilateral
         self.srgb = srgb
 
-    def transform(self, images, org_images_gen):
-        return {'crf_images': self._transform(images, org_images_gen)}
+    def transform(self, images, raw_images_generator):
+        return {'crf_images': self._transform(images, raw_images_generator)}
 
-    def _transform(self, images, org_images_gen):
-        org_images = self.get_org_images(org_images_gen)
-        for image, org_image in tqdm(zip(images, org_images)):
+    def _transform(self, images, raw_images_generator):
+        original_images = self.get_original_images(raw_images_generator)
+        for image, org_image in tqdm(zip(images, original_images)):
             crf_image = dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
                                   self.compat_bilateral, self.sxy_bilateral, self.srgb)
             yield crf_image
 
-    def get_org_images(self, datagen):
+    def get_original_images(self, datagen):
         batch_gen, steps = datagen
         for batch_id, data in enumerate(batch_gen):
             if isinstance(data, list):
@@ -167,3 +170,25 @@ def label_multiclass_image(mask):
 def dilate_image(mask, selem_size):
     selem = rectangle(selem_size, selem_size)
     return binary_dilation(mask, selem=selem)
+
+
+def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilateral=10, sxy_bilateral=1, srgb=50):
+    height = output_probs.shape[1]
+    width = output_probs.shape[2]
+
+    crf = DenseCRF2D(width, height, 2)
+    unary = unary_from_softmax(output_probs)
+    org_img = denormalize_img(img, mean=MEAN, std=STD) * 255.
+    org_img = org_img.transpose(1, 2, 0)
+    org_img = np.ascontiguousarray(org_img, dtype=np.uint8)
+
+    crf.setUnaryEnergy(unary)
+
+    crf.addPairwiseGaussian(sxy=sxy_gaussian, compat=compat_gaussian)
+    crf.addPairwiseBilateral(sxy=sxy_bilateral, srgb=srgb, rgbim=org_img, compat=compat_bilateral)
+
+    crf_image = crf.inference(5)
+    crf_image = np.array(crf_image).reshape(output_probs.shape)
+
+    return crf_image
+

@@ -13,6 +13,8 @@ X_COLUMNS = ['file_path_image']
 Y_COLUMNS = ['file_path_mask_eroded']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
+MEAN = [0., 0., 0.]
+STD = [1., 1., 1.]
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
