@@ -4,7 +4,7 @@ import loaders
 from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
-from models import PyTorchUNet, PyTorchUNetStream
+from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted
 from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, \
     ResizerStream, CategoryMapperStream, MulticlassLabelerStream, MaskDilatorStream
 
@@ -21,6 +21,45 @@ def unet(config, train_mode):
     unet = Step(name='unet',
                 transformer=PyTorchUNetStream(**config.unet) if config.execution.stream_mode else PyTorchUNet(
                     **config.unet),
+                input_steps=[loader],
+                cache_dirpath=config.env.cache_dirpath,
+                save_output=save_output, load_saved_output=load_saved_output)
+
+    mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
+    if config.postprocessor["dilate_selem_size"] > 0:
+        mask_postprocessed = Step(name='mask_dilation',
+                                  transformer=MaskDilatorStream(
+                                      **config.postprocessor) if config.execution.stream_mode else MaskDilator(
+                                      **config.postprocessor),
+                                  input_steps=[mask_postprocessed],
+                                  adapter={'images': ([(mask_postprocessed.name, 'categorized_images')]),
+                                           },
+                                  cache_dirpath=config.env.cache_dirpath,
+                                  save_output=save_output,
+                                  load_saved_output=False)
+    detached = multiclass_object_labeler(mask_postprocessed, config, save_output=save_output)
+    output = Step(name='output',
+                  transformer=Dummy(),
+                  input_steps=[detached],
+                  adapter={'y_pred': ([(detached.name, 'labeled_images')]),
+                           },
+                  cache_dirpath=config.env.cache_dirpath,
+                  save_output=save_output,
+                  load_saved_output=False)
+    return output
+
+
+def unet_weighted(config, train_mode):
+    if train_mode:
+        save_output = False
+        load_saved_output = False
+    else:
+        save_output = False
+        load_saved_output = False
+
+    loader = preprocessing(config, model_type='single', is_train=train_mode)
+    unet = Step(name='unet',
+                transformer=PyTorchUNetWeighted(**config.unet),
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
@@ -199,4 +238,7 @@ def mask_postprocessing(model, config, save_output=False):
 PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
                       'inference': partial(unet, train_mode=False),
                       },
+             'unet_weighted': {'train': partial(unet_weighted, train_mode=True),
+                               'inference': partial(unet_weighted, train_mode=False),
+                               },
              }

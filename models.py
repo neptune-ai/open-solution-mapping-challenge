@@ -1,3 +1,5 @@
+from functools import partial
+
 import torch
 from torch.autograd import Variable
 from torch import optim
@@ -71,6 +73,24 @@ class PyTorchUNetStream(Model):
         self.model.train()
 
 
+class PyTorchUNetWeighted(Model):
+    def __init__(self, architecture_config, training_config, callbacks_config):
+        super().__init__(architecture_config, training_config, callbacks_config)
+        self.model = UNet(**architecture_config['model_params'])
+        self.weight_regularization = weight_regularization_unet
+        self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
+                                    **architecture_config['optimizer_params'])
+        loss = partial(multiclass_weighted_segmentation_loss, **get_loss_params(**training_config["loss_function"]))
+        self.loss_function = [('multichannel_map', loss, 1.0)]
+        self.callbacks = callbacks_unet(self.callbacks_config)
+
+    def transform(self, datagen, validation_datagen=None):
+        outputs = self._transform(datagen, validation_datagen)
+        for name, prediction in outputs.items():
+            outputs[name] = softmax(prediction, axis=1)
+        return outputs
+
+
 def weight_regularization(model, regularize, weight_decay_conv2d, weight_decay_linear):
     if regularize:
         parameter_list = [{'params': model.features.parameters(), 'weight_decay': weight_decay_conv2d},
@@ -104,5 +124,20 @@ def callbacks_unet(callbacks_config):
                    ])
 
 
-def multiclass_weighted_segmentation_loss(output, target):
-    pass
+def multiclass_weighted_segmentation_loss(output, target, w0, sigma):
+    d1 = Variable(torch.ones([256,256]), requires_grad=False).cuda()#test
+    d2 = d1.clone()#test
+    w1 = d1.clone()#test
+    weights = get_weights(d1, d2, w1, w0, sigma)
+    loss = weights.sum()
+    return loss
+
+
+def get_weights(d1, d2, w1, w0, sigma):
+    return w1 + w0 * torch.exp(-((d1 + d2) ** 2) / (sigma ** 2))
+
+
+def get_loss_params(w0, sigma):
+    w0 = Variable(torch.Tensor([w0]), requires_grad=False).cuda()
+    sigma = Variable(torch.Tensor([sigma]), requires_grad=False).cuda()
+    return {'w0': w0, 'sigma': sigma}
