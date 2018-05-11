@@ -352,3 +352,7 @@ def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids):
     cocoEval.summarize()
 
     return cocoEval.stats[1], cocoEval.stats[8]
+
+
+def denormalize_img(image, mean, std):
+    return image * np.array(std).reshape(3, 1, 1) + np.array(mean).reshape(3, 1, 1)

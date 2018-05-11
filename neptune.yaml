@@ -41,7 +41,7 @@ parameters:
   pin_memory: 1
   competition_stage: 1
   api_key: YOUR_CROWDAI_API_KEY
-  stream_mode: False
+  stream_mode: 0
 
 # General parameters
   image_h: 256
@@ -85,6 +85,15 @@ parameters:
   min_nuclei_size: 20
   erosion_percentages: '[10,20,30]'
   dilate_selem_size: 5
+
+  #CRF
+  apply_crf: 0
+  nr_iter: 5
+  compat_gaussian: 3
+  sxy_gaussian: 1
+  compat_bilateral: 10
+  sxy_bilateral: 1
+  srgb: 50
 
 #Neptune monitor
   unet_outputs_to_plot: '["multichannel_map",]'
