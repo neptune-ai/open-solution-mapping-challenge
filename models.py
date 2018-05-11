@@ -130,6 +130,7 @@ def multiclass_weighted_segmentation_loss(output, target, w0, sigma):
     w1 = d1.clone()#test
     weights = get_weights(d1, d2, w1, w0, sigma)
     loss = weights.sum()
+    print(w0,sigma)
     return loss
 
 
@@ -138,6 +139,6 @@ def get_weights(d1, d2, w1, w0, sigma):
 
 
 def get_loss_params(w0, sigma):
-    w0 = Variable(torch.Tensor([w0]), requires_grad=False).cuda()
-    sigma = Variable(torch.Tensor([sigma]), requires_grad=False).cuda()
+    w0 = Variable(torch.Tensor([w0]), requires_grad=True).cuda()
+    sigma = Variable(torch.Tensor([sigma]), requires_grad=True).cuda()
     return {'w0': w0, 'sigma': sigma}
