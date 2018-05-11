@@ -57,7 +57,7 @@ def unet_weighted(config, train_mode):
         save_output = False
         load_saved_output = False
 
-    loader = preprocessing(config, model_type='single', is_train=train_mode)
+    loader = preprocessing_weights(config, is_train=train_mode)
     unet = Step(name='unet',
                 transformer=PyTorchUNetWeighted(**config.unet),
                 input_steps=[loader],
@@ -205,6 +205,59 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
 
             loader = Step(name='loader',
                           transformer=loaders.MetadataImageSegmentationMultitaskLoader(**config.loader),
+                          input_data=['input'],
+                          input_steps=[xy_inference, xy_inference],
+                          adapter={'X': ([('xy_inference', 'X')], squeeze_inputs),
+                                   'y': ([('xy_inference', 'y')], squeeze_inputs),
+                                   'train_mode': ([('input', 'train_mode')]),
+                                   },
+                          cache_dirpath=config.env.cache_dirpath)
+    return loader
+
+
+def preprocessing_weights(config, is_train, use_patching=False):
+    if use_patching:
+        raise NotImplementedError
+    else:
+        if is_train:
+            xy_train = Step(name='xy_train',
+                            transformer=XYSplit(**config.xy_splitter),
+                            input_data=['input'],
+                            adapter={'meta': ([('input', 'meta')]),
+                                     'train_mode': ([('input', 'train_mode')])
+                                     },
+                            cache_dirpath=config.env.cache_dirpath)
+
+            xy_inference = Step(name='xy_inference',
+                                transformer=XYSplit(**config.xy_splitter),
+                                input_data=['input'],
+                                adapter={'meta': ([('input', 'meta_valid')]),
+                                         'train_mode': ([('input', 'train_mode')])
+                                         },
+                                cache_dirpath=config.env.cache_dirpath)
+
+            loader = Step(name='loader',
+                          transformer=loaders.MetadataImageSegmentationLoader(**config.loader),
+                          input_data=['input'],
+                          input_steps=[xy_train, xy_inference],
+                          adapter={'X': ([('xy_train', 'X')], squeeze_inputs),
+                                   'y': ([('xy_train', 'y')], squeeze_inputs),
+                                   'train_mode': ([('input', 'train_mode')]),
+                                   'X_valid': ([('xy_inference', 'X')], squeeze_inputs),
+                                   'y_valid': ([('xy_inference', 'y')], squeeze_inputs),
+                                   },
+                          cache_dirpath=config.env.cache_dirpath)
+        else:
+            xy_inference = Step(name='xy_inference',
+                                transformer=XYSplit(**config.xy_splitter),
+                                input_data=['input'],
+                                adapter={'meta': ([('input', 'meta')]),
+                                         'train_mode': ([('input', 'train_mode')])
+                                         },
+                                cache_dirpath=config.env.cache_dirpath)
+
+            loader = Step(name='loader',
+                          transformer=loaders.MetadataImageSegmentationLoader(**config.loader),
                           input_data=['input'],
                           input_steps=[xy_inference, xy_inference],
                           adapter={'X': ([('xy_inference', 'X')], squeeze_inputs),

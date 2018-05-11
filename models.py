@@ -125,12 +125,11 @@ def callbacks_unet(callbacks_config):
 
 
 def multiclass_weighted_segmentation_loss(output, target, w0, sigma):
-    d1 = Variable(torch.ones([256,256]), requires_grad=False).cuda()#test
+    d1 = Variable(torch.ones([256,256]), requires_grad=True).cuda()#test
     d2 = d1.clone()#test
     w1 = d1.clone()#test
     weights = get_weights(d1, d2, w1, w0, sigma)
-    loss = weights.sum()
-    print(w0,sigma)
+    loss = weights.sum()#test
     return loss
 
 
@@ -139,6 +138,6 @@ def get_weights(d1, d2, w1, w0, sigma):
 
 
 def get_loss_params(w0, sigma):
-    w0 = Variable(torch.Tensor([w0]), requires_grad=True).cuda()
-    sigma = Variable(torch.Tensor([sigma]), requires_grad=True).cuda()
+    w0 = Variable(torch.Tensor([w0]), requires_grad=False).cuda()
+    sigma = Variable(torch.Tensor([sigma]), requires_grad=False).cuda()
     return {'w0': w0, 'sigma': sigma}
