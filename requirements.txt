@@ -19,4 +19,4 @@ skimage==0.0
 PyYAML==3.12
 Cython==0.28.2
 crowdai==1.0.19
-pydensecrf==1.0
+git+https://github.com/lucasb-eyer/pydensecrf.git
