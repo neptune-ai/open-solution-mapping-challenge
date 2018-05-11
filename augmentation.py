@@ -6,7 +6,7 @@ fast_seq = iaa.SomeOf((1, 2),
                        iaa.Flipud(0.5),
                        iaa.Affine(rotate=(0, 360),
                                   translate_percent=(-0.1, 0.1)),
-                       iaa.CropAndPad(percent=(-0.25, 0.25), pad_cval=0)
+                       iaa.CropAndPad(percent=(-0.25, 0.25), pad_mode='reflect')
                        ], random_order=True)
 
 affine_seq = iaa.Sequential([
