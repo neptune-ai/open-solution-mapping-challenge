@@ -237,7 +237,7 @@ def preprocessing_weights(config, is_train, use_patching=False):
                                 cache_dirpath=config.env.cache_dirpath)
 
             loader = Step(name='loader',
-                          transformer=loaders.MetadataImageSegmentationLoader(**config.loader),
+                          transformer=loaders.MetadataImageSegmentationLoaderDistances(**config.loader),
                           input_data=['input'],
                           input_steps=[xy_train, xy_inference],
                           adapter={'X': ([('xy_train', 'X')], squeeze_inputs),
@@ -257,7 +257,7 @@ def preprocessing_weights(config, is_train, use_patching=False):
                                 cache_dirpath=config.env.cache_dirpath)
 
             loader = Step(name='loader',
-                          transformer=loaders.MetadataImageSegmentationLoader(**config.loader),
+                          transformer=loaders.MetadataImageSegmentationLoaderDistances(**config.loader),
                           input_data=['input'],
                           input_steps=[xy_inference, xy_inference],
                           adapter={'X': ([('xy_inference', 'X')], squeeze_inputs),

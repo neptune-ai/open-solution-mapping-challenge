@@ -62,7 +62,7 @@ class Model(BaseTransformer):
                 self.callbacks.on_batch_begin()
                 metrics = self._fit_loop(data)
                 self.callbacks.on_batch_end(metrics=metrics)
-                if batch_id == steps:
+                if batch_id == 10: #steps:test
                     break
             self.callbacks.on_epoch_end()
             if self.callbacks.training_break():

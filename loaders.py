@@ -9,6 +9,7 @@ from PIL import Image
 from attrdict import AttrDict
 from skimage.transform import resize
 from torch.utils.data import Dataset, DataLoader
+from sklearn.externals import joblib
 
 from augmentation import fast_seq, affine_seq, color_seq, patching_seq
 from steps.base import BaseTransformer
@@ -53,6 +54,64 @@ class MetadataImageSegmentationDataset(Dataset):
                 Xi, Mi = self.image_augment_with_target(Xi, Mi)
                 if self.image_augment is not None:
                     Xi = self.image_augment(Xi)
+                Xi, Mi = to_pil(Xi, Mi)
+
+            if self.mask_transform is not None:
+                Mi = self.mask_transform(Mi)
+
+            if self.image_transform is not None:
+                Xi = self.image_transform(Xi)
+            return Xi, Mi
+        else:
+            if self.image_transform is not None:
+                Xi = self.image_transform(Xi)
+            return Xi
+
+
+class MetadataImageSegmentationDatasetDistances(Dataset):
+    def __init__(self, X, y, train_mode,
+                 image_transform, image_augment_with_target,
+                 mask_transform, image_augment):
+        super().__init__()
+        self.X = X
+        if y is not None:
+            self.y = y
+        else:
+            self.y = None
+
+        self.train_mode = train_mode
+        self.image_transform = image_transform
+        self.mask_transform = mask_transform
+        self.image_augment = image_augment
+        self.image_augment_with_target = image_augment_with_target
+
+    def load_image(self, img_filepath):
+        image = Image.open(img_filepath, 'r')
+        return image.convert('RGB')
+
+    def load_distances(selfself, dist_filepath):
+        return joblib.load(dist_filepath)
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __getitem__(self, index):
+        img_filepath = self.X[index]
+        Xi = self.load_image(img_filepath)
+
+        if self.y is not None:
+            mask_filepath = self.y[index]
+            Mi = self.load_image(mask_filepath)
+            distance_filepath = mask_filepath.replace("/masks/", "/distances/")[:-4]
+            Di = self.load_distances(distance_filepath)
+
+            if self.train_mode and self.image_augment_with_target is not None:
+                Xi, Mi, Di = from_pil(Xi, Mi, Di)
+                Xi, Mi = self.image_augment_with_target(Xi, Mi)
+                if self.image_augment is not None:
+                    Xi = self.image_augment(Xi)
+                Mi = np.dstack([Mi, Di])#test
+                print(Mi.shape)
                 Xi, Mi = to_pil(Xi, Mi)
 
             if self.mask_transform is not None:
@@ -345,6 +404,12 @@ class MetadataImageSegmentationLoader(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
         self.dataset = MetadataImageSegmentationDataset
+
+
+class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
+    def __init__(self, loader_params, dataset_params):
+        super().__init__(loader_params, dataset_params)
+        self.dataset = MetadataImageSegmentationDatasetDistances
 
 
 class MetadataImageSegmentationMultitaskLoader(ImageSegmentationLoaderBasic):

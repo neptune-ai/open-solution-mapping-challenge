@@ -86,7 +86,7 @@ def _train(pipeline_name, dev_mode):
     if bool(params.overwrite) and os.path.isdir(params.experiment_dir):
         shutil.rmtree(params.experiment_dir)
 
-    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata_extended.csv'.format(params.competition_stage)),
+    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)),
                        low_memory=False)
     meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
