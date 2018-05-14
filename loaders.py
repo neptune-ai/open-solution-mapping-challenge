@@ -15,6 +15,7 @@ from augmentation import fast_seq, affine_seq, color_seq, patching_seq
 from steps.base import BaseTransformer
 from steps.pytorch.utils import ImgAug
 from utils import from_pil, to_pil
+from pipeline_config import MEAN, STD
 
 
 class MetadataImageSegmentationDataset(Dataset):
@@ -284,7 +285,7 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
         self.image_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
                                                                       self.dataset_params.w)),
                                                    transforms.ToTensor(),
-                                                   transforms.Normalize(mean=[0.0], std=[1.0]),
+                                                   transforms.Normalize(mean=MEAN, std=STD),
                                                    ])
         self.mask_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
                                                                      self.dataset_params.w)),

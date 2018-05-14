@@ -13,6 +13,8 @@ X_COLUMNS = ['file_path_image']
 Y_COLUMNS = ['file_path_mask_eroded_30']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
+MEAN = [0., 0., 0.]
+STD = [1., 1., 1.]
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
@@ -98,5 +100,13 @@ SOLUTION_CONFIG = AttrDict({
         },
     },
     'dropper': {'min_size': params.min_nuclei_size},
-    'postprocessor': {'dilate_selem_size': params.dilate_selem_size}
+    'postprocessor': {'dilate_selem_size': params.dilate_selem_size,
+                      'crf': {'apply_crf': params.apply_crf,
+                              'nr_iter': params.nr_iter,
+                              'compat_gaussian': params.compat_gaussian,
+                              'sxy_gaussian': params.sxy_gaussian,
+                              'compat_bilateral': params.compat_bilateral,
+                              'sxy_bilateral': params.sxy_bilateral,
+                              'srgb': params.srgb
+                              }}
 })

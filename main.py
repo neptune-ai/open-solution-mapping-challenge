@@ -50,7 +50,7 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 @action.command()
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
 def prepare_masks(dev_mode):
-    erode = eval(params.erosion_percents)
+    erode = eval(params.erosion_percentages)
     if erode != [0]:
         for dataset in ["train", "val"]:
             for erosion_percent in erode:

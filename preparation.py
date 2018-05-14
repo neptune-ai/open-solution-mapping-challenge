@@ -129,7 +129,6 @@ def get_eroded_mask(mask, percent):
     new_percent = percent
     iterations = 0
     while abs(diff) > 5 and iterations < 4:
-        iterations += 1
         selem_size = get_selem_size(mask, new_percent)
         selem = rectangle(selem_size, selem_size)
         mask_eroded = binary_erosion(mask, selem=selem)
@@ -137,7 +136,8 @@ def get_eroded_mask(mask, percent):
         mask_eroded_area = np.sum(mask_eroded)
         percent_obtained = 100 * (1 - mask_eroded_area / mask_area)
         diff = percent - percent_obtained
-        new_percent = new_percent + diff
+        new_percent += diff
+        iterations += 1
     if iterations > 3 and abs(diff) > 5:
         if diff < 0 and selem_size > 2:
             selem_size -= 1

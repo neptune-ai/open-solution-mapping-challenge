@@ -92,7 +92,7 @@ def create_annotations(meta, predictions, logger, category_ids, save=False, expe
     :return: submission if save==False else True
     '''
     annotations = []
-    logger.info('Creating submission')
+    logger.info('Creating annotations')
     for image_id, prediction in zip(meta["ImageId"].values, predictions):
         score = 1.0
         for category_nr, category_instances in enumerate(prediction):
@@ -384,3 +384,7 @@ def get_weight_matrix(mask):
 
 def get_weights(d1, d2, w1, w0, sigma):
     return w1 + w0 * np.exp(-((d1 + d2) ** 2) / (sigma ** 2))
+
+
+def denormalize_img(image, mean, std):
+    return image * np.array(std).reshape(3, 1, 1) + np.array(mean).reshape(3, 1, 1)
