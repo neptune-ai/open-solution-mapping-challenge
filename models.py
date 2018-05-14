@@ -9,12 +9,13 @@ from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ValidationMon
 from steps.pytorch.models import Model
 from steps.pytorch.validation import multiclass_segmentation_loss
 from utils import softmax
+from unet_models import UNet11, UNet16, AlbuNet
 
 
 class PyTorchUNet(Model):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        self.model = UNet(**architecture_config['model_params'])
+        self.set_model()
         self.weight_regularization = weight_regularization_unet
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
@@ -27,10 +28,24 @@ class PyTorchUNet(Model):
             outputs[name] = softmax(prediction, axis=1)
         return outputs
 
+    def set_model(self):
+        encoder = self.architecture_config['model_params']['encoder']
+        if encoder == 'VGG11':
+            self.model = UNet11(num_classes=2, pretrained=True)
+        elif encoder == 'VGG16':
+            self.model = UNet16(num_classes=2, pretrained=True, is_deconv=True)
+        elif encoder == 'ResNet':
+            self.model = AlbuNet(num_classes=2, pretrained=True, is_deconv=True)
+        elif encoder == 'standard':
+            self.model = UNet(**self.architecture_config['model_params'])
+        else:
+            raise NotImplementedError
+
+
 class PyTorchUNetStream(Model):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        self.model = UNet(**architecture_config['model_params'])
+        self.set_model()
         self.weight_regularization = weight_regularization_unet
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
@@ -42,6 +57,19 @@ class PyTorchUNetStream(Model):
             output_generator = self._transform(datagen, validation_datagen)
             output = {'{}_prediction'.format(self.output_names[0]): output_generator}
             return output
+        else:
+            raise NotImplementedError
+
+    def set_model(self):
+        encoder = self.architecture_config['model_params']['encoder']
+        if encoder == 'VGG11':
+            self.model = UNet11(num_classes=2, pretrained=True)
+        elif encoder == 'VGG16':
+            self.model = UNet16(num_classes=2, pretrained=True, is_deconv=True)
+        elif encoder == 'ResNet':
+            self.model = AlbuNet(num_classes=2, pretrained=True, is_deconv=True)
+        elif encoder == 'standard':
+            self.model = UNet(**self.architecture_config['model_params'])
         else:
             raise NotImplementedError
 
