@@ -189,7 +189,7 @@ def callbacks_unet(callbacks_config):
 
     return CallbackList(
         callbacks=[experiment_timing, training_monitor, validation_monitor,
-                   model_checkpoints, lr_scheduler, early_stopping, #neptune_monitor,
+                   model_checkpoints, lr_scheduler, early_stopping, neptune_monitor,
                    ])
 
 

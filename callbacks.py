@@ -56,6 +56,9 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
             X = data[0]
             targets_tensors = data[1:]
 
+            if (targets_tensors[0].size()[1] > 1):
+                targets_tensors = [target_tensor[:, :1, :, :] for target_tensor in targets_tensors]
+
             if torch.cuda.is_available():
                 X = Variable(X, volatile=True).cuda()
             else:
