@@ -81,6 +81,15 @@ class DenseCRF(BaseTransformer):
         return original_images
 
 
+class ScoreBuilder(BaseTransformer):
+    def transform(self, images, probabilities):
+        scores = []
+        for image, image_probabilities in zip(images, probabilities):
+            scores.append(build_score(image, image_probabilities))
+        return {'images': images,
+                'scores': scores}
+
+
 class MulticlassLabelerStream(BaseTransformer):
     def transform(self, images):
         return {'labeled_images': self._transform(images)}
@@ -192,3 +201,12 @@ def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilat
 
     return crf_image
 
+def build_score(image, probabilities):
+    total_score = []
+    for category_instances, category_probabilities in zip(image, probabilities):
+        score = []
+        for label_nr in range(0, category_instances.max() + 1):
+            masked_instance = np.ma.masked_array(category_probabilities, mask=category_instances != label_nr)
+            score.append(masked_instance.mean())
+        total_score.append(score)
+    return total_score
