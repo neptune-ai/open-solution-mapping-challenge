@@ -50,42 +50,10 @@ def unet(config, train_mode):
 
 
 def unet_weighted(config, train_mode):
-    if train_mode:
-        save_output = False
-        load_saved_output = False
-    else:
-        save_output = False
-        load_saved_output = False
-
-    loader = preprocessing_weights(config, is_train=train_mode)
-    unet = Step(name='unet',
-                transformer=PyTorchUNetWeighted(**config.unet),
-                input_steps=[loader],
-                cache_dirpath=config.env.cache_dirpath,
-                save_output=save_output, load_saved_output=load_saved_output)
-
-    mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
-    if config.postprocessor["dilate_selem_size"] > 0:
-        mask_postprocessed = Step(name='mask_dilation',
-                                  transformer=MaskDilatorStream(
-                                      **config.postprocessor) if config.execution.stream_mode else MaskDilator(
-                                      **config.postprocessor),
-                                  input_steps=[mask_postprocessed],
-                                  adapter={'images': ([(mask_postprocessed.name, 'categorized_images')]),
-                                           },
-                                  cache_dirpath=config.env.cache_dirpath,
-                                  save_output=save_output,
-                                  load_saved_output=False)
-    detached = multiclass_object_labeler(mask_postprocessed, config, save_output=save_output)
-    output = Step(name='output',
-                  transformer=Dummy(),
-                  input_steps=[detached],
-                  adapter={'y_pred': ([(detached.name, 'labeled_images')]),
-                           },
-                  cache_dirpath=config.env.cache_dirpath,
-                  save_output=save_output,
-                  load_saved_output=False)
-    return output
+    unet_weighted = unet(config, train_mode)
+    unet_weighted.get_step("loader").transformer = loaders.MetadataImageSegmentationLoaderDistances(**config.loader)
+    unet_weighted.get_step("unet").transformer = PyTorchUNetWeighted(**config.unet)
+    return unet_weighted
 
 
 def preprocessing(config, model_type, is_train, loader_mode=None):
@@ -205,59 +173,6 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
 
             loader = Step(name='loader',
                           transformer=loaders.MetadataImageSegmentationMultitaskLoader(**config.loader),
-                          input_data=['input'],
-                          input_steps=[xy_inference, xy_inference],
-                          adapter={'X': ([('xy_inference', 'X')], squeeze_inputs),
-                                   'y': ([('xy_inference', 'y')], squeeze_inputs),
-                                   'train_mode': ([('input', 'train_mode')]),
-                                   },
-                          cache_dirpath=config.env.cache_dirpath)
-    return loader
-
-
-def preprocessing_weights(config, is_train, use_patching=False):
-    if use_patching:
-        raise NotImplementedError
-    else:
-        if is_train:
-            xy_train = Step(name='xy_train',
-                            transformer=XYSplit(**config.xy_splitter),
-                            input_data=['input'],
-                            adapter={'meta': ([('input', 'meta')]),
-                                     'train_mode': ([('input', 'train_mode')])
-                                     },
-                            cache_dirpath=config.env.cache_dirpath)
-
-            xy_inference = Step(name='xy_inference',
-                                transformer=XYSplit(**config.xy_splitter),
-                                input_data=['input'],
-                                adapter={'meta': ([('input', 'meta_valid')]),
-                                         'train_mode': ([('input', 'train_mode')])
-                                         },
-                                cache_dirpath=config.env.cache_dirpath)
-
-            loader = Step(name='loader',
-                          transformer=loaders.MetadataImageSegmentationLoaderDistances(**config.loader),
-                          input_data=['input'],
-                          input_steps=[xy_train, xy_inference],
-                          adapter={'X': ([('xy_train', 'X')], squeeze_inputs),
-                                   'y': ([('xy_train', 'y')], squeeze_inputs),
-                                   'train_mode': ([('input', 'train_mode')]),
-                                   'X_valid': ([('xy_inference', 'X')], squeeze_inputs),
-                                   'y_valid': ([('xy_inference', 'y')], squeeze_inputs),
-                                   },
-                          cache_dirpath=config.env.cache_dirpath)
-        else:
-            xy_inference = Step(name='xy_inference',
-                                transformer=XYSplit(**config.xy_splitter),
-                                input_data=['input'],
-                                adapter={'meta': ([('input', 'meta')]),
-                                         'train_mode': ([('input', 'train_mode')])
-                                         },
-                                cache_dirpath=config.env.cache_dirpath)
-
-            loader = Step(name='loader',
-                          transformer=loaders.MetadataImageSegmentationLoaderDistances(**config.loader),
                           input_data=['input'],
                           input_steps=[xy_inference, xy_inference],
                           adapter={'X': ([('xy_inference', 'X')], squeeze_inputs),
