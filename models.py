@@ -32,10 +32,13 @@ class PyTorchUNet(Model):
         encoder = self.architecture_config['model_params']['encoder']
         if encoder == 'VGG11':
             self.model = UNet11(num_classes=2, pretrained=True)
+            self._initialize_model_weights = lambda: None
         elif encoder == 'VGG16':
             self.model = UNet16(num_classes=2, pretrained=True, is_deconv=True)
+            self._initialize_model_weights = lambda: None
         elif encoder == 'ResNet':
             self.model = AlbuNet(num_classes=2, pretrained=True, is_deconv=True)
+            self._initialize_model_weights = lambda: None
         elif encoder == 'standard':
             self.model = UNet(**self.architecture_config['model_params'])
         else:
@@ -64,10 +67,13 @@ class PyTorchUNetStream(Model):
         encoder = self.architecture_config['model_params']['encoder']
         if encoder == 'VGG11':
             self.model = UNet11(num_classes=2, pretrained=True)
+            self._initialize_model_weights = lambda: None
         elif encoder == 'VGG16':
             self.model = UNet16(num_classes=2, pretrained=True, is_deconv=True)
+            self._initialize_model_weights = lambda: None
         elif encoder == 'ResNet':
             self.model = AlbuNet(num_classes=2, pretrained=True, is_deconv=True)
+            self._initialize_model_weights = lambda: None
         elif encoder == 'standard':
             self.model = UNet(**self.architecture_config['model_params'])
         else:

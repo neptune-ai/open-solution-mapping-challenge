@@ -5,6 +5,19 @@ from torchvision import models
 import torchvision
 
 
+"""
+This script has been taken (and modified) from :
+https://github.com/ternaus/TernausNet
+
+@ARTICLE{arXiv:1801.05746,
+         author = {V. Iglovikov and A. Shvets},
+          title = {TernausNet: U-Net with VGG11 Encoder Pre-Trained on ImageNet for Image Segmentation},
+        journal = {ArXiv e-prints},
+         eprint = {1801.05746}, 
+           year = 2018
+        }
+"""
+
 def conv3x3(in_, out):
     return nn.Conv2d(in_, out, 3, padding=1)
 
