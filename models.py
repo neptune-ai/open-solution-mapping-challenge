@@ -262,7 +262,7 @@ def multiclass_weighted_segmentation_loss(output, target, w0, sigma):
     w1 = Variable(torch.ones(distance.size()), requires_grad=False)  # TODO: fix it to handle class imbalance
     if torch.cuda.is_available():
         w1 = w1.cuda()
-    weights = get_weights(distance, w1, w0, sigma)
+    weights = __get_weights(distance, w1, w0, sigma)
     torch_softmax = torch.nn.Softmax2d()
     probabilities = torch_softmax(output)
     negative_log_likelihood = torch.nn.NLLLoss2d(reduce=False)
@@ -277,7 +277,7 @@ def __get_weights(d, w1, w0, sigma):
     return weights
 
 
-def __get_loss_params(w0, sigma):
+def get_loss_params(w0, sigma):
     w0 = Variable(torch.Tensor([w0]), requires_grad=False)
     sigma = Variable(torch.Tensor([sigma]), requires_grad=False)
     if torch.cuda.is_available():
