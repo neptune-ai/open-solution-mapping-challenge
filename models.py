@@ -29,20 +29,25 @@ class PyTorchUNet(Model):
         return outputs
 
     def set_model(self):
+        configs = {'VGG11': {'model': UNet11,
+                             'model_config': {'num_classes': 2, 'pretrained': True},
+                             'init_weights': False},
+                   'VGG16': {'model': UNet16,
+                             'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                             'init_weights': False},
+                   'ResNet': {'model': AlbuNet,
+                              'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                              'init_weights': False},
+                   'standard': {'model': UNet,
+                                'model_config': self.architecture_config['model_params'],
+                                'init_weights': True}
+                   }
         encoder = self.architecture_config['model_params']['encoder']
-        if encoder == 'VGG11':
-            self.model = UNet11(num_classes=2, pretrained=True)
+        config = configs[encoder]
+
+        self.model = config['model'](**config['model_config'])
+        if not config['init_weights']:
             self._initialize_model_weights = lambda: None
-        elif encoder == 'VGG16':
-            self.model = UNet16(num_classes=2, pretrained=True, is_deconv=True)
-            self._initialize_model_weights = lambda: None
-        elif encoder == 'ResNet':
-            self.model = AlbuNet(num_classes=2, pretrained=True, is_deconv=True)
-            self._initialize_model_weights = lambda: None
-        elif encoder == 'standard':
-            self.model = UNet(**self.architecture_config['model_params'])
-        else:
-            raise NotImplementedError
 
 
 class PyTorchUNetStream(Model):
@@ -64,20 +69,25 @@ class PyTorchUNetStream(Model):
             raise NotImplementedError
 
     def set_model(self):
+        configs = {'VGG11': {'model': UNet11,
+                             'model_config': {'num_classes': 2, 'pretrained': True},
+                             'init_weights': False},
+                   'VGG16': {'model': UNet16,
+                             'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                             'init_weights': False},
+                   'ResNet': {'model': AlbuNet,
+                              'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                              'init_weights': False},
+                   'standard': {'model': UNet,
+                                'model_config': self.architecture_config['model_params'],
+                                'init_weights': True}
+                   }
         encoder = self.architecture_config['model_params']['encoder']
-        if encoder == 'VGG11':
-            self.model = UNet11(num_classes=2, pretrained=True)
+        config = configs[encoder]
+
+        self.model = config['model'](**config['model_config'])
+        if not config['init_weights']:
             self._initialize_model_weights = lambda: None
-        elif encoder == 'VGG16':
-            self.model = UNet16(num_classes=2, pretrained=True, is_deconv=True)
-            self._initialize_model_weights = lambda: None
-        elif encoder == 'ResNet':
-            self.model = AlbuNet(num_classes=2, pretrained=True, is_deconv=True)
-            self._initialize_model_weights = lambda: None
-        elif encoder == 'standard':
-            self.model = UNet(**self.architecture_config['model_params'])
-        else:
-            raise NotImplementedError
 
     def _transform(self, datagen, validation_datagen=None):
         self.model.eval()
