@@ -80,7 +80,7 @@ def decompose(labeled):
         return masks
 
 
-def create_annotations(meta, predictions, logger, category_ids, save=False, experiment_dir='./'):
+def create_annotations(meta, predictions, scores, logger, category_ids, save=False, experiment_dir='./'):
     '''
     :param meta: pd.DataFrame with metadata
     :param predictions: list of labeled masks or numpy array of size [n_images, im_height, im_width]
@@ -91,12 +91,11 @@ def create_annotations(meta, predictions, logger, category_ids, save=False, expe
     '''
     annotations = []
     logger.info('Creating annotations')
-    for image_id, prediction in zip(meta["ImageId"].values, predictions):
-        score = 1.0
-        for category_nr, category_instances in enumerate(prediction):
+    for image_id, prediction, image_scores in zip(meta["ImageId"].values, predictions, scores):
+        for category_nr, (category_instances, category_scores) in enumerate(zip(prediction, image_scores)):
             if category_ids[category_nr] != None:
                 masks = decompose(category_instances)
-                for mask_nr, mask in enumerate(masks):
+                for mask_nr, (mask, score) in enumerate(zip(masks, category_scores)):
                     annotation = {}
                     annotation["image_id"] = int(image_id)
                     annotation["category_id"] = category_ids[category_nr]

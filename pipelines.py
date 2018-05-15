@@ -5,7 +5,7 @@ from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
 from models import PyTorchUNet, PyTorchUNetStream
-from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, DenseCRF, \
+from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, DenseCRF, ScoreBuilder, \
     ResizerStream, CategoryMapperStream, MulticlassLabelerStream, MaskDilatorStream, DenseCRFStream
 
 
@@ -26,22 +26,12 @@ def unet(config, train_mode):
                 save_output=save_output, load_saved_output=load_saved_output)
 
     mask_postprocessed = mask_postprocessing(loader, unet, config, save_output=save_output)
-    if config.postprocessor["dilate_selem_size"] > 0:
-        mask_postprocessed = Step(name='mask_dilation',
-                                  transformer=MaskDilatorStream(
-                                      **config.postprocessor) if config.execution.stream_mode else MaskDilator(
-                                      **config.postprocessor),
-                                  input_steps=[mask_postprocessed],
-                                  adapter={'images': ([(mask_postprocessed.name, 'categorized_images')]),
-                                           },
-                                  cache_dirpath=config.env.cache_dirpath,
-                                  save_output=save_output,
-                                  load_saved_output=False)
-    detached = multiclass_object_labeler(mask_postprocessed, config, save_output=save_output)
+
     output = Step(name='output',
                   transformer=Dummy(),
-                  input_steps=[detached],
-                  adapter={'y_pred': ([(detached.name, 'labeled_images')]),
+                  input_steps=[mask_postprocessed],
+                  adapter={'y_pred': ([(mask_postprocessed.name, 'images')]),
+                           'y_scores': ([(mask_postprocessed.name, 'scores')])
                            },
                   cache_dirpath=config.env.cache_dirpath,
                   save_output=save_output,
@@ -215,7 +205,33 @@ def mask_postprocessing(loader, model, config, save_output=False):
                                     },
                            cache_dirpath=config.env.cache_dirpath,
                            save_output=save_output)
-    return category_mapper
+
+    if config.postprocessor["dilate_selem_size"] > 0:
+        mask_dilation = Step(name='mask_dilation',
+                             transformer=MaskDilatorStream(
+                                 **config.postprocessor) if config.execution.stream_mode else MaskDilator(
+                                 **config.postprocessor),
+                             input_steps=[category_mapper],
+                             adapter={'images': ([(category_mapper.name, 'categorized_images')]),
+                                      },
+                             cache_dirpath=config.env.cache_dirpath,
+                             load_saved_output=False)
+        
+        detached = multiclass_object_labeler(mask_dilation, config, save_output=save_output)
+        
+    else:
+        detached = multiclass_object_labeler(category_mapper, config, save_output=save_output)
+
+    score_builder = Step(name='score_builder',
+                         transformer=ScoreBuilder(),
+                         input_steps=[detached, mask_resize],
+                         adapter={'images': ([(detached.name, 'labeled_images')]),
+                                  'probabilities': ([(mask_resize.name, 'resized_images')]),
+                                  },
+                         cache_dirpath=config.env.cache_dirpath,
+                         save_output=save_output)
+
+    return score_builder
 
 
 PIPELINES = {'unet': {'train': partial(unet, train_mode=True),

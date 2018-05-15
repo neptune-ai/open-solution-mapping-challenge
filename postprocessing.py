@@ -14,7 +14,7 @@ from pipeline_config import MEAN, STD
 class MulticlassLabeler(BaseTransformer):
     def transform(self, images):
         labeled_images = []
-        for i, image in enumerate(images):
+        for i, image in tqdm(enumerate(images)):
             labeled_image = label_multiclass_image(image)
             labeled_images.append(labeled_image)
         return {'labeled_images': labeled_images}
@@ -79,6 +79,15 @@ class DenseCRF(BaseTransformer):
             if batch_id == steps:
                 break
         return original_images
+
+
+class ScoreBuilder(BaseTransformer):
+    def transform(self, images, probabilities):
+        scores = []
+        for image, image_probabilities in tqdm(zip(images, probabilities)):
+            scores.append(build_score(image, image_probabilities))
+        return {'images': images,
+                'scores': scores}
 
 
 class MulticlassLabelerStream(BaseTransformer):
@@ -192,3 +201,13 @@ def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilat
 
     return crf_image
 
+
+def build_score(image, probabilities):
+    total_score = []
+    for category_instances, category_probabilities in zip(image, probabilities):
+        score = []
+        for label_nr in range(0, category_instances.max() + 1):
+            masked_instance = np.ma.masked_array(category_probabilities, mask=category_instances != label_nr)
+            score.append(masked_instance.mean())
+        total_score.append(score)
+    return total_score
