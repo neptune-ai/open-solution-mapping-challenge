@@ -108,7 +108,7 @@ class MetadataImageSegmentationDatasetDistances(Dataset):
             Mi = self.load_image(mask_filepath)
             distance_filepath = mask_filepath.replace("/masks/", "/distances/")[:-4]
             Di = self.load_distances(distance_filepath)
-            Di = np.sum(Di, axis=2).astype(np.uint8)  # TODO: remove it when Di will be single dimensional
+            Di = np.sum(Di, axis=2).astype(np.uint8)  # TODO: remove it when Di will be sum of distances to 2 closest objects
 
             if self.train_mode and self.image_augment_with_target is not None:
                 Xi, Mi = from_pil(Xi, Mi)

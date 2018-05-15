@@ -3,7 +3,6 @@ from functools import partial
 import torch
 from torch.autograd import Variable
 from torch import optim
-import numpy as np
 
 from callbacks import NeptuneMonitorSegmentation
 from steps.pytorch.architectures.unet import UNet
