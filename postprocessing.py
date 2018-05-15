@@ -2,8 +2,8 @@ import numpy as np
 from skimage.transform import resize
 from skimage.morphology import binary_dilation, rectangle
 from tqdm import tqdm
-#from pydensecrf.densecrf import DenseCRF2D
-#from pydensecrf.utils import unary_from_softmax
+from pydensecrf.densecrf import DenseCRF2D
+from pydensecrf.utils import unary_from_softmax
 
 from steps.base import BaseTransformer
 from utils import categorize_image, denormalize_img, label

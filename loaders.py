@@ -1,6 +1,5 @@
 import math
 from itertools import product
-from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -11,7 +10,7 @@ from attrdict import AttrDict
 from skimage.transform import resize
 from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
-from cv2 import resize
+from cv2 import resize as resize_cv
 
 from augmentation import fast_seq, affine_seq, color_seq, patching_seq
 from steps.base import BaseTransformer
@@ -419,7 +418,7 @@ class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
         self.dataset = MetadataImageSegmentationDatasetDistances
-        self.distance_matrix_transform = lambda x: to_tensor(resize(x.astype(np.float32), (self.dataset_params.h,
+        self.distance_matrix_transform = lambda x: to_tensor(resize_cv(x.astype(np.float32), (self.dataset_params.h,
                                                    self.dataset_params.w)).astype(np.float32))
 
     def get_datagen(self, X, y, train_mode, loader_params):
