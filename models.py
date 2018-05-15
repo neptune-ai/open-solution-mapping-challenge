@@ -11,13 +11,14 @@ from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ValidationMon
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
 from steps.pytorch.models import Model
 from steps.pytorch.validation import multiclass_segmentation_loss
-from utils import softmax, label
+from utils import softmax
+from unet_models import UNet11, UNet16, AlbuNet
 
 
 class PyTorchUNet(Model):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        self.model = UNet(**architecture_config['model_params'])
+        self.set_model()
         self.weight_regularization = weight_regularization_unet
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
@@ -30,11 +31,32 @@ class PyTorchUNet(Model):
             outputs[name] = softmax(prediction, axis=1)
         return outputs
 
+    def set_model(self):
+        configs = {'VGG11': {'model': UNet11,
+                             'model_config': {'num_classes': 2, 'pretrained': True},
+                             'init_weights': False},
+                   'VGG16': {'model': UNet16,
+                             'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                             'init_weights': False},
+                   'ResNet': {'model': AlbuNet,
+                              'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                              'init_weights': False},
+                   'standard': {'model': UNet,
+                                'model_config': self.architecture_config['model_params'],
+                                'init_weights': True}
+                   }
+        encoder = self.architecture_config['model_params']['encoder']
+        config = configs[encoder]
+
+        self.model = config['model'](**config['model_config'])
+        if not config['init_weights']:
+            self._initialize_model_weights = lambda: None
+
 
 class PyTorchUNetStream(Model):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        self.model = UNet(**architecture_config['model_params'])
+        self.set_model()
         self.weight_regularization = weight_regularization_unet
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
@@ -48,6 +70,27 @@ class PyTorchUNetStream(Model):
             return output
         else:
             raise NotImplementedError
+
+    def set_model(self):
+        configs = {'VGG11': {'model': UNet11,
+                             'model_config': {'num_classes': 2, 'pretrained': True},
+                             'init_weights': False},
+                   'VGG16': {'model': UNet16,
+                             'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                             'init_weights': False},
+                   'ResNet': {'model': AlbuNet,
+                              'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                              'init_weights': False},
+                   'standard': {'model': UNet,
+                                'model_config': self.architecture_config['model_params'],
+                                'init_weights': True}
+                   }
+        encoder = self.architecture_config['model_params']['encoder']
+        config = configs[encoder]
+
+        self.model = config['model'](**config['model_config'])
+        if not config['init_weights']:
+            self._initialize_model_weights = lambda: None
 
     def _transform(self, datagen, validation_datagen=None):
         self.model.eval()
@@ -78,7 +121,7 @@ class PyTorchUNetStream(Model):
 class PyTorchUNetWeighted(Model):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        self.model = UNet(**architecture_config['model_params'])
+        self.set_model()
         self.weight_regularization = weight_regularization_unet
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
@@ -92,11 +135,32 @@ class PyTorchUNetWeighted(Model):
             outputs[name] = softmax(prediction, axis=1)
         return outputs
 
+    def set_model(self):
+        configs = {'VGG11': {'model': UNet11,
+                             'model_config': {'num_classes': 2, 'pretrained': True},
+                             'init_weights': False},
+                   'VGG16': {'model': UNet16,
+                             'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                             'init_weights': False},
+                   'ResNet': {'model': AlbuNet,
+                              'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                              'init_weights': False},
+                   'standard': {'model': UNet,
+                                'model_config': self.architecture_config['model_params'],
+                                'init_weights': True}
+                   }
+        encoder = self.architecture_config['model_params']['encoder']
+        config = configs[encoder]
+
+        self.model = config['model'](**config['model_config'])
+        if not config['init_weights']:
+            self._initialize_model_weights = lambda: None
+
 
 class PyTorchUNetWeightedStream(Model):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        self.model = UNet(**architecture_config['model_params'])
+        self.set_model()
         self.weight_regularization = weight_regularization_unet
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
@@ -134,6 +198,27 @@ class PyTorchUNetWeightedStream(Model):
             if batch_id == steps:
                 break
         self.model.train()
+
+    def set_model(self):
+        configs = {'VGG11': {'model': UNet11,
+                             'model_config': {'num_classes': 2, 'pretrained': True},
+                             'init_weights': False},
+                   'VGG16': {'model': UNet16,
+                             'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                             'init_weights': False},
+                   'ResNet': {'model': AlbuNet,
+                              'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                              'init_weights': False},
+                   'standard': {'model': UNet,
+                                'model_config': self.architecture_config['model_params'],
+                                'init_weights': True}
+                   }
+        encoder = self.architecture_config['model_params']['encoder']
+        config = configs[encoder]
+
+        self.model = config['model'](**config['model_config'])
+        if not config['init_weights']:
+            self._initialize_model_weights = lambda: None
 
 
 def weight_regularization(model, regularize, weight_decay_conv2d, weight_decay_linear):
