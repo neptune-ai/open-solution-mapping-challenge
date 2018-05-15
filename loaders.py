@@ -7,8 +7,9 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 from attrdict import AttrDict
-from skimage.transform import resize
 from torch.utils.data import Dataset, DataLoader
+from sklearn.externals import joblib
+from cv2 import resize
 
 from augmentation import fast_seq, affine_seq, color_seq, patching_seq
 from steps.base import BaseTransformer
@@ -58,6 +59,70 @@ class MetadataImageSegmentationDataset(Dataset):
 
             if self.mask_transform is not None:
                 Mi = self.mask_transform(Mi)
+
+            if self.image_transform is not None:
+                Xi = self.image_transform(Xi)
+            return Xi, Mi
+        else:
+            if self.image_transform is not None:
+                Xi = self.image_transform(Xi)
+            return Xi
+
+
+class MetadataImageSegmentationDatasetDistances(Dataset):
+    def __init__(self, X, y, train_mode,
+                 image_transform, image_augment_with_target,
+                 mask_transform, image_augment,
+                 distance_matrix_transform):
+        super().__init__()
+        self.X = X
+        if y is not None:
+            self.y = y
+        else:
+            self.y = None
+
+        self.train_mode = train_mode
+        self.image_transform = image_transform
+        self.mask_transform = mask_transform
+        self.distance_matrix_transform = distance_matrix_transform
+        self.image_augment = image_augment
+        self.image_augment_with_target = image_augment_with_target
+
+    def load_image(self, img_filepath):
+        image = Image.open(img_filepath, 'r')
+        return image.convert('RGB')
+
+    def load_distances(selfself, dist_filepath):
+        return joblib.load(dist_filepath)
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __getitem__(self, index):
+        img_filepath = self.X[index]
+        Xi = self.load_image(img_filepath)
+
+        if self.y is not None:
+            mask_filepath = self.y[index]
+            Mi = self.load_image(mask_filepath)
+            distance_filepath = mask_filepath.replace("/masks/", "/distances/")[:-4]
+            Di = self.load_distances(distance_filepath)
+            Di = np.sum(Di, axis=2).astype(np.uint8)  # TODO: remove it when Di will be sum of distances to 2 closest objects
+
+            if self.train_mode and self.image_augment_with_target is not None:
+                Xi, Mi = from_pil(Xi, Mi)
+                Xi, Mi, Di = self.image_augment_with_target(Xi, Mi, Di)
+                if self.image_augment is not None:
+                    Xi = self.image_augment(Xi)
+                Xi, Mi, Di = to_pil(Xi, Mi, Di)
+
+            if not self.train_mode:
+                Di = to_pil(Di)
+
+            if self.mask_transform is not None:
+                Mi = self.mask_transform(Mi)
+                Di = self.mask_transform(Di)
+                Mi = torch.cat((Mi, Di), dim=0)
 
             if self.image_transform is not None:
                 Xi = self.image_transform(Xi)
@@ -348,6 +413,36 @@ class MetadataImageSegmentationLoader(ImageSegmentationLoaderBasic):
         self.dataset = MetadataImageSegmentationDataset
 
 
+class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
+    def __init__(self, loader_params, dataset_params):
+        super().__init__(loader_params, dataset_params)
+        self.dataset = MetadataImageSegmentationDatasetDistances
+        self.distance_matrix_transform = lambda x: to_tensor(resize(x.astype(np.float32), (self.dataset_params.h,
+                                                   self.dataset_params.w)).astype(np.float32))
+
+    def get_datagen(self, X, y, train_mode, loader_params):
+        if train_mode:
+            dataset = self.dataset(X, y,
+                                   train_mode=True,
+                                   image_augment=self.image_augment,
+                                   image_augment_with_target=self.image_augment_with_target,
+                                   mask_transform=self.mask_transform,
+                                   image_transform=self.image_transform,
+                                   distance_matrix_transform=self.distance_matrix_transform)
+        else:
+            dataset = self.dataset(X, y,
+                                   train_mode=False,
+                                   image_augment=None,
+                                   image_augment_with_target=None,
+                                   mask_transform=self.mask_transform,
+                                   image_transform=self.image_transform,
+                                   distance_matrix_transform=self.distance_matrix_transform)
+
+        datagen = DataLoader(dataset, **loader_params)
+        steps = len(datagen)
+        return datagen, steps
+
+
 class MetadataImageSegmentationMultitaskLoader(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
@@ -478,7 +573,7 @@ def get_mosaic_padded_image(img, patch_size, patch_stride):
 
     h, w = (max(h_, patch_size), max(w_, patch_size))
     if h > h_ or w > w_:
-        img = resize(img, (h, w), preserve_range=True)
+        img = resize(img, (h, w))
 
     h_pad, h_pad_top, h_pad_bottom, h_pad_end = get_padded_size(h, patch_size, patch_stride)
     w_pad, w_pad_left, w_pad_right, w_pad_end = get_padded_size(w, patch_size, patch_stride)

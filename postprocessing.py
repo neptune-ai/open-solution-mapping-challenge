@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import ndimage as ndi
 from skimage.transform import resize
 from skimage.morphology import binary_dilation, rectangle
 from tqdm import tqdm
@@ -7,14 +6,14 @@ from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
 
 from steps.base import BaseTransformer
-from utils import categorize_image, denormalize_img
+from utils import categorize_image, denormalize_img, label
 from pipeline_config import MEAN, STD
 
 
 class MulticlassLabeler(BaseTransformer):
     def transform(self, images):
         labeled_images = []
-        for i, image in enumerate(images):
+        for i, image in tqdm(enumerate(images)):
             labeled_image = label_multiclass_image(image)
             labeled_images.append(labeled_image)
         return {'labeled_images': labeled_images}
@@ -79,6 +78,15 @@ class DenseCRF(BaseTransformer):
             if batch_id == steps:
                 break
         return original_images
+
+
+class ScoreBuilder(BaseTransformer):
+    def transform(self, images, probabilities):
+        scores = []
+        for image, image_probabilities in tqdm(zip(images, probabilities)):
+            scores.append(build_score(image, image_probabilities))
+        return {'images': images,
+                'scores': scores}
 
 
 class MulticlassLabelerStream(BaseTransformer):
@@ -154,11 +162,6 @@ class DenseCRFStream(BaseTransformer):
                 break
 
 
-def label(mask):
-    labeled, nr_true = ndi.label(mask)
-    return labeled
-
-
 def label_multiclass_image(mask):
     labeled_channels = []
     for label_nr in range(0, mask.max() + 1):
@@ -192,3 +195,13 @@ def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilat
 
     return crf_image
 
+
+def build_score(image, probabilities):
+    total_score = []
+    for category_instances, category_probabilities in zip(image, probabilities):
+        score = []
+        for label_nr in range(0, category_instances.max() + 1):
+            masked_instance = np.ma.masked_array(category_probabilities, mask=category_instances != label_nr)
+            score.append(masked_instance.mean())
+        total_score.append(score)
+    return total_score

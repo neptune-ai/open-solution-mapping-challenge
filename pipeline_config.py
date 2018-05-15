@@ -10,7 +10,7 @@ params = read_params(ctx)
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
-Y_COLUMNS = ['file_path_mask_eroded']
+Y_COLUMNS = ['file_path_mask_eroded_30']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
 MEAN = [0., 0., 0.]
@@ -76,6 +76,8 @@ SOLUTION_CONFIG = AttrDict({
                                                  },
                                 },
         'training_config': {'epochs': params.epochs_nr,
+                            'loss_function': {'w0': params.w0,
+                                              'sigma': params.sigma},
                             },
         'callbacks_config': {
             'model_checkpoint': {
