@@ -223,17 +223,16 @@ def mask_postprocessing(loader, model, config, save_output=False):
     else:
         detached = multiclass_object_labeler(category_mapper, config, save_output=save_output)
 
-    scores = Step(name='mask_dilation',
-                  transformer=ScoreBuilder(),
-                  input_steps=[detached, mask_resize],
-                  adapter={'images': ([(detached.name, 'labeled_images')]),
-                           'probabilities': ([(mask_resize.name, 'resized_images')]),
-                           },
-                  cache_dirpath=config.env.cache_dirpath,
-                  save_output=save_output,
-                  load_saved_output=False)
+    score_builder = Step(name='mask_dilation',
+                         transformer=ScoreBuilder(),
+                         input_steps=[detached, mask_resize],
+                         adapter={'images': ([(detached.name, 'labeled_images')]),
+                                  'probabilities': ([(mask_resize.name, 'resized_images')]),
+                                  },
+                         cache_dirpath=config.env.cache_dirpath,
+                         save_output=save_output)
 
-    return scores
+    return score_builder
 
 
 PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
