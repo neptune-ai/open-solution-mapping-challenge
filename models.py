@@ -92,73 +92,6 @@ class PyTorchUNetWeighted(Model):
             outputs[name] = softmax(prediction, axis=1)
         return outputs
 
-    def _fit_loop(self, data):
-        X = data[0]
-        targets_tensors = data[1:]
-
-        if torch.cuda.is_available():
-            X = Variable(X).cuda()
-            targets_var = []
-            for target_tensor in targets_tensors:
-                targets_var.append(Variable(target_tensor).cuda())
-        else:
-            X = Variable(X)
-            targets_var = []
-            for target_tensor in targets_tensors:
-                targets_var.append(Variable(target_tensor))
-
-        self.optimizer.zero_grad()
-        outputs_batch = self.model(X)
-        partial_batch_losses = {}
-
-        #        assert len(targets_tensors) == len(outputs_batch) == len(self.loss_function),\
-        #            '''Number of targets, model outputs and elements of loss function must equal.
-        #            You have n_targets={0}, n_model_outputs={1}, n_loss_function_elements={2}.
-        #            The order of elements must also be preserved.'''.format(len(targets_tensors),
-        #                                                                    len(outputs_batch),
-        #                                                                    len(self.loss_function))
-
-        if len(self.output_names) == 1:
-            for (name, loss_function, weight), target in zip(self.loss_function, targets_var):
-                batch_loss = loss_function(outputs_batch, target) * weight
-        else:
-            for (name, loss_function, weight), output, target in zip(self.loss_function, outputs_batch, targets_var):
-                partial_batch_losses[name] = loss_function(output, target) * weight
-            batch_loss = sum(partial_batch_losses.values())
-        partial_batch_losses['sum'] = batch_loss
-        batch_loss.backward()
-        self.optimizer.step()
-
-        return partial_batch_losses
-
-    def _transform(self, datagen, validation_datagen=None):
-        self.model.eval()
-        batch_gen, steps = datagen
-        outputs = {}
-        for batch_id, data in enumerate(batch_gen):
-            if isinstance(data, list):
-                X = data[0]
-            else:
-                X = data
-
-            if torch.cuda.is_available():
-                X = Variable(X, volatile=True).cuda()
-            else:
-                X = Variable(X, volatile=True)
-
-            outputs_batch = self.model(X)
-            if len(self.output_names) == 1:
-                outputs.setdefault(self.output_names[0], []).append(outputs_batch.data.cpu().numpy())
-            else:
-                for name, output in zip(self.output_names, outputs_batch):
-                    output_ = output.data.cpu().numpy()
-                    outputs.setdefault(name, []).append(output_)
-            if batch_id == steps:
-                break
-        self.model.train()
-        outputs = {'{}_prediction'.format(name): np.vstack(outputs_) for name, outputs_ in outputs.items()}
-        return outputs
-
 
 def weight_regularization(model, regularize, weight_decay_conv2d, weight_decay_linear):
     if regularize:
@@ -194,22 +127,27 @@ def callbacks_unet(callbacks_config):
 
 
 def multiclass_weighted_segmentation_loss(output, target, w0, sigma):
+    '''
+    w1 is temporarily torch.ones - it should handle class imbalance for thw hole dataset
+    '''
     distance = target[:,1,:,:]
-    w1 = Variable(torch.ones(distance.size()))
     target = target[:,0,:,:].long()
+    w1 = Variable(torch.ones(distance.size()), requires_grad=False)#TODO: fix it to handle class imbalance
     if torch.cuda.is_available():
         w1 = w1.cuda()
     weights = get_weights(distance, w1, w0, sigma)
     torch_softmax = torch.nn.Softmax2d()
     probabilities = torch_softmax(output)
-    negative_log_likelihood = torch.nn.NLLLoss2d()
-    loss_per_pixel = negative_log_likelihood(probabilities, target)
-    loss = torch.sum(loss_per_pixel*weights)
+    negative_log_likelihood = torch.nn.NLLLoss2d(reduce=False)
+    loss_per_pixel = negative_log_likelihood(torch.log(probabilities), target)
+    loss = torch.mean(loss_per_pixel*weights)
     return loss
 
 
 def get_weights(d, w1, w0, sigma):
-    return w1 + w0 * torch.exp(-(d ** 2) / (sigma ** 2))
+    weights = w1 + w0 * torch.exp(-(d ** 2) / (sigma ** 2))
+    weights[d==0] = 1
+    return weights
 
 
 def get_loss_params(w0, sigma):
