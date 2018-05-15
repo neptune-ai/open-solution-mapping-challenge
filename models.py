@@ -271,13 +271,13 @@ def multiclass_weighted_segmentation_loss(output, target, w0, sigma):
     return loss
 
 
-def get_weights(d, w1, w0, sigma):
+def __get_weights(d, w1, w0, sigma):
     weights = w1 + w0 * torch.exp(-(d ** 2) / (sigma ** 2))
     weights[d == 0] = 1
     return weights
 
 
-def get_loss_params(w0, sigma):
+def __get_loss_params(w0, sigma):
     w0 = Variable(torch.Tensor([w0]), requires_grad=False)
     sigma = Variable(torch.Tensor([sigma]), requires_grad=False)
     if torch.cuda.is_available():
