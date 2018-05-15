@@ -93,6 +93,49 @@ class PyTorchUNetWeighted(Model):
         return outputs
 
 
+class PyTorchUNetWeightedStream(Model):
+    def __init__(self, architecture_config, training_config, callbacks_config):
+        super().__init__(architecture_config, training_config, callbacks_config)
+        self.model = UNet(**architecture_config['model_params'])
+        self.weight_regularization = weight_regularization_unet
+        self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
+                                    **architecture_config['optimizer_params'])
+        loss = partial(multiclass_weighted_segmentation_loss, **get_loss_params(**training_config["loss_function"]))
+        self.loss_function = [('multichannel_map', loss, 1.0)]
+        self.callbacks = callbacks_unet(self.callbacks_config)
+
+    def transform(self, datagen, validation_datagen=None):
+        outputs = self._transform(datagen, validation_datagen)
+        for name, prediction in outputs.items():
+            outputs[name] = softmax(prediction, axis=1)
+        return outputs
+
+    def _transform(self, datagen, validation_datagen=None):
+        self.model.eval()
+        batch_gen, steps = datagen
+        for batch_id, data in enumerate(batch_gen):
+            if isinstance(data, list):
+                X = data[0]
+            else:
+                X = data
+
+            if torch.cuda.is_available():
+                X = Variable(X, volatile=True).cuda()
+            else:
+                X = Variable(X, volatile=True)
+
+            outputs_batch = self.model(X)
+            outputs_batch = outputs_batch.data.cpu().numpy()
+
+            for output in outputs_batch:
+                output = softmax(output, axis=0)
+                yield output
+
+            if batch_id == steps:
+                break
+        self.model.train()
+
+
 def weight_regularization(model, regularize, weight_decay_conv2d, weight_decay_linear):
     if regularize:
         parameter_list = [{'params': model.features.parameters(), 'weight_decay': weight_decay_conv2d},
@@ -130,9 +173,9 @@ def multiclass_weighted_segmentation_loss(output, target, w0, sigma):
     '''
     w1 is temporarily torch.ones - it should handle class imbalance for thw hole dataset
     '''
-    distance = target[:,1,:,:]
-    target = target[:,0,:,:].long()
-    w1 = Variable(torch.ones(distance.size()), requires_grad=False)#TODO: fix it to handle class imbalance
+    distance = target[:, 1, :, :]
+    target = target[:, 0, :, :].long()
+    w1 = Variable(torch.ones(distance.size()), requires_grad=False)  # TODO: fix it to handle class imbalance
     if torch.cuda.is_available():
         w1 = w1.cuda()
     weights = get_weights(distance, w1, w0, sigma)
@@ -140,13 +183,13 @@ def multiclass_weighted_segmentation_loss(output, target, w0, sigma):
     probabilities = torch_softmax(output)
     negative_log_likelihood = torch.nn.NLLLoss2d(reduce=False)
     loss_per_pixel = negative_log_likelihood(torch.log(probabilities), target)
-    loss = torch.mean(loss_per_pixel*weights)
+    loss = torch.mean(loss_per_pixel * weights)
     return loss
 
 
 def get_weights(d, w1, w0, sigma):
     weights = w1 + w0 * torch.exp(-(d ** 2) / (sigma ** 2))
-    weights[d==0] = 1
+    weights[d == 0] = 1
     return weights
 
 

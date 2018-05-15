@@ -38,7 +38,8 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, is_small
                     mask, distances = overlay_masks_from_annotations(annotations, image_size, distances)
                 elif erode > 0:
                     mask, _ = overlay_masks_from_annotations(annotations, image_size)
-                    mask_eroded, distances = overlay_eroded_masks_from_annotations(annotations, image_size, erode, distances)
+                    mask_eroded, distances = overlay_eroded_masks_from_annotations(annotations, image_size, erode,
+                                                                                   distances)
                     mask = add_dropped_objects(mask, mask_eroded)
                 mask_overlayed = np.where(mask, category_nr, mask_overlayed)
         distances = clean_distances(distances).astype(np.float16)
@@ -90,7 +91,7 @@ def clean_distances(distances):
         return np.dstack([distances, distances])
     else:
         distances.sort(axis=2)
-        distances = distances[:,:,:2]
+        distances = distances[:, :, :2]
         return distances
 
 
@@ -146,4 +147,3 @@ def get_eroded_mask(mask, percent):
         selem = rectangle(selem_size, selem_size)
         mask_eroded = binary_erosion(mask, selem)
     return mask_eroded
-

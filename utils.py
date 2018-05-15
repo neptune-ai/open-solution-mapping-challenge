@@ -365,16 +365,16 @@ def get_weight_matrix(mask):
     labeled = label(mask)
     image_size = mask.shape
     distances = np.zeros(image_size)
-    for label_nr in range(1, labeled.max()+1):
-        object = labeled==label_nr
+    for label_nr in range(1, labeled.max() + 1):
+        object = labeled == label_nr
         if distances.sum() == 0:
             distances = distance_transform_edt(1 - object)
         else:
             distances = np.dstack([distances, distance_transform_edt(1 - object)])
-    if np.sum(distances)!=0:
-        if len(distances.shape)>2:
+    if np.sum(distances) != 0:
+        if len(distances.shape) > 2:
             distances.sort(axis=2)
-            weights = get_weights(distances[:,:,0], distances[:,:,1], 1, 10, 5)
+            weights = get_weights(distances[:, :, 0], distances[:, :, 1], 1, 10, 5)
         else:
             weights = get_weights(0, distances, 1, 10, 5)
     else:

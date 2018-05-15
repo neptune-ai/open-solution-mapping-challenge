@@ -4,7 +4,7 @@ import loaders
 from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
-from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted
+from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted, PyTorchUNetWeightedStream
 from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, DenseCRF, \
     ResizerStream, CategoryMapperStream, MulticlassLabelerStream, MaskDilatorStream, DenseCRFStream
 
@@ -52,7 +52,9 @@ def unet(config, train_mode):
 def unet_weighted(config, train_mode):
     unet_weighted = unet(config, train_mode)
     unet_weighted.get_step("loader").transformer = loaders.MetadataImageSegmentationLoaderDistances(**config.loader)
-    unet_weighted.get_step("unet").transformer = PyTorchUNetWeighted(**config.unet)
+    unet_weighted.get_step("unet").transformer = PyTorchUNetWeightedStream(
+        **config.unet) if config.execution.stream_mode else PyTorchUNetWeighted(
+        **config.unet),
     return unet_weighted
 
 
