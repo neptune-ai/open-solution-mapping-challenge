@@ -419,13 +419,6 @@ class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
         self.dataset = MetadataImageSegmentationDatasetDistances
-        '''
-        self.distance_matrix_transform = transforms.Compose([
-            transforms.Lambda(lambda x: resize(x, (self.dataset_params.h,
-                                                   self.dataset_params.w))),
-            transforms.Lambda(to_tensor),
-        ])
-        '''
         self.distance_matrix_transform = lambda x: to_tensor(resize(x.astype(np.float32), (self.dataset_params.h,
                                                    self.dataset_params.w)).astype(np.float32))
 
