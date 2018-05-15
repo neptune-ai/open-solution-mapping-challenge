@@ -7,10 +7,9 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 from attrdict import AttrDict
-from skimage.transform import resize
 from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
-from cv2 import resize as resize_cv
+from cv2 import resize
 
 from augmentation import fast_seq, affine_seq, color_seq, patching_seq
 from steps.base import BaseTransformer
@@ -418,7 +417,7 @@ class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
         self.dataset = MetadataImageSegmentationDatasetDistances
-        self.distance_matrix_transform = lambda x: to_tensor(resize_cv(x.astype(np.float32), (self.dataset_params.h,
+        self.distance_matrix_transform = lambda x: to_tensor(resize(x.astype(np.float32), (self.dataset_params.h,
                                                    self.dataset_params.w)).astype(np.float32))
 
     def get_datagen(self, X, y, train_mode, loader_params):
@@ -574,7 +573,7 @@ def get_mosaic_padded_image(img, patch_size, patch_stride):
 
     h, w = (max(h_, patch_size), max(w_, patch_size))
     if h > h_ or w > w_:
-        img = resize(img, (h, w), preserve_range=True)
+        img = resize(img, (h, w))
 
     h_pad, h_pad_top, h_pad_bottom, h_pad_end = get_padded_size(h, patch_size, patch_stride)
     w_pad, w_pad_left, w_pad_right, w_pad_end = get_padded_size(w, patch_size, patch_stride)
