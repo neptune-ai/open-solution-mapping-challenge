@@ -70,7 +70,7 @@ def get_logger():
 def decompose(labeled):
     nr_true = labeled.max()
     masks = []
-    for i in range(1, min(nr_true + 1, 20)):
+    for i in range(1, nr_true + 1):
         msk = labeled.copy()
         msk[msk != i] = 0.
         msk[msk == i] = 255.
@@ -101,7 +101,7 @@ def create_annotations(meta, predictions, scores, logger, category_ids, save=Fal
                     annotation = {}
                     annotation["image_id"] = int(image_id)
                     annotation["category_id"] = category_ids[category_nr]
-                    annotation["score"] = score*np.sqrt(np.count_nonzero(mask))
+                    annotation["score"] = score
                     annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
                     annotation['segmentation']['counts'] = annotation['segmentation']['counts'].decode("UTF-8")
                     annotation["bbox"] = bounding_box_from_rle(rle_from_binary(mask.astype('uint8')))

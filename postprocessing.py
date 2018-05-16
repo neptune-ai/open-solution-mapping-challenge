@@ -242,8 +242,8 @@ def build_score(image, probabilities):
     total_score = []
     for category_instances, category_probabilities in zip(image, probabilities):
         score = []
-        for label_nr in range(0, category_instances.max() + 1):
+        for label_nr in range(1, category_instances.max() + 1):
             masked_instance = np.ma.masked_array(category_probabilities, mask=category_instances != label_nr)
-            score.append(masked_instance.mean())
+            score.append(masked_instance.mean()*np.sqrt(np.count_nonzero(category_instances == label_nr)))
         total_score.append(score)
     return total_score
