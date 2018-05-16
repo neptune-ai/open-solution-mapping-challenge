@@ -29,6 +29,7 @@ class Callback:
         self.loss_function = transformer.loss_function
         self.output_names = transformer.output_names
         self.validation_datagen = validation_datagen
+        self.validation_loss = transformer.validation_loss
 
     def on_train_begin(self, *args, **kwargs):
         self.epoch_id = 0
@@ -51,6 +52,13 @@ class Callback:
 
     def on_batch_end(self, *args, **kwargs):
         self.batch_id += 1
+
+    def get_validation_loss(self):
+        if self.epoch_id not in self.validation_loss.keys():
+            self.validation_loss[self.epoch_id] = score_model(self.model,
+                                                              self.loss_function,
+                                                              self.validation_datagen)
+        return self.validation_loss[self.epoch_id]
 
 
 class CallbackList:
@@ -153,9 +161,7 @@ class ValidationMonitor(Callback):
     def on_epoch_end(self, *args, **kwargs):
         if self.epoch_every and ((self.epoch_id % self.epoch_every) == 0):
             self.model.eval()
-            val_loss = score_model(self.model,
-                                   self.loss_function,
-                                   self.validation_datagen)
+            val_loss = self.get_validation_loss()
             self.model.train()
             for name, loss in val_loss.items():
                 loss = loss.data.cpu().numpy()[0]
@@ -173,7 +179,7 @@ class EarlyStopping(Callback):
 
     def training_break(self, *args, **kwargs):
         self.model.eval()
-        val_loss = score_model(self.model, self.loss_function, self.validation_datagen)
+        val_loss = self.get_validation_loss()
         loss_sum = val_loss['sum']
         loss_sum = loss_sum.data.cpu().numpy()[0]
 
@@ -254,7 +260,7 @@ class ModelCheckpoint(Callback):
     def on_epoch_end(self, *args, **kwargs):
         if self.epoch_every and ((self.epoch_id % self.epoch_every) == 0):
             self.model.eval()
-            val_loss = score_model(self.model, self.loss_function, self.validation_datagen)
+            val_loss = self.get_validation_loss()
             loss_sum = val_loss['sum']
             loss_sum = loss_sum.data.cpu().numpy()[0]
 
@@ -263,7 +269,8 @@ class ModelCheckpoint(Callback):
             if not self.best_score:
                 self.best_score = loss_sum
 
-            if (self.minimize and loss_sum < self.best_score) or (not self.minimize and loss_sum > self.best_score):
+            if (self.minimize and loss_sum < self.best_score) or (not self.minimize and loss_sum > self.best_score) or (
+                    self.epoch_id == 0):
                 self.best_score = loss_sum
                 save_model(self.model, self.filepath)
                 logger.info('epoch {0} model saved to {1}'.format(self.epoch_id, self.filepath))
@@ -308,9 +315,7 @@ class NeptuneMonitor(Callback):
             self.ctx.channel_send('{} epoch {} loss'.format(self.model_name, name), x=self.epoch_id, y=epoch_avg_loss)
 
         self.model.eval()
-        val_loss = score_model(self.model,
-                               self.loss_function,
-                               self.validation_datagen)
+        val_loss = self.get_validation_loss()
         self.model.train()
         for name, loss in val_loss.items():
             loss = loss.data.cpu().numpy()[0]
