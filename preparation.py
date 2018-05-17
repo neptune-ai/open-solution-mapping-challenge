@@ -88,11 +88,12 @@ def update_distances(dist, mask):
 
 def clean_distances(distances):
     if len(distances.shape) < 3:
-        return np.dstack([distances, distances])
+        distances = np.dstack([distances, distances])
     else:
         distances.sort(axis=2)
         distances = distances[:, :, :2]
-        return distances
+    distances = np.sum(distances, dim=2)
+    return distances
 
 
 def preprocess_image(img, target_size=(128, 128)):
