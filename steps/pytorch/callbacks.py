@@ -54,11 +54,9 @@ class Callback:
         self.batch_id += 1
 
     def get_validation_loss(self):
-        if self.epoch_id not in self.validation_loss.keys():
-            self.validation_loss[self.epoch_id] = score_model(self.model,
-                                                              self.loss_function,
-                                                              self.validation_datagen)
-        return self.validation_loss[self.epoch_id]
+        return self.validation_loss.setdefault(self.epoch_id, score_model(self.model,
+                                                                          self.loss_function,
+                                                                          self.validation_datagen))
 
 
 class CallbackList:
