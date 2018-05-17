@@ -50,17 +50,17 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 @action.command()
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
 def prepare_masks(dev_mode):
-    erode = eval(params.erosion_percentages)
+    erode = eval(params.erosion_selem_size)
     if erode != [0]:
         for dataset in ["train", "val"]:
-            for erosion_percent in erode:
+            for erosion_size in erode:
                 logger.info('Overlaying masks, dataset: {}'.format(dataset))
-                target_dir = "{}_{}".format(params.masks_overlayed_eroded_dir[:-1], erosion_percent)
+                target_dir = "{}_{}".format(params.masks_overlayed_eroded_dir[:-1], erosion_size)
                 overlay_masks(data_dir=params.data_dir,
                               dataset=dataset,
                               target_dir=target_dir,
                               category_ids=CATEGORY_IDS,
-                              erode=erosion_percent,
+                              erode=erosion_size,
                               is_small=dev_mode)
     else:
         target_dir = params.masks_overlayed_dir

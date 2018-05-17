@@ -24,7 +24,7 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, is_small
     annotation_file_name = "annotation{}.json".format(suffix)
     annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
     coco = COCO(annotation_file_path)
-    image_ids = coco.getImgIds()
+    image_ids = coco.getImgIds()[:10]#test
     for image_id in tqdm(image_ids):
         image = coco.loadImgs(image_id)[0]
         image_size = (image["height"], image["width"])
@@ -60,7 +60,7 @@ def overlay_masks_from_annotations(annotations, image_size, distances=None):
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
         m = cocomask.decode(rle)
         m = m.reshape(image_size)
-        if distances != None:
+        if (distances) != None:
             distances = update_distances(distances, m)
         mask += m
     return np.where(mask > 0, 1, 0).astype('uint8'), distances
@@ -72,7 +72,7 @@ def overlay_eroded_masks_from_annotations(annotations, image_size, area_percent,
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
         m = cocomask.decode(rle)
         m = m.reshape(image_size)
-        m_eroded = get_eroded_mask(m, area_percent)
+        m_eroded = get_simple_eroded_mask(m, area_percent)
         distances = update_distances(distances, m_eroded)
         mask += m_eroded
     return np.where(mask > 0, 1, 0).astype('uint8'), distances
@@ -147,4 +147,13 @@ def get_eroded_mask(mask, percent):
             selem_size += 1
         selem = rectangle(selem_size, selem_size)
         mask_eroded = binary_erosion(mask, selem)
+    return mask_eroded
+
+
+def get_simple_eroded_mask(mask, selem_size):
+    if mask.sum() > 100:
+        selem = rectangle(selem_size, selem_size)
+        mask_eroded = binary_erosion(mask, selem=selem)
+    else:
+        mask_eroded = mask
     return mask_eroded
