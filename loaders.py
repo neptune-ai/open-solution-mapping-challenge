@@ -1,5 +1,6 @@
 import math
 from itertools import product
+import os
 
 import numpy as np
 import pandas as pd
@@ -105,9 +106,10 @@ class MetadataImageSegmentationDatasetDistances(Dataset):
         if self.y is not None:
             mask_filepath = self.y[index]
             Mi = self.load_image(mask_filepath)
-            distance_filepath = mask_filepath.replace("/masks/", "/distances/")[:-4]
+            distance_filepath = mask_filepath.replace("/masks/", "/distances/")
+            distance_filepath = os.path.splitext(distance_filepath)[0]
             Di = self.load_distances(distance_filepath)
-            Di = np.sum(Di, axis=2).astype(np.uint8)  # TODO: remove it when Di will be sum of distances to 2 closest objects
+            Di = Di.astype(np.uint8)
 
             if self.train_mode and self.image_augment_with_target is not None:
                 Xi, Mi = from_pil(Xi, Mi)
