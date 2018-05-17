@@ -101,6 +101,17 @@ def unet_mosaic(config, train_mode):
     return output
 
 
+def unet_weighted_mosaic(config, train_mode):
+    unet_weighted_mosaic = unet_mosaic(config, train_mode)
+    if train_mode:
+        unet_weighted_mosaic.get_step("loader").transformer = loaders.MetadataImageSegmentationLoaderDistances(
+            **config.loader)
+        unet_weighted_mosaic.get_step("unet").transformer = PyTorchUNetWeightedStream(
+            **config.unet) if config.execution.stream_mode else PyTorchUNetWeighted(
+            **config.unet)
+    return unet_weighted_mosaic
+
+
 def preprocessing(config, model_type, is_train, loader_mode=None):
     if model_type == 'single':
         loader = _preprocessing_single_generator(config, is_train, loader_mode)
@@ -326,4 +337,8 @@ PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
              'unet_mosaic': {'train': partial(unet_mosaic, train_mode=True),
                              'inference': partial(unet_mosaic, train_mode=False),
                              },
+             'unet_weighted_mosaic': {'train': partial(unet_weighted_mosaic, train_mode=True),
+                                      'inference': partial(unet_weighted_mosaic, train_mode=False),
+                                      },
+
              }
