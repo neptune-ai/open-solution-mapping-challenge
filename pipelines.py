@@ -5,9 +5,10 @@ from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
 from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted, PyTorchUNetWeightedStream
-from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, DenseCRF, ScoreBuilder, \
-    MaskEroder, LabeledMaskDilator, \
-    ResizerStream, CategoryMapperStream, MulticlassLabelerStream, MaskDilatorStream, DenseCRFStream
+from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, DenseCRF, \
+    ScoreBuilder, MaskEroder, LabeledMaskDilator, \
+    ResizerStream, CategoryMapperStream, MulticlassLabelerStream, DenseCRFStream, \
+    MaskEroderStream, LabeledMaskDilatorStream
 
 
 def unet(config, train_mode):
@@ -217,7 +218,8 @@ def mask_postprocessing(loader, model, config, save_output=False):
                            save_output=save_output)
 
     mask_erosion = Step(name='mask_erosion',
-                        transformer=MaskEroder(**config.postprocessor),
+                        transformer=MaskEroderStream(**config.postprocessor) if config.execution.stream_mode
+                        else MaskEroder(**config.postprocessor),
                         input_steps=[category_mapper],
                         adapter={'images': ([(category_mapper.name, 'categorized_images')]),
                                  },
@@ -227,7 +229,8 @@ def mask_postprocessing(loader, model, config, save_output=False):
     detached = multiclass_object_labeler(mask_erosion, config, save_output=save_output)
 
     mask_dilation = Step(name='mask_dilation',
-                         transformer=LabeledMaskDilator(**config.postprocessor),
+                         transformer=LabeledMaskDilatorStream(**config.postprocessor) if config.execution.stream_mode
+                         else LabeledMaskDilator(**config.postprocessor),
                          input_steps=[detached],
                          adapter={'images': ([(detached.name, 'labeled_images')]),
                                   },

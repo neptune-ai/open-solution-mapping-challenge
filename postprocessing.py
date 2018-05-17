@@ -88,7 +88,7 @@ class DenseCRF(BaseTransformer):
         crf_images = []
         original_images = self.get_original_images(raw_images_generator)
         for image, org_image in tqdm(zip(images, original_images)):
-            crf_image = _dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
+            crf_image = dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
                                   self.compat_bilateral, self.sxy_bilateral, self.srgb)
             crf_images.append(crf_image)
         return {'crf_images': crf_images}
@@ -147,6 +147,21 @@ class CategoryMapperStream(BaseTransformer):
             yield categorize_image(image)
 
 
+class MaskEroderStream(BaseTransformer):
+    def __init__(self, erode_selem_size, **kwargs):
+        self.selem_size = erode_selem_size
+
+    def transform(self, images):
+        if self.selem_size > 0:
+            return {'eroded_images': self._transform(images)}
+        else:
+            return {'eroded_images': images}
+
+    def _transform(self, images):
+        for image in tqdm(images):
+            yield erode_image(image, self.selem_size)
+
+
 class MaskDilatorStream(BaseTransformer):
     def __init__(self, dilate_selem_size):
         self.selem_size = dilate_selem_size
@@ -157,6 +172,21 @@ class MaskDilatorStream(BaseTransformer):
     def _transform(self, images):
         for image in tqdm(images):
             yield dilate_image(image, self.selem_size)
+
+
+class LabeledMaskDilatorStream(BaseTransformer):
+    def __init__(self, dilate_selem_size, **kwargs):
+        self.selem_size = dilate_selem_size
+
+    def transform(self, images):
+        if self.selem_size > 0:
+            return {'dilated_images': self.transform(images)}
+        else:
+            return {'dilated_images': images}
+
+    def transform(self, images):
+        for image in tqdm(images):
+            yield dilate_labeled_image(image, self.selem_size)
 
 
 class DenseCRFStream(BaseTransformer):
@@ -173,7 +203,7 @@ class DenseCRFStream(BaseTransformer):
     def _transform(self, images, raw_images_generator):
         original_images = self.get_original_images(raw_images_generator)
         for image, org_image in tqdm(zip(images, original_images)):
-            crf_image = _dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
+            crf_image = dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
                                   self.compat_bilateral, self.sxy_bilateral, self.srgb)
             yield crf_image
 
@@ -217,7 +247,7 @@ def dilate_labeled_image(mask, selem_size):
     return np.stack(dilated_image)
 
 
-def _dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilateral=10, sxy_bilateral=1, srgb=50):
+def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilateral=10, sxy_bilateral=1, srgb=50):
     height = output_probs.shape[1]
     width = output_probs.shape[2]
 

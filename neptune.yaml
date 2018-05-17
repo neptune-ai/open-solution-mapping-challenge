@@ -23,7 +23,7 @@ exclude:
 parameters:
 # Cloud environment
 #  data_dir:                        /YOUR_PATH_TO_DATA_ON_CLOUD
-#  meta_dir:                        /YOUR_PATH_TO_DATA_ON_CLOUDit c
+#  meta_dir:                        /YOUR_PATH_TO_DATA_ON_CLOUD
 #  masks_overlayed_dir:             /YOUR_PATH_TO_DATA_ON_CLOUD/masks_overlayed
 #  experiment_dir:                  /YOUR_PATH_TO_OUTPUT_FOLDER_ON_CLOUD/experiments
 
@@ -59,9 +59,6 @@ parameters:
 
 # U-Net loss weights (multi-output)
   mask: 0.3
-  contour: 0.5
-  contour_touching: 0.1
-  center: 0.1
   bce_mask: 1.0
   dice_mask: 1.0
 
