@@ -213,12 +213,7 @@ class AlbuNet(nn.Module):
         dec1 = self.dec1(dec2)
         dec0 = self.dec0(dec1)
 
-        if self.num_classes > 1:
-            x_out = F.log_softmax(self.final(dec0), dim=1)
-        else:
-            x_out = self.final(dec0)
-
-        return x_out
+        return self.final(dec0)
 
 
 class UNet16(nn.Module):
@@ -298,9 +293,4 @@ class UNet16(nn.Module):
         dec2 = self.dec2(torch.cat([dec3, conv2], 1))
         dec1 = self.dec1(torch.cat([dec2, conv1], 1))
 
-        if self.num_classes > 1:
-            x_out = F.log_softmax(self.final(dec1), dim=1)
-        else:
-            x_out = self.final(dec1)
-
-        return x_out
+        return self.final(dec1)
