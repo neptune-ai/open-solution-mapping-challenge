@@ -24,7 +24,7 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, is_small
     annotation_file_name = "annotation{}.json".format(suffix)
     annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
     coco = COCO(annotation_file_path)
-    image_ids = coco.getImgIds()[:10]#test
+    image_ids = coco.getImgIds()
     for image_id in tqdm(image_ids):
         image = coco.loadImgs(image_id)[0]
         image_size = (image["height"], image["width"])
@@ -60,7 +60,7 @@ def overlay_masks_from_annotations(annotations, image_size, distances=None):
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
         m = cocomask.decode(rle)
         m = m.reshape(image_size)
-        if (distances) != None:
+        if distances is not None:
             distances = update_distances(distances, m)
         mask += m
     return np.where(mask > 0, 1, 0).astype('uint8'), distances
@@ -92,7 +92,7 @@ def clean_distances(distances):
     else:
         distances.sort(axis=2)
         distances = distances[:, :, :2]
-    distances = np.sum(distances, dim=2)
+    distances = np.sum(distances, axis=2)
     return distances
 
 
