@@ -50,6 +50,19 @@ SOLUTION_CONFIG = AttrDict({
                                                },
                                  },
                },
+    'loader_mosaic_padding': {'dataset_params': {'h_pad': params.mosaic_pad_h,
+                                                 'w_pad': params.mosaic_pad_w,
+                                                 'h': params.image_h,
+                                                 'w': params.image_w
+                                                 },
+                              'loader_params': {'inference': {'batch_size': params.batch_size_inference,
+                                                              'shuffle': False,
+                                                              'num_workers': params.num_workers,
+                                                              'pin_memory': params.pin_memory
+                                                              },
+                                                },
+                              },
+
     'unet': {
         'architecture_config': {'model_params': {'n_filters': params.n_filters,
                                                  'conv_kernel': params.conv_kernel,
@@ -109,5 +122,9 @@ SOLUTION_CONFIG = AttrDict({
                               'compat_bilateral': params.compat_bilateral,
                               'sxy_bilateral': params.sxy_bilateral,
                               'srgb': params.srgb
-                              }}
+                              },
+                      'prediction_crop': {'h_crop': params.image_h,
+                                          'w_crop': params.image_w
+                                          },
+                      }
 })

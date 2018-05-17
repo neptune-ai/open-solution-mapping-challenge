@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 from imgaug import augmenters as iaa
 
@@ -52,6 +53,14 @@ color_seq_RGB = iaa.Sequential([
 ], random_order=True)
 
 
+def mosaic_pad_seq(pad_size, size):
+    h, w = size
+    seq = iaa.Sequential([PadFixed(pad=pad_size),
+                          iaa.Scale({'height': h, 'width': w}, deterministic=True)
+                          ]).to_deterministic()
+    return seq
+
+
 def patching_seq(crop_size):
     h, w = crop_size
 
@@ -64,6 +73,31 @@ def patching_seq(crop_size):
         iaa.Sometimes(0.5, iaa.PiecewiseAffine(scale=(0.02, 0.06)))
     ], random_order=False)
     return seq
+
+
+class PadFixed(iaa.Augmenter):
+    def __init__(self, pad=None, name=None, deterministic=False, random_state=None):
+        super().__init__(name, deterministic, random_state)
+        self.pad = pad
+
+    def _augment_images(self, images, random_state, parents, hooks):
+        result = []
+        for i, image in enumerate(images):
+            image_pad = self._reflect_pad(image)
+            result.append(image_pad)
+        return result
+
+    def _augment_keypoints(self, keypoints_on_images, random_state, parents, hooks):
+        result = []
+        return result
+
+    def _reflect_pad(self, img):
+        h_pad, w_pad = self.pad
+        img_padded = cv2.copyMakeBorder(img.copy(), h_pad, h_pad, w_pad, w_pad, cv2.BORDER_REFLECT_101)
+        return img_padded
+
+    def get_parameters(self):
+        return []
 
 
 class CropFixed(iaa.Augmenter):

@@ -48,6 +48,59 @@ def unet_weighted(config, train_mode):
     return unet_weighted
 
 
+def unet_mosaic(config, train_mode):
+    if train_mode:
+        save_output = False
+        load_saved_output = False
+    else:
+        save_output = False
+        load_saved_output = False
+
+    if train_mode:
+        loader = _preprocessing_single_generator(config, train_mode, False)
+    else:
+        loader = _preprocessing_single_mosaic_generator(config)
+
+    unet = Step(name='unet',
+                transformer=PyTorchUNetStream(**config.unet) if config.execution.stream_mode else PyTorchUNet(
+                    **config.unet),
+                input_steps=[loader],
+                cache_dirpath=config.env.cache_dirpath,
+                save_output=save_output, load_saved_output=load_saved_output)
+
+    if train_mode:
+        mask_postprocessed = mask_postprocessing(loader, unet, config, save_output=save_output)
+    else:
+        prediction_crop = Step(name='prediction_crop',
+                               transformer=PredictionCropStream(
+                                   **config.postprocessor.prediction_crop) if config.execution.stream_mode \
+                                   else PredictionCrop(**config.postprocessor.prediction_crop),
+                               input_steps=[unet],
+                               adapter={'images': ([(unet.name, 'multichannel_map_prediction')]), },
+                               cache_dirpath=config.env.cache_dirpath,
+                               save_output=save_output)
+
+        prediction_renamed = Step(name='prediction_renamed',
+                                  transformer=Dummy(),
+                                  input_steps=[prediction_crop],
+                                  adapter={
+                                      'multichannel_map_prediction': ([(prediction_crop.name, 'cropped_images')]), },
+                                  cache_dirpath=config.env.cache_dirpath,
+                                  save_output=save_output)
+        mask_postprocessed = mask_postprocessing(loader, prediction_renamed, config, save_output=save_output)
+
+    output = Step(name='output',
+                  transformer=Dummy(),
+                  input_steps=[mask_postprocessed],
+                  adapter={'y_pred': ([(mask_postprocessed.name, 'images')]),
+                           'y_scores': ([(mask_postprocessed.name, 'scores')])
+                           },
+                  cache_dirpath=config.env.cache_dirpath,
+                  save_output=save_output,
+                  load_saved_output=False)
+    return output
+
+
 def preprocessing(config, model_type, is_train, loader_mode=None):
     if model_type == 'single':
         loader = _preprocessing_single_generator(config, is_train, loader_mode)
@@ -119,6 +172,27 @@ def _preprocessing_single_generator(config, is_train, use_patching):
                                    'train_mode': ([('input', 'train_mode')]),
                                    },
                           cache_dirpath=config.env.cache_dirpath)
+    return loader
+
+
+def _preprocessing_single_mosaic_generator(config):
+    xy_inference = Step(name='xy_inference',
+                        transformer=XYSplit(**config.xy_splitter),
+                        input_data=['input'],
+                        adapter={'meta': ([('input', 'meta')]),
+                                 'train_mode': ([('input', 'train_mode')])
+                                 },
+                        cache_dirpath=config.env.cache_dirpath)
+
+    loader = Step(name='loader',
+                  transformer=loaders.ImageSegmentationLoaderMosaicPadding(**config.loader_mosaic_padding),
+                  input_data=['input'],
+                  input_steps=[xy_inference, xy_inference],
+                  adapter={'X': ([('xy_inference', 'X')], squeeze_inputs),
+                           'y': ([('xy_inference', 'y')], squeeze_inputs),
+                           'train_mode': ([('input', 'train_mode')]),
+                           },
+                  cache_dirpath=config.env.cache_dirpath)
     return loader
 
 
@@ -225,9 +299,9 @@ def mask_postprocessing(loader, model, config, save_output=False):
                                       },
                              cache_dirpath=config.env.cache_dirpath,
                              load_saved_output=False)
-        
+
         detached = multiclass_object_labeler(mask_dilation, config, save_output=save_output)
-        
+
     else:
         detached = multiclass_object_labeler(category_mapper, config, save_output=save_output)
 
@@ -249,4 +323,7 @@ PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
              'unet_weighted': {'train': partial(unet_weighted, train_mode=True),
                                'inference': partial(unet_weighted, train_mode=False),
                                },
+             'unet_mosaic': {'train': partial(unet_mosaic, train_mode=True),
+                             'inference': partial(unet_mosaic, train_mode=False),
+                             },
              }

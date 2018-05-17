@@ -80,6 +80,19 @@ class DenseCRF(BaseTransformer):
         return original_images
 
 
+class PredictionCrop(BaseTransformer):
+    def __init__(self, h_crop, w_crop):
+        self.h_crop = h_crop
+        self.w_crop = w_crop
+
+    def transform(self, images):
+        cropped_images = []
+        for image in tqdm(images):
+            cropped_image = crop_image_center(image, (self.h, self.w))
+            cropped_images.append(cropped_image)
+        return {'cropped_images': cropped_images}
+
+
 class ScoreBuilder(BaseTransformer):
     def transform(self, images, probabilities):
         scores = []
@@ -162,6 +175,19 @@ class DenseCRFStream(BaseTransformer):
                 break
 
 
+class PredictionCropStream(BaseTransformer):
+    def __init__(self, h_crop, w_crop):
+        self.h_crop = h_crop
+        self.w_crop = w_crop
+
+    def transform(self, images):
+        return {'cropped_images': self._transform(images)}
+
+    def _transform(self, images):
+        for image in tqdm(images):
+            yield crop_image_center(image, (self.h, self.w))
+
+
 def label_multiclass_image(mask):
     labeled_channels = []
     for label_nr in range(0, mask.max() + 1):
@@ -205,3 +231,10 @@ def build_score(image, probabilities):
             score.append(masked_instance.mean())
         total_score.append(score)
     return total_score
+
+
+def crop_image_center(image, size):
+    h, w = image.shape[:2]
+    h_crop, w_crop = size
+    h_start, w_start = int((h - h_crop) / 2.), int((w - w_crop) / 2.)
+    return image[h_start:-h_start, w_start:-w_start]
