@@ -4,7 +4,7 @@ import loaders
 from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
-from models import PyTorchUNet, PyTorchUNetStream
+from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted, PyTorchUNetWeightedStream
 from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, DenseCRF, ScoreBuilder, \
     ResizerStream, CategoryMapperStream, MulticlassLabelerStream, MaskDilatorStream, DenseCRFStream
 
@@ -37,6 +37,15 @@ def unet(config, train_mode):
                   save_output=save_output,
                   load_saved_output=False)
     return output
+
+
+def unet_weighted(config, train_mode):
+    unet_weighted = unet(config, train_mode)
+    unet_weighted.get_step("loader").transformer = loaders.MetadataImageSegmentationLoaderDistances(**config.loader)
+    unet_weighted.get_step("unet").transformer = PyTorchUNetWeightedStream(
+        **config.unet) if config.execution.stream_mode else PyTorchUNetWeighted(
+        **config.unet)
+    return unet_weighted
 
 
 def preprocessing(config, model_type, is_train, loader_mode=None):
@@ -237,4 +246,7 @@ def mask_postprocessing(loader, model, config, save_output=False):
 PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
                       'inference': partial(unet, train_mode=False),
                       },
+             'unet_weighted': {'train': partial(unet_weighted, train_mode=True),
+                               'inference': partial(unet_weighted, train_mode=False),
+                               },
              }

@@ -10,7 +10,7 @@ params = read_params(ctx)
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
-Y_COLUMNS = ['file_path_mask_eroded']
+Y_COLUMNS = ['file_path_mask_eroded_30']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
 MEAN = [0., 0., 0.]
@@ -60,7 +60,8 @@ SOLUTION_CONFIG = AttrDict({
                                                  'dropout': params.dropout_conv,
                                                  'in_channels': params.image_channels,
                                                  'out_channels': params.channels_per_output,
-                                                 'nr_outputs': params.nr_unet_outputs
+                                                 'nr_outputs': params.nr_unet_outputs,
+                                                 'encoder': params.encoder
                                                  },
                                 'optimizer_params': {'lr': params.lr,
                                                      },
@@ -75,6 +76,8 @@ SOLUTION_CONFIG = AttrDict({
                                                  },
                                 },
         'training_config': {'epochs': params.epochs_nr,
+                            'loss_function': {'w0': params.w0,
+                                              'sigma': params.sigma},
                             },
         'callbacks_config': {
             'model_checkpoint': {

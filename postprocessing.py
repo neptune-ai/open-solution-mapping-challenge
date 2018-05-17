@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import ndimage as ndi
 from skimage.transform import resize
 from skimage.morphology import binary_dilation, rectangle
 from tqdm import tqdm
@@ -7,7 +6,7 @@ from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
 
 from steps.base import BaseTransformer
-from utils import categorize_image, denormalize_img
+from utils import categorize_image, denormalize_img, label
 from pipeline_config import MEAN, STD
 
 
@@ -161,11 +160,6 @@ class DenseCRFStream(BaseTransformer):
                 yield image
             if batch_id == steps:
                 break
-
-
-def label(mask):
-    labeled, nr_true = ndi.label(mask)
-    return labeled
 
 
 def label_multiclass_image(mask):

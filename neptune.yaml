@@ -56,6 +56,7 @@ parameters:
   pool_kernel: 3
   pool_stride: 2
   repeat_blocks: 4
+  encoder: standard
 
 # U-Net loss weights (multi-output)
   mask: 0.3
@@ -72,6 +73,8 @@ parameters:
   patience: 30
   lr_factor: 0.3
   lr_patience: 30
+  w0: 10
+  sigma: 10
 
 # Regularization
   use_batch_norm: 1
