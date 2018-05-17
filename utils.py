@@ -101,7 +101,7 @@ def create_annotations(meta, predictions, scores, logger, category_ids, save=Fal
                     annotation = {}
                     annotation["image_id"] = int(image_id)
                     annotation["category_id"] = category_ids[category_nr]
-                    annotation["score"] = score
+                    annotation["score"] = score*np.sqrt(np.count_nonzero(mask))
                     annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
                     annotation['segmentation']['counts'] = annotation['segmentation']['counts'].decode("UTF-8")
                     annotation["bbox"] = bounding_box_from_rle(rle_from_binary(mask.astype('uint8')))
@@ -387,3 +387,17 @@ def get_weights(d1, d2, w1, w0, sigma):
 
 def denormalize_img(image, mean, std):
     return image * np.array(std).reshape(3, 1, 1) + np.array(mean).reshape(3, 1, 1)
+
+
+def label(mask):
+    labeled, nr_true = ndi.label(mask)
+    return labeled
+
+
+def add_dropped_objects(original, processed):
+    reconstructed = processed.copy()
+    labeled = label(original)
+    for i in range(1, labeled.max() + 1):
+        if np.any(np.where(~(labeled == i) & processed)):
+            reconstructed += (labeled == i)
+    return reconstructed.astype('uint8')

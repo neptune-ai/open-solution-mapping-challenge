@@ -1,12 +1,12 @@
 import numpy as np
 from skimage.transform import resize
-from skimage.morphology import binary_dilation, rectangle
+from skimage.morphology import binary_dilation, binary_erosion, dilation, rectangle
 from tqdm import tqdm
 from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
 
 from steps.base import BaseTransformer
-from utils import categorize_image, denormalize_img, label
+from utils import categorize_image, denormalize_img, add_dropped_objects, label
 from pipeline_config import MEAN, STD
 
 
@@ -37,8 +37,22 @@ class CategoryMapper(BaseTransformer):
         return {'categorized_images': categorized_images}
 
 
+class MaskEroder(BaseTransformer):
+    def __init__(self, erode_selem_size, **kwargs):
+        self.selem_size = erode_selem_size
+
+    def transform(self, images):
+        if self.selem_size > 0:
+            eroded_images = []
+            for image in tqdm(images):
+                eroded_images.append(erode_image(image, self.selem_size))
+        else:
+            eroded_images = images
+        return {'eroded_images': eroded_images}
+
+
 class MaskDilator(BaseTransformer):
-    def __init__(self, dilate_selem_size):
+    def __init__(self, dilate_selem_size, **kwargs):
         self.selem_size = dilate_selem_size
 
     def transform(self, images):
@@ -46,6 +60,20 @@ class MaskDilator(BaseTransformer):
         for image in tqdm(images):
             dilated_images.append(dilate_image(image, self.selem_size))
         return {'categorized_images': dilated_images}
+
+
+class LabeledMaskDilator(BaseTransformer):
+    def __init__(self, dilate_selem_size, **kwargs):
+        self.selem_size = dilate_selem_size
+
+    def transform(self, images):
+        if self.selem_size > 0:
+            dilated_images = []
+            for image in tqdm(images):
+                dilated_images.append(dilate_labeled_image(image, self.selem_size))
+        else:
+            dilated_images = images
+        return {'dilated_images': dilated_images}
 
 
 class DenseCRF(BaseTransformer):
@@ -60,7 +88,7 @@ class DenseCRF(BaseTransformer):
         crf_images = []
         original_images = self.get_original_images(raw_images_generator)
         for image, org_image in tqdm(zip(images, original_images)):
-            crf_image = dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
+            crf_image = _dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
                                   self.compat_bilateral, self.sxy_bilateral, self.srgb)
             crf_images.append(crf_image)
         return {'crf_images': crf_images}
@@ -145,7 +173,7 @@ class DenseCRFStream(BaseTransformer):
     def _transform(self, images, raw_images_generator):
         original_images = self.get_original_images(raw_images_generator)
         for image, org_image in tqdm(zip(images, original_images)):
-            crf_image = dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
+            crf_image = _dense_crf(org_image, image, self.compat_gaussian, self.sxy_gaussian,
                                   self.compat_bilateral, self.sxy_bilateral, self.srgb)
             yield crf_image
 
@@ -170,12 +198,26 @@ def label_multiclass_image(mask):
     return labeled_image
 
 
+def erode_image(mask, selem_size):
+    selem = rectangle(selem_size, selem_size)
+    eroded_image = binary_erosion(mask, selem=selem)
+    return add_dropped_objects(mask, eroded_image)
+
+
 def dilate_image(mask, selem_size):
     selem = rectangle(selem_size, selem_size)
     return binary_dilation(mask, selem=selem)
 
 
-def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilateral=10, sxy_bilateral=1, srgb=50):
+def dilate_labeled_image(mask, selem_size):
+    selem = rectangle(selem_size, selem_size)
+    dilated_image = []
+    for category_mask in mask:
+        dilated_image.append(dilation(category_mask, selem=selem))
+    return np.stack(dilated_image)
+
+
+def _dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilateral=10, sxy_bilateral=1, srgb=50):
     height = output_probs.shape[1]
     width = output_probs.shape[2]
 
