@@ -11,7 +11,7 @@ from skimage.morphology import binary_erosion, rectangle
 from scipy.ndimage.morphology import distance_transform_edt
 from sklearn.externals import joblib
 
-from utils import get_logger, label, get_weights
+from utils import get_logger, label
 
 logger = get_logger()
 
