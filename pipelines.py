@@ -13,7 +13,7 @@ def unet(config, train_mode):
         save_output = False
         load_saved_output = False
     else:
-        save_output = True
+        save_output = False
         load_saved_output = False
 
     loader = preprocessing(config, model_type='single', is_train=train_mode)
@@ -51,7 +51,7 @@ def unet_mosaic(config, train_mode):
         save_output = False
         load_saved_output = False
     else:
-        save_output = True
+        save_output = False
         load_saved_output = False
 
     if train_mode:
