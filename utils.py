@@ -70,7 +70,7 @@ def get_logger():
 def decompose(labeled):
     nr_true = labeled.max()
     masks = []
-    for i in range(1, min(nr_true + 1, 20)):
+    for i in range(1, nr_true + 1):
         msk = labeled.copy()
         msk[msk != i] = 0.
         msk[msk == i] = 255.
@@ -387,3 +387,17 @@ def get_weights(d1, d2, w1, w0, sigma):
 
 def denormalize_img(image, mean, std):
     return image * np.array(std).reshape(3, 1, 1) + np.array(mean).reshape(3, 1, 1)
+
+
+def label(mask):
+    labeled, nr_true = ndi.label(mask)
+    return labeled
+
+
+def add_dropped_objects(original, processed):
+    reconstructed = processed.copy()
+    labeled = label(original)
+    for i in range(1, labeled.max() + 1):
+        if np.any(np.where(~(labeled == i) & processed)):
+            reconstructed += (labeled == i)
+    return reconstructed.astype('uint8')

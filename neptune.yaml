@@ -25,7 +25,6 @@ parameters:
 #  data_dir:                        /YOUR_PATH_TO_DATA_ON_CLOUD
 #  meta_dir:                        /YOUR_PATH_TO_DATA_ON_CLOUD
 #  masks_overlayed_dir:             /YOUR_PATH_TO_DATA_ON_CLOUD/masks_overlayed
-#  masks_overlayed_eroded_dir:      /YOUR_PATH_TO_DATA_ON_CLOUD/masks_overlayed_eroded/
 #  experiment_dir:                  /YOUR_PATH_TO_OUTPUT_FOLDER_ON_CLOUD/experiments
 
 # Local Environment
@@ -61,7 +60,7 @@ parameters:
 # U-Net loss weights (multi-output)
   mask: 0.3
   bce_mask: 1.0
-  dice_mask: 2.0
+  dice_mask: 1.0
 
 # Training schedule
   epochs_nr: 100
@@ -87,7 +86,8 @@ parameters:
   threshold: 0.5
   min_nuclei_size: 20
   erosion_percentages: '[10,20,30]'
-  dilate_selem_size: 5
+  erode_selem_size: 0
+  dilate_selem_size: 0
 
 # Mosaic padding
   mosaic_image_h: 300

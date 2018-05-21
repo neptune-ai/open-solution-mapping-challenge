@@ -1,12 +1,12 @@
 import numpy as np
 from skimage.transform import resize
-from skimage.morphology import binary_dilation, rectangle
+from skimage.morphology import binary_dilation, binary_erosion, dilation, rectangle
 from tqdm import tqdm
 from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
 
 from steps.base import BaseTransformer
-from utils import categorize_image, denormalize_img, label
+from utils import categorize_image, denormalize_img, add_dropped_objects, label
 from pipeline_config import MEAN, STD
 
 
@@ -37,8 +37,22 @@ class CategoryMapper(BaseTransformer):
         return {'categorized_images': categorized_images}
 
 
+class MaskEroder(BaseTransformer):
+    def __init__(self, erode_selem_size, **kwargs):
+        self.selem_size = erode_selem_size
+
+    def transform(self, images):
+        if self.selem_size > 0:
+            eroded_images = []
+            for image in tqdm(images):
+                eroded_images.append(erode_image(image, self.selem_size))
+        else:
+            eroded_images = images
+        return {'eroded_images': eroded_images}
+
+
 class MaskDilator(BaseTransformer):
-    def __init__(self, dilate_selem_size):
+    def __init__(self, dilate_selem_size, **kwargs):
         self.selem_size = dilate_selem_size
 
     def transform(self, images):
@@ -46,6 +60,20 @@ class MaskDilator(BaseTransformer):
         for image in tqdm(images):
             dilated_images.append(dilate_image(image, self.selem_size))
         return {'categorized_images': dilated_images}
+
+
+class LabeledMaskDilator(BaseTransformer):
+    def __init__(self, dilate_selem_size, **kwargs):
+        self.selem_size = dilate_selem_size
+
+    def transform(self, images):
+        if self.selem_size > 0:
+            dilated_images = []
+            for image in tqdm(images):
+                dilated_images.append(dilate_labeled_image(image, self.selem_size))
+        else:
+            dilated_images = images
+        return {'dilated_images': dilated_images}
 
 
 class DenseCRF(BaseTransformer):
@@ -132,6 +160,21 @@ class CategoryMapperStream(BaseTransformer):
             yield categorize_image(image)
 
 
+class MaskEroderStream(BaseTransformer):
+    def __init__(self, erode_selem_size, **kwargs):
+        self.selem_size = erode_selem_size
+
+    def transform(self, images):
+        if self.selem_size > 0:
+            return {'eroded_images': self._transform(images)}
+        else:
+            return {'eroded_images': images}
+
+    def _transform(self, images):
+        for image in tqdm(images):
+            yield erode_image(image, self.selem_size)
+
+
 class MaskDilatorStream(BaseTransformer):
     def __init__(self, dilate_selem_size):
         self.selem_size = dilate_selem_size
@@ -142,6 +185,21 @@ class MaskDilatorStream(BaseTransformer):
     def _transform(self, images):
         for image in tqdm(images):
             yield dilate_image(image, self.selem_size)
+
+
+class LabeledMaskDilatorStream(BaseTransformer):
+    def __init__(self, dilate_selem_size, **kwargs):
+        self.selem_size = dilate_selem_size
+
+    def transform(self, images):
+        if self.selem_size > 0:
+            return {'dilated_images': self.transform(images)}
+        else:
+            return {'dilated_images': images}
+
+    def transform(self, images):
+        for image in tqdm(images):
+            yield dilate_labeled_image(image, self.selem_size)
 
 
 class DenseCRFStream(BaseTransformer):
@@ -196,9 +254,23 @@ def label_multiclass_image(mask):
     return labeled_image
 
 
+def erode_image(mask, selem_size):
+    selem = rectangle(selem_size, selem_size)
+    eroded_image = binary_erosion(mask, selem=selem)
+    return add_dropped_objects(mask, eroded_image)
+
+
 def dilate_image(mask, selem_size):
     selem = rectangle(selem_size, selem_size)
     return binary_dilation(mask, selem=selem)
+
+
+def dilate_labeled_image(mask, selem_size):
+    selem = rectangle(selem_size, selem_size)
+    dilated_image = []
+    for category_mask in mask:
+        dilated_image.append(dilation(category_mask, selem=selem))
+    return np.stack(dilated_image)
 
 
 def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilateral=10, sxy_bilateral=1, srgb=50):
@@ -226,9 +298,9 @@ def build_score(image, probabilities):
     total_score = []
     for category_instances, category_probabilities in zip(image, probabilities):
         score = []
-        for label_nr in range(0, category_instances.max() + 1):
+        for label_nr in range(1, category_instances.max() + 1):
             masked_instance = np.ma.masked_array(category_probabilities, mask=category_instances != label_nr)
-            score.append(masked_instance.mean())
+            score.append(masked_instance.mean()*np.sqrt(np.count_nonzero(category_instances == label_nr)))
         total_score.append(score)
     return total_score
 

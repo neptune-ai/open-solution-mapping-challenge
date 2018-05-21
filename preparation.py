@@ -11,7 +11,7 @@ from skimage.morphology import binary_erosion, rectangle
 from scipy.ndimage.morphology import distance_transform_edt
 from sklearn.externals import joblib
 
-from utils import get_logger, label, get_weights
+from utils import get_logger, add_dropped_objects, get_weights
 
 logger = get_logger()
 
@@ -105,15 +105,6 @@ def preprocess_image(img, target_size=(128, 128)):
     else:
         x = torch.autograd.Variable(x, volatile=True)
     return x
-
-
-def add_dropped_objects(original, processed):
-    reconstructed = processed.copy()
-    labeled = label(original)
-    for i in range(1, labeled.max() + 1):
-        if np.any(np.where(~(labeled == i) & processed)):
-            reconstructed += (labeled == i)
-    return reconstructed.astype('uint8')
 
 
 def get_selem_size(mask, percent):

@@ -1,4 +1,7 @@
 # open-solution-mapping-challenge
+
+[![Join the chat at https://gitter.im/minerva-ml/open-solution-mapping-challenge](https://badges.gitter.im/minerva-ml/open-solution-mapping-challenge.svg)](https://gitter.im/minerva-ml/open-solution-mapping-challenge?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge)
 
 ## Goal
@@ -17,7 +20,7 @@ $ neptune login
 5. Prepare the data:
 
 ```bash
-$ neptune experiment run main.py prepare_metadata \
+$ neptune experiment run main.py -- prepare_metadata \
 --train_data \
 --valid_data \
 --test_data
@@ -29,7 +32,7 @@ $ neptune experiment run main.py prepare_metadata \
 ```bash
 $ neptune login
 $ neptune experiment run \
-main.py train_evaluate_predict --pipeline_name unet --chunk_size 5000
+main.py -- train_evaluate_predict --pipeline_name unet --chunk_size 5000
 ```
 
 7. check your leaderboard score!
@@ -66,7 +69,7 @@ $ neptune data upload YOUR/DATA/FOLDER
     ```bash
     $ neptune login
     $ neptune experiment run \
-    main.py train_evaluate_predict --pipeline_name unet --chunk_size 5000
+    main.py -- train_evaluate_predict --pipeline_name unet --chunk_size 5000
     ```
 
     * cloud via neptune
@@ -76,7 +79,7 @@ $ neptune data upload YOUR/DATA/FOLDER
     $ neptune experiment send --config neptune.yaml \
     --worker gcp-large \
     --environment pytorch-0.2.0-gpu-py3 \
-    main.py train_evaluate_predict --pipeline_name solution_1 --chunk_size 5000
+    main.py -- train_evaluate_predict --pipeline_name solution_1 --chunk_size 5000
     ```
 
     * local pure python
