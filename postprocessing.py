@@ -180,7 +180,7 @@ class MaskDilatorStream(BaseTransformer):
         self.selem_size = dilate_selem_size
 
     def transform(self, images):
-        return {'categorized_images': self._transform(images)}
+        return {'dilated_images': self._transform(images)}
 
     def _transform(self, images):
         for image in tqdm(images):
@@ -193,11 +193,11 @@ class LabeledMaskDilatorStream(BaseTransformer):
 
     def transform(self, images):
         if self.selem_size > 0:
-            return {'dilated_images': self.transform(images)}
+            return {'dilated_images': self._transform(images)}
         else:
             return {'dilated_images': images}
 
-    def transform(self, images):
+    def _transform(self, images):
         for image in tqdm(images):
             yield dilate_labeled_image(image, self.selem_size)
 

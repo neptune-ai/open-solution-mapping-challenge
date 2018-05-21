@@ -13,8 +13,10 @@ X_COLUMNS = ['file_path_image']
 Y_COLUMNS = ['file_path_mask_eroded_3']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
-MEAN = [0.485, 0.456, 0.406]
-STD = [0.229, 0.224, 0.225]
+# MEAN = [0.485, 0.456, 0.406]
+# STD = [0.229, 0.224, 0.225]
+MEAN = [0.0, 0.0, 0.0]
+STD = [1.0, 1.0, 1.0]
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
@@ -115,6 +117,8 @@ SOLUTION_CONFIG = AttrDict({
     },
     'dropper': {'min_size': params.min_nuclei_size},
     'postprocessor': {'mask_dilation': {'dilate_selem_size': params.dilate_selem_size
+                                        },
+                      'mask_erosion': {'erode_selem_size': params.erode_selem_size
                                        },
                       'crf': {'apply_crf': params.apply_crf,
                               'nr_iter': params.nr_iter,
