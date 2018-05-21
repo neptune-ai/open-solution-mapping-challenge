@@ -73,8 +73,7 @@ class MetadataImageSegmentationDataset(Dataset):
 class MetadataImageSegmentationDatasetDistances(Dataset):
     def __init__(self, X, y, train_mode,
                  image_transform, image_augment_with_target,
-                 mask_transform, image_augment,
-                 distance_matrix_transform):
+                 mask_transform, image_augment):
         super().__init__()
         self.X = X
         if y is not None:
@@ -85,7 +84,6 @@ class MetadataImageSegmentationDatasetDistances(Dataset):
         self.train_mode = train_mode
         self.image_transform = image_transform
         self.mask_transform = mask_transform
-        self.distance_matrix_transform = distance_matrix_transform
         self.image_augment = image_augment
         self.image_augment_with_target = image_augment_with_target
 
@@ -424,8 +422,6 @@ class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
         self.dataset = MetadataImageSegmentationDatasetDistances
-        self.distance_matrix_transform = lambda x: to_tensor(resize(x.astype(np.float32), (self.dataset_params.h,
-                                                   self.dataset_params.w)).astype(np.float32))
 
     def get_datagen(self, X, y, train_mode, loader_params):
         if train_mode:
@@ -434,16 +430,14 @@ class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
                                    image_augment=self.image_augment,
                                    image_augment_with_target=self.image_augment_with_target,
                                    mask_transform=self.mask_transform,
-                                   image_transform=self.image_transform,
-                                   distance_matrix_transform=self.distance_matrix_transform)
+                                   image_transform=self.image_transform)
         else:
             dataset = self.dataset(X, y,
                                    train_mode=False,
                                    image_augment=None,
                                    image_augment_with_target=None,
                                    mask_transform=self.mask_transform,
-                                   image_transform=self.image_transform,
-                                   distance_matrix_transform=self.distance_matrix_transform)
+                                   image_transform=self.image_transform)
 
         datagen = DataLoader(dataset, **loader_params)
         steps = len(datagen)
