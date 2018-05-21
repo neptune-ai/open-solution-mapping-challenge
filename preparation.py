@@ -43,16 +43,16 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, is_small
                     mask = add_dropped_objects(mask, mask_eroded)
                 mask_overlayed = np.where(mask, category_nr, mask_overlayed)
         sizes = get_size_matrix(mask_overlayed)
-        #distances = clean_distances(distances).astype(np.float16)
+        distances = clean_distances(distances).astype(np.float16)
         target_filepath = os.path.join(target_dir, dataset, "masks", os.path.splitext(image["file_name"])[0]) + ".png"
         target_filepath_dist = os.path.join(target_dir, dataset, "distances", os.path.splitext(image["file_name"])[0])
         target_filepath_sizes = os.path.join(target_dir, dataset, "sizes", os.path.splitext(image["file_name"])[0])
-        #os.makedirs(os.path.dirname(target_filepath), exist_ok=True)
-        #os.makedirs(os.path.dirname(target_filepath_dist), exist_ok=True)
+        os.makedirs(os.path.dirname(target_filepath), exist_ok=True)
+        os.makedirs(os.path.dirname(target_filepath_dist), exist_ok=True)
         os.makedirs(os.path.dirname(target_filepath_sizes), exist_ok=True)
         try:
-            #imwrite(target_filepath, mask_overlayed)
-            #joblib.dump(distances, target_filepath_dist)
+            imwrite(target_filepath, mask_overlayed)
+            joblib.dump(distances, target_filepath_dist)
             joblib.dump(sizes, target_filepath_sizes)
         except:
             logger.info("Failed to save image: {}".format(image_id))
@@ -64,7 +64,7 @@ def overlay_masks_from_annotations(annotations, image_size, distances=None):
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
         m = cocomask.decode(rle)
         m = m.reshape(image_size)
-        if False:#test distances is not None:
+        if distances is not None:
             distances = update_distances(distances, m)
         mask += m
     return np.where(mask > 0, 1, 0).astype('uint8'), distances
