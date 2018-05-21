@@ -380,6 +380,9 @@ class ImageSegmentationLoaderMosaicPadding(ImageSegmentationLoaderBasic):
 
         self.image_augment = ImgAug(mosaic_pad_seq(pad_size=(self.dataset_params.h_pad,
                                                              self.dataset_params.w_pad)))
+        self.image_transform = transforms.Compose([transforms.ToTensor(),
+                                                   transforms.Normalize(mean=MEAN, std=STD),
+                                                   ])
         self.dataset = MetadataImageSegmentationTTA
 
     def transform(self, X, y, X_valid=None, y_valid=None, train_mode=False):
@@ -455,65 +458,6 @@ class ImageSegmentationMultitaskLoader(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
         self.dataset = ImageSegmentationMultitaskDataset
-
-
-class ImageSegmentationMultitaskLoaderPatchingTrain(ImageSegmentationLoaderPatchingTrain):
-    def __init__(self, loader_params, dataset_params):
-        super().__init__(loader_params, dataset_params)
-        self.dataset = ImageSegmentationMultitaskDataset
-
-
-class ImageSegmentationMultitaskLoaderPatchingInference(ImageSegmentationLoaderPatchingInference):
-    def __init__(self, loader_params, dataset_params):
-        super().__init__(loader_params, dataset_params)
-        self.dataset = ImageSegmentationMultitaskDataset
-
-
-class PatchCombiner(BaseTransformer):
-    def __init__(self, patching_size, patching_stride):
-        super().__init__()
-        self.patching_size = patching_size
-        self.patching_stride = patching_stride
-        self.tta_factor = 4
-
-    @property
-    def normalization_factor(self):
-        return self.tta_factor * int(self.patching_size / self.patching_stride) ** 2
-
-    def transform(self, outputs, patch_ids):
-        combined_outputs = {}
-        for name, output in outputs.items():
-            for patch_id in patch_ids['patch_ids'].unique():
-                patch_meta = patch_ids[patch_ids['patch_ids'] == patch_id]
-                image_patches = output[patch_meta.index]
-                combined_outputs.setdefault(name, []).append(self._join_output(patch_meta, image_patches))
-        return combined_outputs
-
-    def _join_output(self, patch_meta, image_patches):
-        image_h = patch_meta['image_h'].unique()[0]
-        image_w = patch_meta['image_w'].unique()[0]
-        prediction_image = np.zeros((image_h, image_w))
-        prediction_image_padded = get_mosaic_padded_image(prediction_image, self.patching_size, self.patching_stride)
-
-        patches_per_image = 0
-        for (y_coordinate, x_coordinate, tta_angle), image_patch in zip(
-                patch_meta[['y_coordinates', 'x_coordinates', 'tta_angles']].values.tolist(), image_patches):
-            patches_per_image += 1
-            image_patch = np.rot90(image_patch, -1 * tta_angle / 90.)
-            window_y, window_x = y_coordinate * self.patching_stride, x_coordinate * self.patching_stride
-            prediction_image_padded[window_y:self.patching_size + window_y,
-            window_x:self.patching_size + window_x] += image_patch
-
-        _, h_top, h_bottom, _ = get_padded_size(max(image_h, self.patching_size),
-                                                self.patching_size,
-                                                self.patching_stride)
-        _, w_left, w_right, _ = get_padded_size(max(image_w, self.patching_size),
-                                                self.patching_size,
-                                                self.patching_stride)
-
-        prediction_image = prediction_image_padded[h_top:-h_bottom, w_left:-w_right]
-        prediction_image /= self.normalization_factor
-        return prediction_image
 
 
 def binarize(x):

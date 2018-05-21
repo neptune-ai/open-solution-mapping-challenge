@@ -5,8 +5,7 @@ from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from utils import squeeze_inputs
 from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted, PyTorchUNetWeightedStream
-from postprocessing import Resizer, CategoryMapper, MulticlassLabeler, MaskDilator, DenseCRF, ScoreBuilder, \
-    ResizerStream, CategoryMapperStream, MulticlassLabelerStream, MaskDilatorStream, DenseCRFStream
+import postprocessing as post
 
 
 def unet(config, train_mode):
@@ -72,9 +71,9 @@ def unet_mosaic(config, train_mode):
         mask_postprocessed = mask_postprocessing(loader, unet, config, save_output=save_output)
     else:
         prediction_crop = Step(name='prediction_crop',
-                               transformer=PredictionCropStream(
+                               transformer=post.PredictionCropStream(
                                    **config.postprocessor.prediction_crop) if config.execution.stream_mode \
-                                   else PredictionCrop(**config.postprocessor.prediction_crop),
+                                   else post.PredictionCrop(**config.postprocessor.prediction_crop),
                                input_steps=[unet],
                                adapter={'images': ([(unet.name, 'multichannel_map_prediction')]), },
                                cache_dirpath=config.env.cache_dirpath,
@@ -124,7 +123,7 @@ def preprocessing(config, model_type, is_train, loader_mode=None):
 
 def multiclass_object_labeler(postprocessed_mask, config, save_output=True):
     labeler = Step(name='labeler',
-                   transformer=MulticlassLabelerStream() if config.execution.stream_mode else MulticlassLabeler(),
+                   transformer=post.MulticlassLabelerStream() if config.execution.stream_mode else post.MulticlassLabeler(),
                    input_steps=[postprocessed_mask],
                    adapter={'images': ([(postprocessed_mask.name, 'categorized_images')]),
                             },
@@ -263,8 +262,8 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
 def mask_postprocessing(loader, model, config, save_output=False):
     if config.postprocessor.crf.apply_crf:
         dense_crf = Step(name='dense_crf',
-                         transformer=DenseCRFStream(**config.postprocessor.crf) if config.execution.stream_mode \
-                             else DenseCRF(**config.postprocessor.crf),
+                         transformer=post.DenseCRFStream(**config.postprocessor.crf) if config.execution.stream_mode \
+                             else post.DenseCRF(**config.postprocessor.crf),
                          input_steps=[loader, model],
                          adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
                                   'raw_images_generator': ([(loader.name, 'datagen')]),
@@ -273,7 +272,7 @@ def mask_postprocessing(loader, model, config, save_output=False):
                          save_output=save_output)
 
         mask_resize = Step(name='mask_resize',
-                           transformer=ResizerStream() if config.execution.stream_mode else Resizer(),
+                           transformer=post.ResizerStream() if config.execution.stream_mode else post.Resizer(),
                            input_data=['input'],
                            input_steps=[dense_crf],
                            adapter={'images': ([('dense_crf', 'crf_images')]),
@@ -283,7 +282,7 @@ def mask_postprocessing(loader, model, config, save_output=False):
                            save_output=save_output)
     else:
         mask_resize = Step(name='mask_resize',
-                           transformer=ResizerStream() if config.execution.stream_mode else Resizer(),
+                           transformer=post.ResizerStream() if config.execution.stream_mode else post.Resizer(),
                            input_data=['input'],
                            input_steps=[model],
                            adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
@@ -293,18 +292,18 @@ def mask_postprocessing(loader, model, config, save_output=False):
                            save_output=save_output)
 
     category_mapper = Step(name='category_mapper',
-                           transformer=CategoryMapperStream() if config.execution.stream_mode else CategoryMapper(),
+                           transformer=post.CategoryMapperStream() if config.execution.stream_mode else post.CategoryMapper(),
                            input_steps=[mask_resize],
                            adapter={'images': ([('mask_resize', 'resized_images')]),
                                     },
                            cache_dirpath=config.env.cache_dirpath,
                            save_output=save_output)
 
-    if config.postprocessor["dilate_selem_size"] > 0:
+    if config.postprocessor.mask_dilation.dilate_selem_size > 0:
         mask_dilation = Step(name='mask_dilation',
-                             transformer=MaskDilatorStream(
-                                 **config.postprocessor) if config.execution.stream_mode else MaskDilator(
-                                 **config.postprocessor),
+                             transformer=post.MaskDilatorStream(
+                                 **config.postprocessor.mask_dilation) if config.execution.stream_mode else post.MaskDilator(
+                                 **config.postprocessor.mask_dilation),
                              input_steps=[category_mapper],
                              adapter={'images': ([(category_mapper.name, 'categorized_images')]),
                                       },
@@ -317,7 +316,7 @@ def mask_postprocessing(loader, model, config, save_output=False):
         detached = multiclass_object_labeler(category_mapper, config, save_output=save_output)
 
     score_builder = Step(name='score_builder',
-                         transformer=ScoreBuilder(),
+                         transformer=post.ScoreBuilder(),
                          input_steps=[detached, mask_resize],
                          adapter={'images': ([(detached.name, 'labeled_images')]),
                                   'probabilities': ([(mask_resize.name, 'resized_images')]),

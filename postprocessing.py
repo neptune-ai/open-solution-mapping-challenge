@@ -86,11 +86,11 @@ class PredictionCrop(BaseTransformer):
         self.w_crop = w_crop
 
     def transform(self, images):
-        cropped_images = []
+        cropped_per_class_predictions = []
         for image in tqdm(images):
-            cropped_image = crop_image_center(image, (self.h, self.w))
-            cropped_images.append(cropped_image)
-        return {'cropped_images': cropped_images}
+            cropped_per_class_prediction = crop_image_center_per_class(image, (self.h_crop, self.w_crop))
+            cropped_per_class_predictions.append(cropped_per_class_prediction)
+        return {'cropped_images': cropped_per_class_predictions}
 
 
 class ScoreBuilder(BaseTransformer):
@@ -185,7 +185,7 @@ class PredictionCropStream(BaseTransformer):
 
     def _transform(self, images):
         for image in tqdm(images):
-            yield crop_image_center(image, (self.h, self.w))
+            yield crop_image_center_per_class(image, (self.h_crop, self.w_crop))
 
 
 def label_multiclass_image(mask):
@@ -233,8 +233,13 @@ def build_score(image, probabilities):
     return total_score
 
 
-def crop_image_center(image, size):
-    h, w = image.shape[:2]
+def crop_image_center_per_class(image, size):
     h_crop, w_crop = size
-    h_start, w_start = int((h - h_crop) / 2.), int((w - w_crop) / 2.)
-    return image[h_start:-h_start, w_start:-w_start]
+    cropped_per_class_prediction = []
+    for class_prediction in image:
+        h, w = class_prediction.shape[:2]
+        h_start, w_start = int((h - h_crop) / 2.), int((w - w_crop) / 2.)
+        cropped_prediction = class_prediction[h_start:-h_start, w_start:-w_start]
+        cropped_per_class_prediction.append(cropped_prediction)
+    cropped_per_class_prediction = np.stack(cropped_per_class_prediction)
+    return cropped_per_class_prediction
