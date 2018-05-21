@@ -16,6 +16,8 @@ from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from tqdm import tqdm
+from scipy import ndimage as ndi
+from scipy.ndimage.morphology import distance_transform_edt
 
 
 def read_yaml(filepath):
@@ -68,7 +70,7 @@ def get_logger():
 def decompose(labeled):
     nr_true = labeled.max()
     masks = []
-    for i in range(1, min(nr_true + 1, 20)):
+    for i in range(1, nr_true + 1):
         msk = labeled.copy()
         msk[msk != i] = 0.
         msk[msk == i] = 255.
@@ -80,7 +82,7 @@ def decompose(labeled):
         return masks
 
 
-def create_annotations(meta, predictions, logger, category_ids, save=False, experiment_dir='./'):
+def create_annotations(meta, predictions, scores, logger, category_ids, save=False, experiment_dir='./'):
     '''
     :param meta: pd.DataFrame with metadata
     :param predictions: list of labeled masks or numpy array of size [n_images, im_height, im_width]
@@ -90,13 +92,12 @@ def create_annotations(meta, predictions, logger, category_ids, save=False, expe
     :return: submission if save==False else True
     '''
     annotations = []
-    logger.info('Creating submission')
-    for image_id, prediction in zip(meta["ImageId"].values, predictions):
-        score = 1.0
-        for category_nr, category_instances in enumerate(prediction):
+    logger.info('Creating annotations')
+    for image_id, prediction, image_scores in zip(meta["ImageId"].values, predictions, scores):
+        for category_nr, (category_instances, category_scores) in enumerate(zip(prediction, image_scores)):
             if category_ids[category_nr] != None:
                 masks = decompose(category_instances)
-                for mask_nr, mask in enumerate(masks):
+                for mask_nr, (mask, score) in enumerate(zip(masks, category_scores)):
                     annotation = {}
                     annotation["image_id"] = int(image_id)
                     annotation["category_id"] = category_ids[category_nr]
@@ -352,3 +353,51 @@ def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids):
     cocoEval.summarize()
 
     return cocoEval.stats[1], cocoEval.stats[8]
+
+
+def label(mask):
+    labeled, nr_true = ndi.label(mask)
+    return labeled
+
+
+def get_weight_matrix(mask):
+    labeled = label(mask)
+    image_size = mask.shape
+    distances = np.zeros(image_size)
+    for label_nr in range(1, labeled.max() + 1):
+        object = labeled == label_nr
+        if distances.sum() == 0:
+            distances = distance_transform_edt(1 - object)
+        else:
+            distances = np.dstack([distances, distance_transform_edt(1 - object)])
+    if np.sum(distances) != 0:
+        if len(distances.shape) > 2:
+            distances.sort(axis=2)
+            weights = get_weights(distances[:, :, 0], distances[:, :, 1], 1, 10, 5)
+        else:
+            weights = get_weights(0, distances, 1, 10, 5)
+    else:
+        weights = np.ones(image_size)
+    return weights
+
+
+def get_weights(d1, d2, w1, w0, sigma):
+    return w1 + w0 * np.exp(-((d1 + d2) ** 2) / (sigma ** 2))
+
+
+def denormalize_img(image, mean, std):
+    return image * np.array(std).reshape(3, 1, 1) + np.array(mean).reshape(3, 1, 1)
+
+
+def label(mask):
+    labeled, nr_true = ndi.label(mask)
+    return labeled
+
+
+def add_dropped_objects(original, processed):
+    reconstructed = processed.copy()
+    labeled = label(original)
+    for i in range(1, labeled.max() + 1):
+        if np.any(np.where(~(labeled == i) & processed)):
+            reconstructed += (labeled == i)
+    return reconstructed.astype('uint8')

@@ -25,7 +25,6 @@ parameters:
 #  data_dir:                        /YOUR_PATH_TO_DATA_ON_CLOUD
 #  meta_dir:                        /YOUR_PATH_TO_DATA_ON_CLOUD
 #  masks_overlayed_dir:             /YOUR_PATH_TO_DATA_ON_CLOUD/masks_overlayed
-#  masks_overlayed_eroded_dir:      /YOUR_PATH_TO_DATA_ON_CLOUD/masks_overlayed_eroded/
 #  experiment_dir:                  /YOUR_PATH_TO_OUTPUT_FOLDER_ON_CLOUD/experiments
 
 # Local Environment
@@ -41,7 +40,7 @@ parameters:
   pin_memory: 1
   competition_stage: 1
   api_key: YOUR_CROWDAI_API_KEY
-  stream_mode: False
+  stream_mode: 0
 
 # General parameters
   image_h: 256
@@ -56,11 +55,12 @@ parameters:
   pool_kernel: 3
   pool_stride: 2
   repeat_blocks: 4
+  encoder: standard
 
 # U-Net loss weights (multi-output)
   mask: 0.3
   bce_mask: 1.0
-  dice_mask: 2.0
+  dice_mask: 1.0
 
 # Training schedule
   epochs_nr: 100
@@ -72,6 +72,8 @@ parameters:
   patience: 30
   lr_factor: 0.3
   lr_patience: 30
+  w0: 10
+  sigma: 10
 
 # Regularization
   use_batch_norm: 1
@@ -83,8 +85,18 @@ parameters:
 # Postprocessing
   threshold: 0.5
   min_nuclei_size: 20
-  erode_selem_size: 5
-  dilate_selem_size: 5
+  erosion_percentages: '[10,20,30]'
+  erode_selem_size: 0
+  dilate_selem_size: 0
+
+  #CRF
+  apply_crf: 0
+  nr_iter: 5
+  compat_gaussian: 3
+  sxy_gaussian: 1
+  compat_bilateral: 10
+  sxy_bilateral: 1
+  srgb: 50
 
 #Neptune monitor
   unet_outputs_to_plot: '["multichannel_map",]'
