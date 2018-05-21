@@ -225,7 +225,7 @@ def mask_postprocessing(loader, model, config, save_output=False):
                                  },
                         cache_dirpath=config.env.cache_dirpath,
                         load_saved_output=False)
-        
+
     detached = multiclass_object_labeler(mask_erosion, config, save_output=save_output)
 
     mask_dilation = Step(name='mask_dilation',

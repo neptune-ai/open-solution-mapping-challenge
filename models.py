@@ -257,12 +257,15 @@ def multiclass_weighted_segmentation_loss(output, target, w0, sigma):
     '''
     w1 is temporarily torch.ones - it should handle class imbalance for thw hole dataset
     '''
-    distance = target[:, 1, :, :]
+    distances = target[:, 1, :, :]
+    sizes = target[:, 2, :, :]
     target = target[:, 0, :, :].long()
-    w1 = Variable(torch.ones(distance.size()), requires_grad=False)  # TODO: fix it to handle class imbalance
+    w1 = Variable(torch.ones(distances.size()), requires_grad=False)  # TODO: fix it to handle class imbalance
     if torch.cuda.is_available():
         w1 = w1.cuda()
-    weights = __get_weights(distance, w1, w0, sigma)
+    size_weights = __get_size_weights(sizes)
+    distance_weights = __get_distance_weights(distances, w1, w0, sigma)
+    weights = distance_weights * size_weights
     torch_softmax = torch.nn.Softmax2d()
     probabilities = torch_softmax(output)
     negative_log_likelihood = torch.nn.NLLLoss2d(reduce=False)
@@ -271,10 +274,19 @@ def multiclass_weighted_segmentation_loss(output, target, w0, sigma):
     return loss
 
 
-def __get_weights(d, w1, w0, sigma):
+def __get_distance_weights(d, w1, w0, sigma):
     weights = w1 + w0 * torch.exp(-(d ** 2) / (sigma ** 2))
     weights[d == 0] = 1
     return weights
+
+
+def __get_size_weights(sizes):
+    C = Variable(torch.sqrt(torch.Tensor([sizes.size()[1] * sizes.size()[2]])) / 2, requires_grad=False)
+    if torch.cuda.is_available():
+        C = C.cuda()
+    size_weights = C / sizes
+    size_weights[sizes == 1] = 1
+    return size_weights
 
 
 def get_loss_params(w0, sigma):
