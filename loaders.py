@@ -378,9 +378,7 @@ class ImageSegmentationLoaderMosaicPadding(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
 
-        self.image_augment = ImgAug(mosaic_pad_seq(size=(self.dataset_params.h,
-                                                         self.dataset_params.w),
-                                                   pad_size=(self.dataset_params.h_pad,
+        self.image_augment = ImgAug(mosaic_pad_seq(pad_size=(self.dataset_params.h_pad,
                                                              self.dataset_params.w_pad)))
         self.dataset = MetadataImageSegmentationTTA
 

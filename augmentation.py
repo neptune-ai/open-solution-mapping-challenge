@@ -53,10 +53,8 @@ color_seq_RGB = iaa.Sequential([
 ], random_order=True)
 
 
-def mosaic_pad_seq(pad_size, size):
-    h, w = size
-    seq = iaa.Sequential([PadFixed(pad=pad_size),
-                          iaa.Scale({'height': h, 'width': w}, deterministic=True)
+def mosaic_pad_seq(pad_size):
+    seq = iaa.Sequential([MosaicPadFixed(pad=pad_size),
                           ]).to_deterministic()
     return seq
 
@@ -75,7 +73,7 @@ def patching_seq(crop_size):
     return seq
 
 
-class PadFixed(iaa.Augmenter):
+class MosaicPadFixed(iaa.Augmenter):
     def __init__(self, pad=None, name=None, deterministic=False, random_state=None):
         super().__init__(name, deterministic, random_state)
         self.pad = pad
