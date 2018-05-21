@@ -91,6 +91,8 @@ def _train(pipeline_name, dev_mode):
     meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
 
+    meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
+
     if dev_mode:
         meta_train = meta_train.sample(20, random_state=seed)
         meta_valid = meta_valid.sample(10, random_state=seed)
@@ -121,6 +123,8 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
 def _evaluate(pipeline_name, dev_mode, chunk_size):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_valid = meta[meta['is_valid'] == 1]
+
+    meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
 
     if dev_mode:
         meta_valid = meta_valid.sample(30, random_state=seed)

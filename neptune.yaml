@@ -41,6 +41,7 @@ parameters:
   competition_stage: 1
   api_key: YOUR_CROWDAI_API_KEY
   stream_mode: 1
+  evaluation_data_sample: 6e3
 
 # General parameters
   image_h: 256
