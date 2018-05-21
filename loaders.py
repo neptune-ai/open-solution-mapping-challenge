@@ -1,8 +1,8 @@
 import math
 from itertools import product
+import os
 
 import numpy as np
-import pandas as pd
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
@@ -107,8 +107,7 @@ class MetadataImageSegmentationTTA(Dataset):
 class MetadataImageSegmentationDatasetDistances(Dataset):
     def __init__(self, X, y, train_mode,
                  image_transform, image_augment_with_target,
-                 mask_transform, image_augment,
-                 distance_matrix_transform):
+                 mask_transform, image_augment):
         super().__init__()
         self.X = X
         if y is not None:
@@ -119,7 +118,6 @@ class MetadataImageSegmentationDatasetDistances(Dataset):
         self.train_mode = train_mode
         self.image_transform = image_transform
         self.mask_transform = mask_transform
-        self.distance_matrix_transform = distance_matrix_transform
         self.image_augment = image_augment
         self.image_augment_with_target = image_augment_with_target
 
@@ -127,8 +125,8 @@ class MetadataImageSegmentationDatasetDistances(Dataset):
         image = Image.open(img_filepath, 'r')
         return image.convert('RGB')
 
-    def load_distances(selfself, dist_filepath):
-        return joblib.load(dist_filepath)
+    def load_joblib(selfself, filepath):
+        return joblib.load(filepath)
 
     def __len__(self):
         return self.X.shape[0]
@@ -140,25 +138,30 @@ class MetadataImageSegmentationDatasetDistances(Dataset):
         if self.y is not None:
             mask_filepath = self.y[index]
             Mi = self.load_image(mask_filepath)
-            distance_filepath = mask_filepath.replace("/masks/", "/distances/")[:-4]
-            Di = self.load_distances(distance_filepath)
-            Di = np.sum(Di, axis=2).astype(
-                np.uint8)  # TODO: remove it when Di will be sum of distances to 2 closest objects
+            distance_filepath = mask_filepath.replace("/masks/", "/distances/")
+            distance_filepath = os.path.splitext(distance_filepath)[0]
+            size_filepath = distance_filepath.replace("/distances/", "/sizes/")
+            Di = self.load_joblib(distance_filepath)
+            Di = Di.astype(np.uint8)
+            Si = self.load_joblib(size_filepath).astype(np.uint16)
+            Si = np.sqrt(Si).astype(np.uint16)
 
             if self.train_mode and self.image_augment_with_target is not None:
                 Xi, Mi = from_pil(Xi, Mi)
-                Xi, Mi, Di = self.image_augment_with_target(Xi, Mi, Di)
+                Xi, Mi, Di, Si = self.image_augment_with_target(Xi, Mi, Di, Si)
                 if self.image_augment is not None:
                     Xi = self.image_augment(Xi)
-                Xi, Mi, Di = to_pil(Xi, Mi, Di)
+                Xi, Mi, Di, Si = to_pil(Xi, Mi, Di, Si)
 
             if not self.train_mode:
                 Di = to_pil(Di)
+                Si = to_pil(Si)
 
             if self.mask_transform is not None:
                 Mi = self.mask_transform(Mi)
                 Di = self.mask_transform(Di)
-                Mi = torch.cat((Mi, Di), dim=0)
+                Si = self.mask_transform(Si)
+                Mi = torch.cat((Mi, Di, Si), dim=0)
 
             if self.image_transform is not None:
                 Xi = self.image_transform(Xi)
@@ -415,9 +418,6 @@ class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
         self.dataset = MetadataImageSegmentationDatasetDistances
-        self.distance_matrix_transform = lambda x: to_tensor(resize(x.astype(np.float32), (self.dataset_params.h,
-                                                                                           self.dataset_params.w)).astype(
-            np.float32))
 
     def get_datagen(self, X, y, train_mode, loader_params):
         if train_mode:
@@ -426,16 +426,14 @@ class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
                                    image_augment=self.image_augment,
                                    image_augment_with_target=self.image_augment_with_target,
                                    mask_transform=self.mask_transform,
-                                   image_transform=self.image_transform,
-                                   distance_matrix_transform=self.distance_matrix_transform)
+                                   image_transform=self.image_transform)
         else:
             dataset = self.dataset(X, y,
                                    train_mode=False,
                                    image_augment=None,
                                    image_augment_with_target=None,
-                                   mask_transform=self.mask_transform,
-                                   image_transform=self.image_transform,
-                                   distance_matrix_transform=self.distance_matrix_transform)
+                                   mask_transform=None,
+                                   image_transform=self.image_transform)
 
         datagen = DataLoader(dataset, **loader_params)
         steps = len(datagen)

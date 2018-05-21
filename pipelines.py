@@ -298,26 +298,31 @@ def mask_postprocessing(loader, model, config, save_output=False):
                            cache_dirpath=config.env.cache_dirpath,
                            save_output=save_output)
 
-    if config.postprocessor.mask_dilation.dilate_selem_size > 0:
-        mask_dilation = Step(name='mask_dilation',
-                             transformer=post.MaskDilatorStream(
-                                 **config.postprocessor.mask_dilation) if config.execution.stream_mode else post.MaskDilator(
-                                 **config.postprocessor.mask_dilation),
-                             input_steps=[category_mapper],
-                             adapter={'images': ([(category_mapper.name, 'categorized_images')]),
-                                      },
-                             cache_dirpath=config.env.cache_dirpath,
-                             load_saved_output=False)
+    mask_erosion = Step(name='mask_erosion',
+                        transformer=post.MaskEroderStream(
+                            **config.postprocessor.mask_dilation) if config.execution.stream_mode
+                        else post.MaskEroder(**config.postprocessor.mask_dilation),
+                        input_steps=[category_mapper],
+                        adapter={'images': ([(category_mapper.name, 'categorized_images')]),
+                                 },
+                        cache_dirpath=config.env.cache_dirpath,
+                        load_saved_output=False)
 
-        detached = multiclass_object_labeler(mask_dilation, config, save_output=save_output)
+    detached = multiclass_object_labeler(mask_erosion, config, save_output=save_output)
 
-    else:
-        detached = multiclass_object_labeler(category_mapper, config, save_output=save_output)
+    mask_dilation = Step(name='mask_dilation',
+                         transformer=post.LabeledMaskDilatorStream(
+                             **config.postprocessor.mask_dilation) if config.execution.stream_mode
+                         else post.LabeledMaskDilator(**config.postprocessor.mask_dilation),
+                         input_steps=[detached],
+                         adapter={'images': ([(detached.name, 'labeled_images')]),
+                                  },
+                         cache_dirpath=config.env.cache_dirpath, load_saved_output=False)
 
     score_builder = Step(name='score_builder',
                          transformer=post.ScoreBuilder(),
-                         input_steps=[detached, mask_resize],
-                         adapter={'images': ([(detached.name, 'labeled_images')]),
+                         input_steps=[mask_dilation, mask_resize],
+                         adapter={'images': ([(mask_dilation.name, 'categorized_images')]),
                                   'probabilities': ([(mask_resize.name, 'resized_images')]),
                                   },
                          cache_dirpath=config.env.cache_dirpath,
