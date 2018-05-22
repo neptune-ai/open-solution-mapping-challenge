@@ -53,8 +53,8 @@ color_seq_RGB = iaa.Sequential([
 ], random_order=True)
 
 
-def mosaic_pad_seq(pad_size):
-    seq = iaa.Sequential([MosaicPadFixed(pad=pad_size),
+def padding_seq(pad_size, pad_method):
+    seq = iaa.Sequential([PadFixed(pad=pad_size, pad_method=pad_method),
                           ]).to_deterministic()
     return seq
 
@@ -73,10 +73,15 @@ def patching_seq(crop_size):
     return seq
 
 
-class MosaicPadFixed(iaa.Augmenter):
-    def __init__(self, pad=None, name=None, deterministic=False, random_state=None):
+class PadFixed(iaa.Augmenter):
+    PAD_FUNCTION = {'reflect': cv2.BORDER_REFLECT_101,
+                    'replicate': cv2.BORDER_REPLICATE,
+                    }
+
+    def __init__(self, pad=None, pad_method=None, name=None, deterministic=False, random_state=None):
         super().__init__(name, deterministic, random_state)
         self.pad = pad
+        self.pad_method = pad_method
 
     def _augment_images(self, images, random_state, parents, hooks):
         result = []
@@ -91,7 +96,8 @@ class MosaicPadFixed(iaa.Augmenter):
 
     def _reflect_pad(self, img):
         h_pad, w_pad = self.pad
-        img_padded = cv2.copyMakeBorder(img.copy(), h_pad, h_pad, w_pad, w_pad, cv2.BORDER_REFLECT_101)
+        img_padded = cv2.copyMakeBorder(img.copy(), h_pad, h_pad, w_pad, w_pad,
+                                        PadFixed.PAD_FUNCTION[self.pad_method])
         return img_padded
 
     def get_parameters(self):

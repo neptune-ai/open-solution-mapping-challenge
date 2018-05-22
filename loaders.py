@@ -11,7 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
 from cv2 import resize
 
-from augmentation import fast_seq, affine_seq, color_seq, patching_seq, mosaic_pad_seq
+from augmentation import fast_seq, affine_seq, color_seq, patching_seq, padding_seq
 from steps.base import BaseTransformer
 from steps.pytorch.utils import ImgAug
 from utils import from_pil, to_pil
@@ -381,8 +381,10 @@ class ImageSegmentationLoaderMosaicPadding(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
 
-        self.image_augment = ImgAug(mosaic_pad_seq(pad_size=(self.dataset_params.h_pad,
-                                                             self.dataset_params.w_pad)))
+        self.image_augment = ImgAug(padding_seq(pad_size=(self.dataset_params.h_pad,
+                                                          self.dataset_params.w_pad),
+                                                pad_method='replicate'
+                                                ))
         self.image_transform = transforms.Compose([transforms.ToTensor(),
                                                    transforms.Normalize(mean=MEAN, std=STD),
                                                    ])
