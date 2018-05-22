@@ -77,7 +77,8 @@ SOLUTION_CONFIG = AttrDict({
                                 },
         'training_config': {'epochs': params.epochs_nr,
                             'loss_function': {'w0': params.w0,
-                                              'sigma': params.sigma},
+                                              'sigma': params.sigma,
+                                              'imsize': (params.image_h, params.image_w)},
                             },
         'callbacks_config': {
             'model_checkpoint': {

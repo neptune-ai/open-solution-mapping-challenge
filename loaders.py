@@ -436,7 +436,7 @@ class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
                                    train_mode=False,
                                    image_augment=None,
                                    image_augment_with_target=None,
-                                   mask_transform=None,
+                                   mask_transform=self.mask_transform,
                                    image_transform=self.image_transform)
 
         datagen = DataLoader(dataset, **loader_params)
