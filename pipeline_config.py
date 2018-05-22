@@ -52,19 +52,19 @@ SOLUTION_CONFIG = AttrDict({
                                                },
                                  },
                },
-    'loader_padding': {'dataset_params': {'h_pad': params.h_pad,
-                                          'w_pad': params.w_pad,
-                                          'h': params.image_h,
-                                          'w': params.image_w,
-                                          'pad_method': params.pad_method
-                                          },
-                       'loader_params': {'inference': {'batch_size': params.batch_size_inference,
-                                                       'shuffle': False,
-                                                       'num_workers': params.num_workers,
-                                                       'pin_memory': params.pin_memory
-                                                       },
-                                         },
-                       },
+    'loader_inference_padding': {'dataset_params': {'h_pad': params.h_pad,
+                                                    'w_pad': params.w_pad,
+                                                    'h': params.image_h,
+                                                    'w': params.image_w,
+                                                    'pad_method': params.pad_method
+                                                    },
+                                 'loader_params': {'inference': {'batch_size': params.batch_size_inference,
+                                                                 'shuffle': False,
+                                                                 'num_workers': params.num_workers,
+                                                                 'pin_memory': params.pin_memory
+                                                                 },
+                                                   },
+                                 },
 
     'unet': {
         'architecture_config': {'model_params': {'n_filters': params.n_filters,

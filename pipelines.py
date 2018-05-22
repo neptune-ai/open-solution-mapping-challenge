@@ -194,7 +194,7 @@ def _preprocessing_single_padded_generator(config):
                         cache_dirpath=config.env.cache_dirpath)
 
     loader = Step(name='loader',
-                  transformer=loaders.ImageSegmentationLoaderPadding(**config.loader_padding),
+                  transformer=loaders.ImageSegmentationLoaderInferencePadding(**config.loader_inference_padding),
                   input_data=['input'],
                   input_steps=[xy_inference, xy_inference],
                   adapter={'X': ([('xy_inference', 'X')], squeeze_inputs),

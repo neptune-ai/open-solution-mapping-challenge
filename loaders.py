@@ -377,7 +377,7 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
         return datagen, steps
 
 
-class ImageSegmentationLoaderPadding(ImageSegmentationLoaderBasic):
+class ImageSegmentationLoaderInferencePadding(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
 
