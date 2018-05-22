@@ -124,7 +124,9 @@ class PyTorchUNetWeighted(Model):
         self.weight_regularization = weight_regularization_unet
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
-        loss = partial(multiclass_weighted_segmentation_loss, **get_loss_params(**training_config["loss_function"]))
+        weighted_loss = partial(multiclass_weighted_segmentation_loss,
+                                **get_loss_params(**training_config["loss_function"]))
+        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=1.0, ce_weight=1.0, ce_loss=weighted_loss)
         self.loss_function = [('multichannel_map', loss, 1.0)]
         self.callbacks = callbacks_unet(self.callbacks_config)
 
@@ -295,3 +297,23 @@ def get_loss_params(w0, sigma, imsize):
         sigma = sigma.cuda()
         C = C.cuda()
     return {'w0': w0, 'sigma': sigma, 'C': C}
+
+
+def mixed_dice_cross_entropy_loss(output, target, dice_weight, ce_weight, ce_loss=None):
+    dice_target = target[:, 0, :, :].long()
+    ce_target = target
+    if ce_loss is None:
+        ce_loss = torch.nn.CrossEntropyLoss()
+        ce_target = dice_target
+    return dice_weight * dice_loss(output, dice_target) + ce_weight * ce_loss(output, ce_target)
+
+
+def dice_loss(output, target):
+    dice_numerator = 0
+    dice_denominator = 0
+    for class_nr in range(1, int(target.max()) + 1):
+        class_target = (target == class_nr)
+        class_target.data = class_target.data.float()
+        dice_numerator += (class_target * output[:, class_nr, :, :]).sum()
+        dice_denominator += (class_target + output[:, class_nr, :, :]).sum()
+    return 1 - 2 * dice_numerator / dice_denominator
