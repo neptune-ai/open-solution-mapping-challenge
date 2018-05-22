@@ -126,7 +126,8 @@ class PyTorchUNetWeighted(Model):
                                     **architecture_config['optimizer_params'])
         weighted_loss = partial(multiclass_weighted_segmentation_loss,
                                 **get_loss_params(**training_config["loss_function"]))
-        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=0.2, ce_weight=1.0, ce_loss=weighted_loss)
+        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
+                       ce_weight=architecture_config['loss_weights']['bce_mask'], ce_loss=weighted_loss)
         self.loss_function = [('multichannel_map', loss, 1.0)]
         self.callbacks = callbacks_unet(self.callbacks_config)
 
