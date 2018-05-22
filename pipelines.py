@@ -46,7 +46,7 @@ def unet_weighted(config, train_mode):
     return unet_weighted
 
 
-def unet_mosaic(config, train_mode):
+def unet_padded(config, train_mode):
     if train_mode:
         save_output = False
         load_saved_output = False
@@ -57,7 +57,7 @@ def unet_mosaic(config, train_mode):
     if train_mode:
         loader = _preprocessing_single_generator(config, train_mode, False)
     else:
-        loader = _preprocessing_single_mosaic_generator(config)
+        loader = _preprocessing_single_padded_generator(config)
 
     unet = Step(name='unet',
                 transformer=PyTorchUNetStream(**config.unet) if config.execution.stream_mode else PyTorchUNet(
@@ -99,15 +99,15 @@ def unet_mosaic(config, train_mode):
     return output
 
 
-def unet_weighted_mosaic(config, train_mode):
-    unet_weighted_mosaic = unet_mosaic(config, train_mode)
+def unet_weighted_padded(config, train_mode):
+    unet_weighted_padded = unet_padded(config, train_mode)
     if train_mode:
-        unet_weighted_mosaic.get_step("loader").transformer = loaders.MetadataImageSegmentationLoaderDistances(
+        unet_weighted_padded.get_step("loader").transformer = loaders.MetadataImageSegmentationLoaderDistances(
             **config.loader)
-        unet_weighted_mosaic.get_step("unet").transformer = PyTorchUNetWeightedStream(
+        unet_weighted_padded.get_step("unet").transformer = PyTorchUNetWeightedStream(
             **config.unet) if config.execution.stream_mode else PyTorchUNetWeighted(
             **config.unet)
-    return unet_weighted_mosaic
+    return unet_weighted_padded
 
 
 def preprocessing(config, model_type, is_train, loader_mode=None):
@@ -184,7 +184,7 @@ def _preprocessing_single_generator(config, is_train, use_patching):
     return loader
 
 
-def _preprocessing_single_mosaic_generator(config):
+def _preprocessing_single_padded_generator(config):
     xy_inference = Step(name='xy_inference',
                         transformer=XYSplit(**config.xy_splitter),
                         input_data=['input'],
@@ -194,7 +194,7 @@ def _preprocessing_single_mosaic_generator(config):
                         cache_dirpath=config.env.cache_dirpath)
 
     loader = Step(name='loader',
-                  transformer=loaders.ImageSegmentationLoaderMosaicPadding(**config.loader_mosaic_padding),
+                  transformer=loaders.ImageSegmentationLoaderPadding(**config.loader_padding),
                   input_data=['input'],
                   input_steps=[xy_inference, xy_inference],
                   adapter={'X': ([('xy_inference', 'X')], squeeze_inputs),
@@ -337,11 +337,11 @@ PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
              'unet_weighted': {'train': partial(unet_weighted, train_mode=True),
                                'inference': partial(unet_weighted, train_mode=False),
                                },
-             'unet_mosaic': {'train': partial(unet_mosaic, train_mode=True),
-                             'inference': partial(unet_mosaic, train_mode=False),
+             'unet_padded': {'train': partial(unet_padded, train_mode=True),
+                             'inference': partial(unet_padded, train_mode=False),
                              },
-             'unet_weighted_mosaic': {'train': partial(unet_weighted_mosaic, train_mode=True),
-                                      'inference': partial(unet_weighted_mosaic, train_mode=False),
+             'unet_weighted_padded': {'train': partial(unet_weighted_padded, train_mode=True),
+                                      'inference': partial(unet_weighted_padded, train_mode=False),
                                       },
 
              }

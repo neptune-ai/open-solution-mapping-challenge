@@ -52,18 +52,19 @@ SOLUTION_CONFIG = AttrDict({
                                                },
                                  },
                },
-    'loader_mosaic_padding': {'dataset_params': {'h_pad': params.mosaic_pad_h,
-                                                 'w_pad': params.mosaic_pad_w,
-                                                 'h': params.image_h,
-                                                 'w': params.image_w
-                                                 },
-                              'loader_params': {'inference': {'batch_size': params.batch_size_inference,
-                                                              'shuffle': False,
-                                                              'num_workers': params.num_workers,
-                                                              'pin_memory': params.pin_memory
-                                                              },
-                                                },
-                              },
+    'loader_padding': {'dataset_params': {'h_pad': params.h_pad,
+                                          'w_pad': params.w_pad,
+                                          'h': params.image_h,
+                                          'w': params.image_w,
+                                          'pad_method': params.pad_method
+                                          },
+                       'loader_params': {'inference': {'batch_size': params.batch_size_inference,
+                                                       'shuffle': False,
+                                                       'num_workers': params.num_workers,
+                                                       'pin_memory': params.pin_memory
+                                                       },
+                                         },
+                       },
 
     'unet': {
         'architecture_config': {'model_params': {'n_filters': params.n_filters,
@@ -128,8 +129,8 @@ SOLUTION_CONFIG = AttrDict({
                               'sxy_bilateral': params.sxy_bilateral,
                               'srgb': params.srgb
                               },
-                      'prediction_crop': {'h_crop': params.mosaic_image_h,
-                                          'w_crop': params.mosaic_image_w
+                      'prediction_crop': {'h_crop': params.crop_image_h,
+                                          'w_crop': params.crop_image_w
                                           },
                       }
 })

@@ -90,11 +90,12 @@ parameters:
   erode_selem_size: 2
   dilate_selem_size: 2
 
-# Mosaic padding
-  mosaic_image_h: 300
-  mosaic_image_w: 300
-  mosaic_pad_h: 10
-  mosaic_pad_w: 10
+# Inference padding
+  crop_image_h: 300
+  crop_image_w: 300
+  h_pad: 10
+  w_pad: 10
+  pad_method: 'replicate'
 
 # CRF
   apply_crf: 0
