@@ -398,6 +398,6 @@ def add_dropped_objects(original, processed):
     reconstructed = processed.copy()
     labeled = label(original)
     for i in range(1, labeled.max() + 1):
-        if np.any(np.where(~(labeled == i) & processed)):
+        if not np.any(np.where((labeled == i) & processed)):
             reconstructed += (labeled == i)
     return reconstructed.astype('uint8')
