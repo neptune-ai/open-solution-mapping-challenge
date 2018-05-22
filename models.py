@@ -126,7 +126,7 @@ class PyTorchUNetWeighted(Model):
                                     **architecture_config['optimizer_params'])
         weighted_loss = partial(multiclass_weighted_segmentation_loss,
                                 **get_loss_params(**training_config["loss_function"]))
-        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=1.0, ce_weight=1.0, ce_loss=weighted_loss)
+        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=0.2, ce_weight=1.0, ce_loss=weighted_loss)
         self.loss_function = [('multichannel_map', loss, 1.0)]
         self.callbacks = callbacks_unet(self.callbacks_config)
 
@@ -268,10 +268,7 @@ def multiclass_weighted_segmentation_loss(output, target, w0, sigma, C):
     size_weights = __get_size_weights(sizes, C)
     distance_weights = __get_distance_weights(distances, w1, w0, sigma)
     weights = distance_weights * size_weights
-    torch_softmax = torch.nn.Softmax2d()
-    probabilities = torch_softmax(output)
-    negative_log_likelihood = torch.nn.NLLLoss2d(reduce=False)
-    loss_per_pixel = negative_log_likelihood(torch.log(probabilities), target)
+    loss_per_pixel = torch.nn.CrossEntropyLoss(reduce=False)(output, target)
     loss = torch.mean(loss_per_pixel * weights)
     return loss
 

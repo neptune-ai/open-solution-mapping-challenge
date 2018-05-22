@@ -76,7 +76,7 @@ def score_model(model, loss_function, datagen):
                 batch_losses.append(loss)
                 partial_batch_losses.setdefault(name, []).append(loss)
             loss_sum = sum(batch_losses)
-        partial_batch_losses.setdefault('sum', []).append(loss_sum)
+        partial_batch_losses.setdefault('sum', []).append(loss_sum.data)
         if batch_id == steps:
             break
     average_losses = {name: sum(losses) / steps for name, losses in partial_batch_losses.items()}
