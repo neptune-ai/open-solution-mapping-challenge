@@ -40,7 +40,8 @@ parameters:
   pin_memory: 1
   competition_stage: 1
   api_key: YOUR_CROWDAI_API_KEY
-  stream_mode: 0
+  stream_mode: 1
+  evaluation_data_sample: 1000
 
 # General parameters
   image_h: 256
@@ -55,7 +56,7 @@ parameters:
   pool_kernel: 3
   pool_stride: 2
   repeat_blocks: 4
-  encoder: standard
+  encoder: ResNet
 
 # U-Net loss weights (multi-output)
   mask: 0.3
@@ -88,10 +89,17 @@ parameters:
   threshold: 0.5
   min_nuclei_size: 20
   erosion_percentages: '[10,20,30]'
-  erode_selem_size: 0
-  dilate_selem_size: 0
+  erode_selem_size: 2
+  dilate_selem_size: 3
 
-  #CRF
+# Inference padding
+  crop_image_h: 300
+  crop_image_w: 300
+  h_pad: 10
+  w_pad: 10
+  pad_method: 'replicate'
+
+# CRF
   apply_crf: 0
   nr_iter: 5
   compat_gaussian: 3
