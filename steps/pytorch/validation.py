@@ -9,10 +9,12 @@ class DiceLoss(nn.Module):
     def __init__(self):
         super(DiceLoss, self).__init__()
         self.sigmoid = nn.Sigmoid()
+        self.smooth = 1.
 
     def forward(self, output, target):
         prediction = self.sigmoid(output)
-        return 1 - 2 * torch.sum(prediction * target) / (torch.sum(prediction) + torch.sum(target) + 1e-7)
+        return 1 - (2 * torch.sum(prediction * target) + self.smooth) / (
+                    torch.sum(prediction) + torch.sum(target) + self.smooth)
 
 
 def segmentation_loss(output, target, weight_bce=1.0, weight_dice=1.0):
