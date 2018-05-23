@@ -36,6 +36,7 @@ parameters:
 
   overwrite: 0
   num_workers: 4
+  num_threads: 1000
   load_in_memory: 0
   pin_memory: 1
   competition_stage: 1
