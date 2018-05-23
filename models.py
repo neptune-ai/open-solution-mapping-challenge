@@ -315,6 +315,8 @@ def mixed_dice_cross_entropy_loss(output, target, dice_weight, cross_entropy_wei
 def dice_loss(output, target, smooth=0):
     loss = 0
     dice = DiceLoss(smooth=smooth)
+    softmax = torch.nn.Softmax2d()
+    output = softmax(output)
     for class_nr in range(1, int(target.max()) + 1):
         class_target = (target == class_nr)
         class_target.data = class_target.data.float()
