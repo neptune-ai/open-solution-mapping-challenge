@@ -9,7 +9,7 @@ from steps.pytorch.architectures.unet import UNet
 from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ValidationMonitor, ModelCheckpoint, \
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
 from steps.pytorch.models import Model
-from steps.pytorch.validation import multiclass_segmentation_loss
+from steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
 from utils import softmax
 from unet_models import UNet11, UNet16, AlbuNet
 
@@ -124,7 +124,7 @@ class PyTorchUNetWeighted(Model):
         self.weight_regularization = weight_regularization_unet
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
-        weighted_loss = partial(multiclass_weighted_segmentation_loss,
+        weighted_loss = partial(multiclass_weighted_cross_entropy,
                                 **get_loss_params(**training_config["loss_function"]))
         loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
                        ce_weight=architecture_config['loss_weights']['bce_mask'], ce_loss=weighted_loss)
@@ -166,7 +166,7 @@ class PyTorchUNetWeightedStream(Model):
         self.weight_regularization = weight_regularization_unet
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
-        loss = partial(multiclass_weighted_segmentation_loss, **get_loss_params(**training_config["loss_function"]))
+        loss = partial(multiclass_weighted_cross_entropy, **get_loss_params(**training_config["loss_function"]))
         self.loss_function = [('multichannel_map', loss, 1.0)]
         self.callbacks = callbacks_unet(self.callbacks_config)
 
@@ -256,7 +256,7 @@ def callbacks_unet(callbacks_config):
                    ])
 
 
-def multiclass_weighted_segmentation_loss(output, target, w0, sigma, C):
+def multiclass_weighted_cross_entropy(output, target, w0, sigma, C):
     '''
     w1 is temporarily torch.ones - it should handle class imbalance for thw hole dataset
     '''
@@ -266,21 +266,21 @@ def multiclass_weighted_segmentation_loss(output, target, w0, sigma, C):
     w1 = Variable(torch.ones(distances.size()), requires_grad=False)  # TODO: fix it to handle class imbalance
     if torch.cuda.is_available():
         w1 = w1.cuda()
-    size_weights = __get_size_weights(sizes, C)
-    distance_weights = __get_distance_weights(distances, w1, w0, sigma)
+    size_weights = _get_size_weights(sizes, C)
+    distance_weights = _get_distance_weights(distances, w1, w0, sigma)
     weights = distance_weights * size_weights
     loss_per_pixel = torch.nn.CrossEntropyLoss(reduce=False)(output, target)
     loss = torch.mean(loss_per_pixel * weights)
     return loss
 
 
-def __get_distance_weights(d, w1, w0, sigma):
+def _get_distance_weights(d, w1, w0, sigma):
     weights = w1 + w0 * torch.exp(-(d ** 2) / (sigma ** 2))
     weights[d == 0] = 1
     return weights
 
 
-def __get_size_weights(sizes, C):
+def _get_size_weights(sizes, C):
     size_weights = C / sizes
     size_weights[sizes == 1] = 1
     return size_weights
@@ -309,9 +309,13 @@ def mixed_dice_cross_entropy_loss(output, target, dice_weight, ce_weight, ce_los
 def dice_loss(output, target):
     dice_numerator = 0
     dice_denominator = 0
+    loss = 0
+    dice = DiceLoss()
     for class_nr in range(1, int(target.max()) + 1):
         class_target = (target == class_nr)
         class_target.data = class_target.data.float()
-        dice_numerator += (class_target * output[:, class_nr, :, :]).sum()
-        dice_denominator += (class_target + output[:, class_nr, :, :]).sum()
-    return 1 - 2 * dice_numerator / dice_denominator
+        #dice_numerator += (class_target * output[:, class_nr, :, :]).sum()
+        #dice_denominator += (class_target + output[:, class_nr, :, :]).sum()
+        loss += dice(output[:, class_nr, :, :], class_target)
+    #return 1 - 2 * dice_numerator / dice_denominator
+    return loss
