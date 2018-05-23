@@ -75,6 +75,8 @@ parameters:
   lr_patience: 30
   w0: 10
   sigma: 10
+  dice_smooth: 1
+  dice_activation: 'softmax'
 
 # Regularization
   use_batch_norm: 1
