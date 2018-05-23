@@ -342,12 +342,15 @@ def categorize_image(image, channel_axis=0):
     return np.argmax(image, axis=channel_axis)
 
 
-def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids):
+def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, small_annotations_size):
     coco = COCO(gt_filepath)
     coco_results = coco.loadRes(prediction_filepath)
     cocoEval = COCOeval(coco, coco_results)
     cocoEval.params.imgIds = image_ids
     cocoEval.params.catIds = category_ids
+    cocoEval.params.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, small_annotations_size ** 2],
+                               [small_annotations_size ** 2, 1e5 ** 2]]
+    cocoEval.params.areaRngLbl = ['all', 'small', 'large']
     cocoEval.evaluate()
     cocoEval.accumulate()
     cocoEval.summarize()

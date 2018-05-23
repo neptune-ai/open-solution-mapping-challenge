@@ -6,7 +6,7 @@ import pandas as pd
 from deepsense import neptune
 import crowdai
 
-from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS
+from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, SMALL_ANNOTATIONS_SIZE
 from pipelines import PIPELINES
 from preparation import overlay_masks
 from utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
@@ -52,12 +52,15 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 def prepare_masks(dev_mode):
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
-        target_dir = "{}_{}".format(params.masks_overlayed_eroded_dir[:-1], params.erode_selem_size)
+        target_dir = "{}_erode_{}_dilate_{}".format(params.masks_overlayed_dir[:-1],
+                                                    params.erode_selem_size, params.dilate_selem_size)
+
         overlay_masks(data_dir=params.data_dir,
                       dataset=dataset,
                       target_dir=target_dir,
                       category_ids=CATEGORY_IDS,
                       erode=params.erode_selem_size,
+                      dilate=params.dilate_selem_size,
                       is_small=dev_mode,
                       nthreads=params.num_threads)
 
@@ -130,7 +133,8 @@ def _evaluate(pipeline_name, dev_mode, chunk_size):
     average_precision, average_recall = coco_evaluation(gt_filepath=annotation_file_path,
                                                         prediction_filepath=prediction_filepath,
                                                         image_ids=meta_valid[Y_COLUMNS_SCORING].values,
-                                                        category_ids=CATEGORY_IDS[1:])
+                                                        category_ids=CATEGORY_IDS[1:],
+                                                        small_annotations_size=SMALL_ANNOTATIONS_SIZE)
     logger.info('Mean precision on validation is {}'.format(average_precision))
     logger.info('Mean recall on validation is {}'.format(average_recall))
     ctx.channel_send('Precision', 0, average_precision)
