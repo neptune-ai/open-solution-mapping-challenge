@@ -88,7 +88,6 @@ SOLUTION_CONFIG = AttrDict({
                                                  },
                                 'loss_weights': {'bce_mask': params.bce_mask,
                                                  'dice_mask': params.dice_mask,
-                                                 'mask': params.mask,
                                                  },
                                 'weighted_cross_entropy': {'w0': params.w0,
                                                            'sigma': params.sigma,

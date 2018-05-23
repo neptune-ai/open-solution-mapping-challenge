@@ -45,9 +45,11 @@ parameters:
   evaluation_data_sample: 1000
 
 # General parameters
-  image_h: 256
-  image_w: 256
+  image_h: 300
+  image_w: 300
   image_channels: 3
+  image_train_crop_h: 128
+  image_train_crop_w: 128
 
 # U-Net parameters (multi-output)
   nr_unet_outputs: 1
@@ -60,7 +62,6 @@ parameters:
   encoder: ResNet
 
 # U-Net loss weights (multi-output)
-  mask: 0.3
   bce_mask: 1.0
   dice_mask: 1.0
 
