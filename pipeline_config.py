@@ -13,10 +13,10 @@ X_COLUMNS = ['file_path_image']
 Y_COLUMNS = ['file_path_mask_eroded_3']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
-# MEAN = [0.485, 0.456, 0.406]
-# STD = [0.229, 0.224, 0.225]
-MEAN = [0.0, 0.0, 0.0]
-STD = [1.0, 1.0, 1.0]
+MEAN = [0.485, 0.456, 0.406]
+STD = [0.229, 0.224, 0.225]
+# MEAN = [0.0, 0.0, 0.0]
+# STD = [1.0, 1.0, 1.0]
 SMALL_ANNOTATIONS_SIZE = 14
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
@@ -136,5 +136,5 @@ SOLUTION_CONFIG = AttrDict({
                       'prediction_crop': {'h_crop': params.crop_image_h,
                                           'w_crop': params.crop_image_w
                                           },
-                      },
+                      }
 })

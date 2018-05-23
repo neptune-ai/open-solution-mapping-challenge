@@ -43,6 +43,7 @@ parameters:
   api_key: YOUR_CROWDAI_API_KEY
   stream_mode: 1
   evaluation_data_sample: 1000
+  masks_with_borders: 0
 
 # General parameters
   image_h: 256
@@ -90,8 +91,8 @@ parameters:
   threshold: 0.5
   min_nuclei_size: 20
   erosion_percentages: '[10,20,30]'
-  erode_selem_size: 2
-  dilate_selem_size: 3
+  erode_selem_size: 3
+  dilate_selem_size: 0
 
 # Inference padding
   crop_image_h: 300

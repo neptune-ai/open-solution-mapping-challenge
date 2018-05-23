@@ -4,13 +4,10 @@ from skimage.morphology import binary_dilation, binary_erosion, dilation, rectan
 from tqdm import tqdm
 from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
-import cv2
 
 from steps.base import BaseTransformer
 from utils import categorize_image, denormalize_img, add_dropped_objects, label
 from pipeline_config import MEAN, STD
-
-from imageio import imwrite
 
 
 class MulticlassLabeler(BaseTransformer):
@@ -131,20 +128,6 @@ class ScoreBuilder(BaseTransformer):
             scores.append(build_score(image, image_probabilities))
         return {'images': images,
                 'scores': scores}
-
-
-class Watersheder(BaseTransformer):
-    def __init__(self, erode_selem_size, **kwargs):
-        self.selem_size = erode_selem_size
-
-    def transform(self, images):
-        if self.selem_size > 0:
-            watersheded_images = []
-            for image in tqdm(images):
-                watersheded_images.append(watershed_image(image, self.selem_size))
-        else:
-            eroded_images = images
-        return {'watersheded_images': watersheded_images}
 
 
 class MulticlassLabelerStream(BaseTransformer):
@@ -332,8 +315,3 @@ def crop_image_center_per_class(image, size):
         cropped_per_class_prediction.append(cropped_prediction)
     cropped_per_class_prediction = np.stack(cropped_per_class_prediction)
     return cropped_per_class_prediction
-
-
-def watershed_image(image, selem_size):
-    kernel = np.ones((selem_size, selem_size), dtype=np.uint8)
-    pass

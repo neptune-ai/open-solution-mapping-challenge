@@ -19,7 +19,7 @@ from pipeline_config import SMALL_ANNOTATIONS_SIZE
 logger = get_logger()
 
 
-def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, dilate=0, is_small=False, nthreads=1):
+def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, dilate=0, is_small=False, nthreads=1, with_borders=False):
     if is_small:
         suffix = "-small"
     else:
@@ -29,28 +29,17 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, dilate=0
     coco = COCO(annotation_file_path)
     image_ids = coco.getImgIds()
 
-    _overlay_mask_one_image = partial(overlay_mask_one_image, coco=coco, category_ids=category_ids, erode=erode, dilate=dilate)
+    _overlay_mask_one_image = partial(overlay_mask_one_image, dataset=dataset, target_dir=target_dir,
+                                      coco=coco, category_ids=category_ids,
+                                      erode=erode, dilate=dilate, with_borders=with_borders)
 
     process_nr = min(nthreads, len(image_ids))
     with mp.pool.ThreadPool(process_nr) as executor:
-        target_masks = executor.map(_overlay_mask_one_image, image_ids)
-
-    for image_id, (mask_overlayed, distances, sizes, image) in tqdm(zip(image_ids, target_masks)):
-        target_filepath = os.path.join(target_dir, dataset, "masks", os.path.splitext(image["file_name"])[0]) + ".png"
-        target_filepath_dist = os.path.join(target_dir, dataset, "distances", os.path.splitext(image["file_name"])[0])
-        target_filepath_sizes = os.path.join(target_dir, dataset, "sizes", os.path.splitext(image["file_name"])[0])
-        os.makedirs(os.path.dirname(target_filepath), exist_ok=True)
-        os.makedirs(os.path.dirname(target_filepath_dist), exist_ok=True)
-        os.makedirs(os.path.dirname(target_filepath_sizes), exist_ok=True)
-        try:
-            imwrite(target_filepath, mask_overlayed)
-            joblib.dump(distances, target_filepath_dist)
-            joblib.dump(sizes, target_filepath_sizes)
-        except:
-            logger.info("Failed to save image: {}".format(image_id))
+        executor.map(_overlay_mask_one_image, image_ids)
 
 
-def overlay_mask_one_image(image_id, coco, category_ids, erode, dilate):
+def overlay_mask_one_image(image_id, dataset, target_dir, coco, category_ids, erode, dilate, with_borders):
+    logger.info('Preparing image: {}'.format(image_id))
     image = coco.loadImgs(image_id)[0]
     image_size = (image["height"], image["width"])
     mask_overlayed = np.zeros(image_size).astype('uint8')
@@ -59,26 +48,51 @@ def overlay_mask_one_image(image_id, coco, category_ids, erode, dilate):
         if category_id is not None:
             annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=[category_id, ])
             annotations = coco.loadAnns(annotation_ids)
+
             if erode < 0 or dilate < 0:
                 raise ValueError('erode and dilate cannot be negative')
-            
+
             if erode == 0:
                 mask, distances = overlay_masks_from_annotations(annotations=annotations,
                                                                  image_size=image_size,
                                                                  distances=distances)
-            elif erode > 0:
+            elif dilate == 0:
                 mask, _ = overlay_masks_from_annotations(annotations=annotations,
                                                          image_size=image_size)
                 mask_eroded, distances = overlay_eroded_masks_from_annotations(annotations=annotations,
                                                                                image_size=image_size,
-                                                                               area_percent=erode,
+                                                                               erode=erode,
                                                                                distances=distances)
                 mask = add_dropped_objects(mask, mask_eroded)
+            else:
+                mask, distances = overlay_eroded__dilated_masks_from_annotations(annotations=annotations,
+                                                                                 image_size=image_size,
+                                                                                 erode=erode,
+                                                                                 dilate=dilate,
+                                                                                 distances=distances)
             mask_overlayed = np.where(mask, category_nr, mask_overlayed)
 
     sizes = get_size_matrix(mask_overlayed)
-    distances = clean_distances(distances).astype(np.float16)
-    return mask_overlayed, distances, sizes, image
+    distances, distances_ = clean_distances(distances)
+
+    if with_borders:
+        borders = (distances_[:, :, 1] < 8 ) & (~mask_overlayed)
+        borders_class_id = mask_overlayed.max() + 1
+        mask_overlayed = np.where(borders, borders_class_id, mask_overlayed)
+
+    target_filepath = os.path.join(target_dir, dataset, "masks", os.path.splitext(image["file_name"])[0]) + ".png"
+    target_filepath_dist = os.path.join(target_dir, dataset, "distances", os.path.splitext(image["file_name"])[0])
+    target_filepath_sizes = os.path.join(target_dir, dataset, "sizes", os.path.splitext(image["file_name"])[0])
+    os.makedirs(os.path.dirname(target_filepath), exist_ok=True)
+    os.makedirs(os.path.dirname(target_filepath_dist), exist_ok=True)
+    os.makedirs(os.path.dirname(target_filepath_sizes), exist_ok=True)
+    try:
+        imwrite(target_filepath, mask_overlayed)
+        joblib.dump(distances, target_filepath_dist)
+        joblib.dump(sizes, target_filepath_sizes)
+    except:
+        logger.info("Failed to save image: {}".format(image_id))
+
 
 
 def overlay_masks_from_annotations(annotations, image_size, distances=None):
@@ -95,7 +109,7 @@ def overlay_masks_from_annotations(annotations, image_size, distances=None):
     return np.where(mask > 0, 1, 0).astype('uint8'), distances
 
 
-def overlay_eroded_masks_from_annotations(annotations, image_size, area_percent, distances):
+def overlay_eroded_masks_from_annotations(annotations, image_size, erode, distances):
     mask = np.zeros(image_size)
     for ann in annotations:
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
@@ -103,14 +117,14 @@ def overlay_eroded_masks_from_annotations(annotations, image_size, area_percent,
         m = m.reshape(image_size)
         if is_on_border(m, 2):
             continue
-        m_eroded = get_simple_eroded_mask(m, area_percent)
+        m_eroded = get_simple_eroded_mask(m, erode)
         if distances is not None:
             distances = update_distances(distances, m_eroded)
         mask += m_eroded
     return np.where(mask > 0, 1, 0).astype('uint8'), distances
 
 
-def overlay_eroded__dilated_masks_from_annotations(annotations, image_size, erosion_size, dilation_size, distances):
+def overlay_eroded__dilated_masks_from_annotations(annotations, image_size, erode, dilate, distances):
     mask = np.zeros(image_size)
     for ann in annotations:
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
@@ -118,7 +132,7 @@ def overlay_eroded__dilated_masks_from_annotations(annotations, image_size, eros
         m = m.reshape(image_size)
         if is_on_border(m, 2):
             continue
-        m_ = get_simple_eroded_dilated_mask(m, erosion_size, dilation_size)
+        m_ = get_simple_eroded_dilated_mask(m, erode, dilate)
         if distances is not None:
             distances = update_distances(distances, m_)
         mask += m_
@@ -139,8 +153,8 @@ def clean_distances(distances):
     else:
         distances.sort(axis=2)
         distances = distances[:, :, :2]
-    distances_ = np.sum(distances, axis=2)
-    return distances, distances
+    distances_clean = np.sum(distances, axis=2)
+    return distances_clean.astype(np.float16), distances
 
 
 def preprocess_image(img, target_size=(128, 128)):

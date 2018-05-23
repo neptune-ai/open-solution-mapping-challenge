@@ -52,8 +52,9 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 def prepare_masks(dev_mode):
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
-        target_dir = "{}_erode_{}_dilate_{}".format(params.masks_overlayed_dir[:-1],
+        target_dir = "{}_eroded_{}_dilated_{}".format(params.masks_overlayed_dir[:-1],
                                                     params.erode_selem_size, params.dilate_selem_size)
+        logger.info('Output directory: {}'.format(target_dir))
 
         overlay_masks(data_dir=params.data_dir,
                       dataset=dataset,
@@ -62,7 +63,8 @@ def prepare_masks(dev_mode):
                       erode=params.erode_selem_size,
                       dilate=params.dilate_selem_size,
                       is_small=dev_mode,
-                      nthreads=params.num_threads)
+                      nthreads=params.num_threads,
+                      with_borders=params.masks_with_borders)
 
 
 @action.command()
