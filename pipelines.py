@@ -48,33 +48,19 @@ def unet_weighted(config, train_mode):
 
 def unet_padded(config, train_mode):
     if train_mode:
-        save_output = False
-        load_saved_output = False
+        return unet(config, train_mode)
     else:
         save_output = False
-        load_saved_output = False
 
-    if train_mode:
-        loader = _preprocessing_single_generator(config, train_mode, False)
-    else:
-        loader = _preprocessing_single_padded_generator(config)
-
-    unet = Step(name='unet',
-                transformer=PyTorchUNetStream(**config.unet) if config.execution.stream_mode else PyTorchUNet(
-                    **config.unet),
-                input_steps=[loader],
-                cache_dirpath=config.env.cache_dirpath,
-                save_output=save_output, load_saved_output=load_saved_output)
-
-    if train_mode:
-        mask_postprocessed = mask_postprocessing(loader, unet, config, save_output=save_output)
-    else:
+        unet_pipeline = unet(config, train_mode).get_step('unet')
+        loader = unet_pipeline.get_step("loader")
+        loader.transformer = loaders.ImageSegmentationLoaderInferencePadding(**config.loader_inference_padding)
         prediction_crop = Step(name='prediction_crop',
                                transformer=post.PredictionCropStream(
                                    **config.postprocessor.prediction_crop) if config.execution.stream_mode \
                                    else post.PredictionCrop(**config.postprocessor.prediction_crop),
-                               input_steps=[unet],
-                               adapter={'images': ([(unet.name, 'multichannel_map_prediction')]), },
+                               input_steps=[unet_pipeline],
+                               adapter={'images': ([(unet_pipeline.name, 'multichannel_map_prediction')]), },
                                cache_dirpath=config.env.cache_dirpath,
                                save_output=save_output)
 
@@ -87,16 +73,15 @@ def unet_padded(config, train_mode):
                                   save_output=save_output)
         mask_postprocessed = mask_postprocessing(loader, prediction_renamed, config, save_output=save_output)
 
-    output = Step(name='output',
-                  transformer=Dummy(),
-                  input_steps=[mask_postprocessed],
-                  adapter={'y_pred': ([(mask_postprocessed.name, 'images')]),
-                           'y_scores': ([(mask_postprocessed.name, 'scores')])
-                           },
-                  cache_dirpath=config.env.cache_dirpath,
-                  save_output=save_output,
-                  load_saved_output=False)
-    return output
+        output = Step(name='output',
+                      transformer=Dummy(),
+                      input_steps=[mask_postprocessed],
+                      adapter={'y_pred': ([(mask_postprocessed.name, 'images')]),
+                               'y_scores': ([(mask_postprocessed.name, 'scores')])
+                               },
+                      cache_dirpath=config.env.cache_dirpath,
+                      save_output=save_output)
+        return output
 
 
 def unet_weighted_padded(config, train_mode):
