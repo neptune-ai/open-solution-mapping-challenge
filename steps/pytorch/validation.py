@@ -8,12 +8,12 @@ from torch.autograd import Variable
 class DiceLoss(nn.Module):
     def __init__(self, smooth=0, eps = 1e-7):
         super(DiceLoss, self).__init__()
-        self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax()
         self.smooth = smooth
         self.eps = eps
 
     def forward(self, output, target):
-        prediction = self.sigmoid(output)
+        prediction = self.softmax(output)
         return 1 - (2 * torch.sum(prediction * target) + self.smooth) / (
                     torch.sum(prediction) + torch.sum(target) + self.smooth + self.eps)
 
