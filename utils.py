@@ -14,7 +14,7 @@ from PIL import Image
 from attrdict import AttrDict
 from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
+from cocoeval import COCOeval
 from tqdm import tqdm
 from scipy import ndimage as ndi
 from scipy.ndimage.morphology import distance_transform_edt
@@ -352,7 +352,7 @@ def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids):
     cocoEval.accumulate()
     cocoEval.summarize()
 
-    return cocoEval.stats[1], cocoEval.stats[8]
+    return cocoEval.stats[0], cocoEval.stats[4]
 
 
 def label(mask):
@@ -398,6 +398,6 @@ def add_dropped_objects(original, processed):
     reconstructed = processed.copy()
     labeled = label(original)
     for i in range(1, labeled.max() + 1):
-        if np.any(np.where(~(labeled == i) & processed)):
+        if not np.any(np.where((labeled == i) & processed)):
             reconstructed += (labeled == i)
     return reconstructed.astype('uint8')
