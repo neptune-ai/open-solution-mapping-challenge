@@ -38,7 +38,7 @@ SOLUTION_CONFIG = AttrDict({
                       'y_columns': Y_COLUMNS,
                       },
     'loader': {'dataset_params': {'h': params.image_h,
-                                  'w': params.image_w
+                                  'w': params.image_w,
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
                                               'shuffle': True,

@@ -2,6 +2,25 @@ import cv2
 import numpy as np
 from imgaug import augmenters as iaa
 
+fast_seq = iaa.SomeOf((1, 2),
+                      [iaa.Fliplr(0.5),
+                       iaa.Flipud(0.5),
+                       iaa.Affine(rotate=(0, 360),
+                                  translate_percent=(-0.1, 0.1), mode='reflect'),
+                       ], random_order=True)
+
+
+def crop_seq(crop_size):
+    seq = iaa.Sequential([fast_seq,
+                          RandomCropFixedSize(px=crop_size)], random_order=False)
+    return seq
+
+
+def padding_seq(pad_size, pad_method):
+    seq = iaa.Sequential([PadFixed(pad=pad_size, pad_method=pad_method),
+                          ]).to_deterministic()
+    return seq
+
 
 class PadFixed(iaa.Augmenter):
     PAD_FUNCTION = {'reflect': cv2.BORDER_REFLECT_101,
@@ -79,22 +98,3 @@ class RandomCropFixedSize(iaa.Augmenter):
 
     def get_parameters(self):
         return []
-
-
-fast_seq = iaa.SomeOf((1, 2),
-                      [iaa.Fliplr(0.5),
-                       iaa.Flipud(0.5),
-                       iaa.Affine(rotate=(0, 360),
-                                  translate_percent=(-0.1, 0.1), mode='reflect'),
-                       ], random_order=True)
-
-# def crop_seq(crop_size):
-#     return RandomCropFixedSize(px=crop_size)
-
-crop_seq = RandomCropFixedSize(px=(288, 288))
-
-
-def padding_seq(pad_size, pad_method):
-    seq = iaa.Sequential([PadFixed(pad=pad_size, pad_method=pad_method),
-                          ]).to_deterministic()
-    return seq

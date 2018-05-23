@@ -1,4 +1,3 @@
-from functools import partial
 import os
 
 import numpy as np
@@ -9,7 +8,7 @@ from attrdict import AttrDict
 from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
 
-from augmentation import fast_seq, crop_seq, padding_seq
+from augmentation import crop_seq, padding_seq
 from steps.base import BaseTransformer
 from steps.pytorch.utils import ImgAug
 from utils import from_pil, to_pil
@@ -325,12 +324,10 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
         self.loader_params = AttrDict(loader_params)
         self.dataset_params = AttrDict(dataset_params)
 
-        self.image_transform_train = transforms.Compose([ImgAug(crop_seq),
-                                                         transforms.ToTensor(),
+        self.image_transform_train = transforms.Compose([transforms.ToTensor(),
                                                          transforms.Normalize(mean=MEAN, std=STD),
                                                          ])
-        self.mask_transform_train = transforms.Compose([ImgAug(crop_seq),
-                                                        transforms.Lambda(to_monochrome),
+        self.mask_transform_train = transforms.Compose([transforms.Lambda(to_monochrome),
                                                         transforms.Lambda(to_tensor),
                                                         ])
 
@@ -345,7 +342,8 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
                                                             transforms.Lambda(to_tensor),
                                                             ])
 
-        self.image_augment_with_target = ImgAug(fast_seq)
+        self.image_augment_with_target = ImgAug(crop_seq(crop_size=(self.dataset_params.h,
+                                                                    self.dataset_params.w)))
         self.image_augment = None
 
         self.dataset = None
