@@ -53,8 +53,10 @@ def unet_padded(config, train_mode):
         save_output = False
 
         unet_pipeline = unet(config, train_mode).get_step('unet')
+
         loader = unet_pipeline.get_step("loader")
         loader.transformer = loaders.ImageSegmentationLoaderInferencePadding(**config.loader_inference_padding)
+
         prediction_crop = Step(name='prediction_crop',
                                transformer=post.PredictionCropStream(
                                    **config.postprocessor.prediction_crop) if config.execution.stream_mode \
@@ -244,6 +246,7 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
 
 
 def mask_postprocessing(loader, model, config, save_output=False):
+
     if config.postprocessor.crf.apply_crf:
         dense_crf = Step(name='dense_crf',
                          transformer=post.DenseCRFStream(**config.postprocessor.crf) if config.execution.stream_mode \
