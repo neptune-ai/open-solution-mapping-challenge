@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torchvision.transforms as transforms
+import torchvision.transforms.functional as TF
 from PIL import Image
 from attrdict import AttrDict
 from torch.utils.data import Dataset, DataLoader
@@ -22,7 +23,7 @@ from pipeline_config import MEAN, STD
 class MetadataImageSegmentationDataset(Dataset):
     def __init__(self, X, y, train_mode,
                  image_transform, image_augment_with_target,
-                 mask_transform, image_augment):
+                 mask_transform, image_augment, target_size=None):
         super().__init__()
         self.X = X
         if y is not None:
@@ -35,6 +36,7 @@ class MetadataImageSegmentationDataset(Dataset):
         self.mask_transform = mask_transform
         self.image_augment = image_augment
         self.image_augment_with_target = image_augment_with_target
+        self.target_size = target_size
 
     def load_image(self, img_filepath):
         image = Image.open(img_filepath, 'r')
@@ -58,6 +60,15 @@ class MetadataImageSegmentationDataset(Dataset):
                     Xi = self.image_augment(Xi)
                 Xi, Mi = to_pil(Xi, Mi)
 
+            if self.train_mode:
+                random_crop = transforms.RandomCrop.get_params(Xi, output_size=self.target_size)
+                Xi = TF.crop(Xi, *random_crop)
+                Mi = TF.crop(Mi, *random_crop)
+            else:
+                resize = transforms.Resize(self.target_size)
+                Xi = resize(Xi)
+                Mi = resize(Mi)
+
             if self.mask_transform is not None:
                 Mi = self.mask_transform(Mi)
 
@@ -73,7 +84,7 @@ class MetadataImageSegmentationDataset(Dataset):
 class MetadataImageSegmentationDatasetDistances(Dataset):
     def __init__(self, X, y, train_mode,
                  image_transform, image_augment_with_target,
-                 mask_transform, image_augment):
+                 mask_transform, image_augment, target_size=None):
         super().__init__()
         self.X = X
         if y is not None:
@@ -86,6 +97,7 @@ class MetadataImageSegmentationDatasetDistances(Dataset):
         self.mask_transform = mask_transform
         self.image_augment = image_augment
         self.image_augment_with_target = image_augment_with_target
+        self.target_size = target_size
 
     def load_image(self, img_filepath):
         image = Image.open(img_filepath, 'r')
@@ -122,6 +134,19 @@ class MetadataImageSegmentationDatasetDistances(Dataset):
             if not self.train_mode:
                 Di = to_pil(Di)
                 Si = to_pil(Si)
+
+            if self.train_mode:
+                random_crop = transforms.RandomCrop.get_params(Xi, output_size=self.target_size)
+                Xi = TF.crop(Xi, *random_crop)
+                Mi = TF.crop(Mi, *random_crop)
+                Di = TF.crop(Di, *random_crop)
+                Si = TF.crop(Si, *random_crop)
+            else:
+                resize = transforms.Resize(self.target_size)
+                Xi = resize(Xi)
+                Mi = resize(Mi)
+                Di = resize(Di)
+                Si = resize(Si)
 
             if self.mask_transform is not None:
                 Mi = self.mask_transform(Mi)
@@ -293,14 +318,10 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
         self.loader_params = AttrDict(loader_params)
         self.dataset_params = AttrDict(dataset_params)
 
-        self.image_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
-                                                                      self.dataset_params.w)),
-                                                   transforms.ToTensor(),
+        self.image_transform = transforms.Compose([transforms.ToTensor(),
                                                    transforms.Normalize(mean=MEAN, std=STD),
                                                    ])
-        self.mask_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
-                                                                     self.dataset_params.w)),
-                                                  transforms.Lambda(to_monochrome),
+        self.mask_transform = transforms.Compose([transforms.Lambda(to_monochrome),
                                                   transforms.Lambda(to_tensor),
                                                   ])
         self.image_augment_with_target = ImgAug(fast_seq)
@@ -329,14 +350,16 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
                                    image_augment=self.image_augment,
                                    image_augment_with_target=self.image_augment_with_target,
                                    mask_transform=self.mask_transform,
-                                   image_transform=self.image_transform)
+                                   image_transform=self.image_transform,
+                                   target_size=(self.dataset_params.h, self.dataset_params.w))
         else:
             dataset = self.dataset(X, y,
                                    train_mode=False,
                                    image_augment=None,
                                    image_augment_with_target=None,
                                    mask_transform=self.mask_transform,
-                                   image_transform=self.image_transform)
+                                   image_transform=self.image_transform,
+                                   target_size=(self.dataset_params.h, self.dataset_params.w))
 
         datagen = DataLoader(dataset, **loader_params)
         steps = len(datagen)
