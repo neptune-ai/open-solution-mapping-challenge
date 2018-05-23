@@ -3,7 +3,6 @@ from itertools import product
 import os
 
 import numpy as np
-import pandas as pd
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
@@ -12,7 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
 from cv2 import resize
 
-from augmentation import fast_seq, affine_seq, color_seq, patching_seq
+from augmentation import fast_seq, affine_seq, color_seq, patching_seq, padding_seq
 from steps.base import BaseTransformer
 from steps.pytorch.utils import ImgAug
 from utils import from_pil, to_pil
@@ -68,6 +67,41 @@ class MetadataImageSegmentationDataset(Dataset):
             if self.image_transform is not None:
                 Xi = self.image_transform(Xi)
             return Xi
+
+
+class MetadataImageSegmentationTTA(Dataset):
+    def __init__(self, X, y, train_mode,
+                 image_transform, image_augment_with_target,
+                 mask_transform, image_augment):
+        super().__init__()
+        self.X = X
+        self.y = None
+
+        self.train_mode = train_mode
+        self.image_transform = image_transform
+        self.mask_transform = mask_transform
+        self.image_augment = image_augment
+        self.image_augment_with_target = image_augment_with_target
+
+    def load_image(self, img_filepath):
+        image = Image.open(img_filepath, 'r')
+        return image.convert('RGB')
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __getitem__(self, index):
+        img_filepath = self.X[index]
+        Xi = self.load_image(img_filepath)
+
+        Xi = from_pil(Xi)
+        if self.image_augment is not None:
+            Xi = self.image_augment(Xi)
+        Xi = to_pil(Xi)
+
+        if self.image_transform is not None:
+            Xi = self.image_transform(Xi)
+        return Xi
 
 
 class MetadataImageSegmentationDatasetDistances(Dataset):
@@ -343,73 +377,37 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
         return datagen, steps
 
 
-class ImageSegmentationLoaderPatchingTrain(ImageSegmentationLoaderBasic):
+class ImageSegmentationLoaderInferencePadding(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
 
-        self.image_augment_with_target = ImgAug(patching_seq(crop_size=(self.dataset_params.h,
-                                                                        self.dataset_params.w)))
-        self.image_augment = ImgAug(color_seq)
+        self.image_augment = ImgAug(padding_seq(pad_size=(self.dataset_params.h_pad,
+                                                          self.dataset_params.w_pad),
+                                                pad_method='replicate'
+                                                ))
+        self.image_transform = transforms.Compose([transforms.ToTensor(),
+                                                   transforms.Normalize(mean=MEAN, std=STD),
+                                                   ])
+        self.dataset = MetadataImageSegmentationTTA
 
-        self.dataset = None
-
-
-class ImageSegmentationLoaderPatchingInference(ImageSegmentationLoaderBasic):
-    def __init__(self, loader_params, dataset_params):
-        super().__init__(loader_params, dataset_params)
-
-        self.image_augment_with_target = ImgAug(patching_seq(crop_size=(self.dataset_params.h,
-                                                                        self.dataset_params.w)))
-        self.image_augment = ImgAug(color_seq)
-
-        self.dataset = None
-
-    def transform(self, X, y, X_valid=None, y_valid=None, train_mode=True):
-        X, patch_ids = self.get_patches(X)
-
+    def transform(self, X, y, X_valid=None, y_valid=None, train_mode=False):
         flow, steps = self.get_datagen(X, None, False, self.loader_params.inference)
         valid_flow = None
         valid_steps = None
         return {'datagen': (flow, steps),
-                'patch_ids': patch_ids,
                 'validation_datagen': (valid_flow, valid_steps)}
 
     def get_datagen(self, X, y, train_mode, loader_params):
         dataset = self.dataset(X, None,
                                train_mode=False,
-                               image_augment=None,
+                               image_augment=self.image_augment,
                                image_augment_with_target=None,
-                               mask_transform=self.mask_transform,
+                               mask_transform=None,
                                image_transform=self.image_transform)
 
         datagen = DataLoader(dataset, **loader_params)
         steps = len(datagen)
         return datagen, steps
-
-    def get_patches(self, X):
-        patches, patch_ids, tta_angles, patch_y_coords, patch_x_coords, image_h, image_w = [], [], [], [], [], [], []
-        for i, image in enumerate((X[0])):
-            image = from_pil(image)
-            h, w = image.shape[:2]
-            for y_coord, x_coord, image_patch in generate_patches(image, self.dataset_params.h,
-                                                                  self.dataset_params.patching_stride):
-                for tta_rotation_angle, image_patch_tta in test_time_augmentation(image_patch):
-                    image_patch_tta = to_pil(image_patch_tta)
-                    patches.append(image_patch_tta)
-                    patch_ids.append(i)
-                    tta_angles.append(tta_rotation_angle)
-                    patch_y_coords.append(y_coord)
-                    patch_x_coords.append(x_coord)
-                    image_h.append(h)
-                    image_w.append(w)
-
-        patch_ids = pd.DataFrame({'patch_ids': patch_ids,
-                                  'tta_angles': tta_angles,
-                                  'y_coordinates': patch_y_coords,
-                                  'x_coordinates': patch_x_coords,
-                                  'image_h': image_h,
-                                  'image_w': image_w})
-        return [patches], patch_ids
 
 
 class MetadataImageSegmentationLoader(ImageSegmentationLoaderBasic):
@@ -460,65 +458,6 @@ class ImageSegmentationMultitaskLoader(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):
         super().__init__(loader_params, dataset_params)
         self.dataset = ImageSegmentationMultitaskDataset
-
-
-class ImageSegmentationMultitaskLoaderPatchingTrain(ImageSegmentationLoaderPatchingTrain):
-    def __init__(self, loader_params, dataset_params):
-        super().__init__(loader_params, dataset_params)
-        self.dataset = ImageSegmentationMultitaskDataset
-
-
-class ImageSegmentationMultitaskLoaderPatchingInference(ImageSegmentationLoaderPatchingInference):
-    def __init__(self, loader_params, dataset_params):
-        super().__init__(loader_params, dataset_params)
-        self.dataset = ImageSegmentationMultitaskDataset
-
-
-class PatchCombiner(BaseTransformer):
-    def __init__(self, patching_size, patching_stride):
-        super().__init__()
-        self.patching_size = patching_size
-        self.patching_stride = patching_stride
-        self.tta_factor = 4
-
-    @property
-    def normalization_factor(self):
-        return self.tta_factor * int(self.patching_size / self.patching_stride) ** 2
-
-    def transform(self, outputs, patch_ids):
-        combined_outputs = {}
-        for name, output in outputs.items():
-            for patch_id in patch_ids['patch_ids'].unique():
-                patch_meta = patch_ids[patch_ids['patch_ids'] == patch_id]
-                image_patches = output[patch_meta.index]
-                combined_outputs.setdefault(name, []).append(self._join_output(patch_meta, image_patches))
-        return combined_outputs
-
-    def _join_output(self, patch_meta, image_patches):
-        image_h = patch_meta['image_h'].unique()[0]
-        image_w = patch_meta['image_w'].unique()[0]
-        prediction_image = np.zeros((image_h, image_w))
-        prediction_image_padded = get_mosaic_padded_image(prediction_image, self.patching_size, self.patching_stride)
-
-        patches_per_image = 0
-        for (y_coordinate, x_coordinate, tta_angle), image_patch in zip(
-                patch_meta[['y_coordinates', 'x_coordinates', 'tta_angles']].values.tolist(), image_patches):
-            patches_per_image += 1
-            image_patch = np.rot90(image_patch, -1 * tta_angle / 90.)
-            window_y, window_x = y_coordinate * self.patching_stride, x_coordinate * self.patching_stride
-            prediction_image_padded[window_y:self.patching_size + window_y,
-            window_x:self.patching_size + window_x] += image_patch
-
-        _, h_top, h_bottom, _ = get_padded_size(max(image_h, self.patching_size),
-                                                self.patching_size,
-                                                self.patching_stride)
-        _, w_left, w_right, _ = get_padded_size(max(image_w, self.patching_size),
-                                                self.patching_size,
-                                                self.patching_stride)
-
-        prediction_image = prediction_image_padded[h_top:-h_bottom, w_left:-w_right]
-        prediction_image /= self.normalization_factor
-        return prediction_image
 
 
 def binarize(x):
