@@ -74,11 +74,12 @@ SOLUTION_CONFIG = AttrDict({
                                                  'dice_mask': params.dice_mask,
                                                  'mask': params.mask,
                                                  },
+                                'weighted_cross_entropy': {'w0': params.w0,
+                                                           'sigma': params.sigma,
+                                                           'imsize': (params.image_h, params.image_w)},
+                                'dice': {'smooth': params.dice_smooth},
                                 },
         'training_config': {'epochs': params.epochs_nr,
-                            'loss_function': {'w0': params.w0,
-                                              'sigma': params.sigma,
-                                              'imsize': (params.image_h, params.image_w)},
                             },
         'callbacks_config': {
             'model_checkpoint': {

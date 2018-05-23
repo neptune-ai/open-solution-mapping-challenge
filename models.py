@@ -125,9 +125,10 @@ class PyTorchUNetWeighted(Model):
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
         weighted_loss = partial(multiclass_weighted_cross_entropy,
-                                **get_loss_variables(**training_config["loss_function"]))
+                                **get_loss_variables(**architecture_config['weighted_cross_entropy']))
         loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
-                       ce_weight=architecture_config['loss_weights']['bce_mask'], ce_loss=weighted_loss)
+                       cross_entropy_weight=architecture_config['loss_weights']['bce_mask'], cross_entropy_loss=weighted_loss,
+                       **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
         self.callbacks = callbacks_unet(self.callbacks_config)
 
@@ -167,9 +168,10 @@ class PyTorchUNetWeightedStream(Model):
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
         weighted_loss = partial(multiclass_weighted_cross_entropy,
-                                **get_loss_variables(**training_config["loss_function"]))
+                                **get_loss_variables(**architecture_config['weighted_cross_entropy']))
         loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
-                       ce_weight=architecture_config['loss_weights']['bce_mask'], ce_loss=weighted_loss)
+                       cross_entropy_weight=architecture_config['loss_weights']['bce_mask'], cross_entropy_loss=weighted_loss,
+                       **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
         self.callbacks = callbacks_unet(self.callbacks_config)
 
@@ -300,18 +302,19 @@ def get_loss_variables(w0, sigma, imsize):
     return {'w0': w0, 'sigma': sigma, 'C': C}
 
 
-def mixed_dice_cross_entropy_loss(output, target, dice_weight, cross_entropy_weight, cross_entropy_loss=None):
+def mixed_dice_cross_entropy_loss(output, target, dice_weight, cross_entropy_weight, cross_entropy_loss=None, smooth=0):
     dice_target = target[:, 0, :, :].long()
     cross_entropy_target = target
     if cross_entropy_loss is None:
         cross_entropy_loss = torch.nn.CrossEntropyLoss()
         cross_entropy_target = dice_target
-    return dice_weight * dice_loss(output, dice_target) + cross_entropy_weight * cross_entropy_loss(output, cross_entropy_target)
+    return dice_weight * dice_loss(output, dice_target, smooth) + cross_entropy_weight * cross_entropy_loss(output,
+                                                                                                    cross_entropy_target)
 
 
-def dice_loss(output, target):
+def dice_loss(output, target, smooth=0):
     loss = 0
-    dice = DiceLoss()
+    dice = DiceLoss(smooth=smooth)
     for class_nr in range(1, int(target.max()) + 1):
         class_target = (target == class_nr)
         class_target.data = class_target.data.float()
