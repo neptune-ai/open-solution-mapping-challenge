@@ -421,26 +421,6 @@ class MetadataImageSegmentationLoaderDistances(ImageSegmentationLoaderBasic):
         super().__init__(loader_params, dataset_params)
         self.dataset = MetadataImageSegmentationDatasetDistances
 
-    def get_datagen(self, X, y, train_mode, loader_params):
-        if train_mode:
-            dataset = self.dataset(X, y,
-                                   train_mode=True,
-                                   image_augment=self.image_augment,
-                                   image_augment_with_target=self.image_augment_with_target,
-                                   mask_transform=self.mask_transform,
-                                   image_transform=self.image_transform)
-        else:
-            dataset = self.dataset(X, y,
-                                   train_mode=False,
-                                   image_augment=None,
-                                   image_augment_with_target=None,
-                                   mask_transform=None,
-                                   image_transform=self.image_transform)
-
-        datagen = DataLoader(dataset, **loader_params)
-        steps = len(datagen)
-        return datagen, steps
-
 
 class MetadataImageSegmentationMultitaskLoader(ImageSegmentationLoaderBasic):
     def __init__(self, loader_params, dataset_params):

@@ -6,13 +6,14 @@ from torch.autograd import Variable
 
 
 class DiceLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, smooth=0, eps = 1e-7):
         super(DiceLoss, self).__init__()
-        self.sigmoid = nn.Sigmoid()
+        self.smooth = smooth
+        self.eps = eps
 
     def forward(self, output, target):
-        prediction = self.sigmoid(output)
-        return 1 - 2 * torch.sum(prediction * target) / (torch.sum(prediction) + torch.sum(target) + 1e-7)
+        return 1 - (2 * torch.sum(output * target) + self.smooth) / (
+                    torch.sum(output) + torch.sum(target) + self.smooth + self.eps)
 
 
 def segmentation_loss(output, target, weight_bce=1.0, weight_dice=1.0):
