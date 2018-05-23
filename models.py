@@ -302,21 +302,26 @@ def get_loss_variables(w0, sigma, imsize):
     return {'w0': w0, 'sigma': sigma, 'C': C}
 
 
-def mixed_dice_cross_entropy_loss(output, target, dice_weight, cross_entropy_weight, cross_entropy_loss=None, smooth=0):
+def mixed_dice_cross_entropy_loss(output, target, dice_weight, cross_entropy_weight, cross_entropy_loss=None, smooth=0, dice_activation='softmax'):
     dice_target = target[:, 0, :, :].long()
     cross_entropy_target = target
     if cross_entropy_loss is None:
         cross_entropy_loss = torch.nn.CrossEntropyLoss()
         cross_entropy_target = dice_target
-    return dice_weight * dice_loss(output, dice_target, smooth) + cross_entropy_weight * cross_entropy_loss(output,
+    return dice_weight * dice_loss(output, dice_target, smooth, dice_activation) + cross_entropy_weight * cross_entropy_loss(output,
                                                                                                     cross_entropy_target)
 
 
-def dice_loss(output, target, smooth=0):
+def dice_loss(output, target, smooth=0, activation='softmax'):
     loss = 0
     dice = DiceLoss(smooth=smooth)
-    softmax = torch.nn.Softmax2d()
-    output = softmax(output)
+    if activation=='softmax':
+        activation_nn = torch.nn.Softmax2d()
+    elif activation=='sigmoid':
+        activation_nn = torch.nn.Sigmoid()
+    else:
+        NotImplementedError
+    output = activation_nn(output)
     for class_nr in range(1, int(target.max()) + 1):
         class_target = (target == class_nr)
         class_target.data = class_target.data.float()
