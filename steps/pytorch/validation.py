@@ -8,7 +8,7 @@ from torch.autograd import Variable
 class DiceLoss(nn.Module):
     def __init__(self, smooth=0, eps = 1e-7):
         super(DiceLoss, self).__init__()
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax2d()
         self.smooth = smooth
         self.eps = eps
 
