@@ -14,6 +14,8 @@ MISSING_TRANSFORMERS = ['prediction_crop',
                         'score_builder',
                         'output']
 
+NEPTUNE_FILE = 'neptune_local.yaml'
+
 
 @click.group()
 def main():
@@ -37,10 +39,10 @@ def run(temp_inference_dir, experiment_dir):
         cmd = 'touch {}/{}'.format(transformer_dir, missing_transformer)
         subprocess.call(cmd, shell=True)
 
-    cmd = 'cp neptune.yaml temporary_neptune.yaml'.format(checkpoints_dir, transformer_dir)
+    cmd = 'cp {} temporary_neptune.yaml'.format(NEPTUNE_FILE, checkpoints_dir, transformer_dir)
     subprocess.call(cmd, shell=True)
 
-    cmd = 'cp neptune.yaml temporary_neptune.yaml'.format(checkpoints_dir, transformer_dir)
+    cmd = 'cp {} temporary_neptune.yaml'.format(NEPTUNE_FILE, checkpoints_dir, transformer_dir)
     subprocess.call(cmd, shell=True)
 
     with open("temporary_neptune.yaml", 'r+') as f:
@@ -50,7 +52,7 @@ def run(temp_inference_dir, experiment_dir):
     with open("temporary_neptune.yaml", 'w+') as f:
         yaml.dump(doc, f, default_flow_style=False)
 
-    cmd = 'neptune run --config temporary_neptune.yaml -- evaluate -p unet_weighted_padded'
+    cmd = 'neptune run --config temporary_neptune.yaml main.py -- evaluate -p unet_weighted_padded'
     subprocess.call(cmd, shell=True)
 
     cmd = 'rm temporary_neptune.yaml'

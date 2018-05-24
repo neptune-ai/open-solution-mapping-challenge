@@ -53,7 +53,7 @@ def prepare_masks(dev_mode):
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
         target_dir = "{}_eroded_{}_dilated_{}".format(params.masks_overlayed_dir[:-1],
-                                                    params.erode_selem_size, params.dilate_selem_size)
+                                                      params.erode_selem_size, params.dilate_selem_size)
         logger.info('Output directory: {}'.format(target_dir))
 
         overlay_masks(data_dir=params.data_dir,
