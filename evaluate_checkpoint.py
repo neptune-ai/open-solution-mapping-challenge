@@ -23,7 +23,7 @@ def main():
 @main.command()
 @click.option('-e', '--experiment_dir', help='experiment that you want to run evaluation on', required=True)
 @click.option('-t', '--temp_inference_dir', help='temporary directory', required=True)
-def run_inference(temp_inference_dir, experiment_dir):
+def run(temp_inference_dir, experiment_dir):
     transformer_dir = os.path.join(temp_inference_dir, 'transformers')
     checkpoints_dir = os.path.join(temp_inference_dir, 'checkpoints')
 
@@ -43,10 +43,12 @@ def run_inference(temp_inference_dir, experiment_dir):
     cmd = 'cp neptune.yaml temporary_neptune.yaml'.format(checkpoints_dir, transformer_dir)
     subprocess.call(cmd, shell=True)
 
-    with open("temporary_neptune.yaml", 'rw') as f:
+    with open("temporary_neptune.yaml", 'r+') as f:
         doc = yaml.load(f)
-        doc['experiment_dir'] = temp_inference_dir
-        yaml.dump(f)
+        doc['parameters']['experiment_dir'] = temp_inference_dir
+
+    with open("temporary_neptune.yaml", 'w+') as f:
+        yaml.dump(doc, f, default_flow_style=False)
 
     cmd = 'neptune run --config temporary_neptune.yaml -- evaluate -p unet_weighted_padded'
     subprocess.call(cmd, shell=True)
