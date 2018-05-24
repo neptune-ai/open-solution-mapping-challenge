@@ -463,15 +463,13 @@ class COCOeval:
             print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
             return mean_s
         def _summarizeDets():
-            stats = np.zeros((8,))
+            stats = np.zeros((6,))
             stats[0] = _summarize(1, iouThr=.5, maxDets=self.params.maxDets[2])
             stats[1] = _summarize(1, iouThr=.5, areaRng='small', maxDets=self.params.maxDets[2])
-            stats[2] = _summarize(1, iouThr=.5, areaRng='medium', maxDets=self.params.maxDets[2])
-            stats[3] = _summarize(1, iouThr=.5, areaRng='large', maxDets=self.params.maxDets[2])
-            stats[4] = _summarize(0, iouThr=.5, maxDets=self.params.maxDets[2])
-            stats[5] = _summarize(0, iouThr=.5, areaRng='small', maxDets=self.params.maxDets[2])
-            stats[6] = _summarize(0, iouThr=.5, areaRng='medium', maxDets=self.params.maxDets[2])
-            stats[7] = _summarize(0, iouThr=.5, areaRng='large', maxDets=self.params.maxDets[2])
+            stats[2] = _summarize(1, iouThr=.5, areaRng='large', maxDets=self.params.maxDets[2])
+            stats[3] = _summarize(0, iouThr=.5, maxDets=self.params.maxDets[2])
+            stats[4] = _summarize(0, iouThr=.5, areaRng='small', maxDets=self.params.maxDets[2])
+            stats[5] = _summarize(0, iouThr=.5, areaRng='large', maxDets=self.params.maxDets[2])
             return stats
         def _summarizeKps():
             stats = np.zeros((10,))
@@ -509,8 +507,8 @@ class Params:
         self.iouThrs = np.linspace(.5, 0.95, np.round((0.95 - .5) / .05) + 1, endpoint=True)
         self.recThrs = np.linspace(.0, 1.00, np.round((1.00 - .0) / .01) + 1, endpoint=True)
         self.maxDets = [1, 10, 100]
-        self.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 20 ** 2], [20 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
-        self.areaRngLbl = ['all', 'small', 'medium', 'large']
+        self.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 14 ** 2], [14 ** 2, 1e5 ** 2]]
+        self.areaRngLbl = ['all', 'small', 'large']
         self.useCats = 1
 
     def setKpParams(self):
