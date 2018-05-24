@@ -53,7 +53,7 @@ def prepare_masks(dev_mode):
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
         target_dir = "{}_eroded_{}_dilated_{}".format(params.masks_overlayed_dir[:-1],
-                                                    params.erode_selem_size, params.dilate_selem_size)
+                                                      params.erode_selem_size, params.dilate_selem_size)
         logger.info('Output directory: {}'.format(target_dir))
 
         overlay_masks(data_dir=params.data_dir,
@@ -249,9 +249,8 @@ def _generate_prediction(meta_data, pipeline, logger, category_ids):
     output = pipeline.transform(data)
     pipeline.clean_cache()
     y_pred = output['y_pred']
-    y_scores = output['y_scores']
 
-    prediction = create_annotations(meta_data, y_pred, y_scores, logger, category_ids)
+    prediction = create_annotations(meta_data, y_pred, logger, category_ids)
     return prediction
 
 
@@ -269,9 +268,8 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
         output = pipeline.transform(data)
         pipeline.clean_cache()
         y_pred = output['y_pred']
-        y_scores = output['y_scores']
 
-        prediction_chunk = create_annotations(meta_chunk, y_pred, y_scores, logger, category_ids)
+        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids)
         prediction.extend(prediction_chunk)
 
     return prediction

@@ -59,7 +59,7 @@ parameters:
   pool_kernel: 3
   pool_stride: 2
   repeat_blocks: 4
-  encoder: ResNet152
+  encoder: AlbuNet
 
 # U-Net loss weights (multi-output)
   bce_mask: 1.0
@@ -91,8 +91,8 @@ parameters:
   threshold: 0.5
   min_nuclei_size: 20
   erosion_percentages: '[10,20,30]'
-  erode_selem_size: 3
-  dilate_selem_size: 0
+  erode_selem_size: 2
+  dilate_selem_size: 3
 
 # Inference padding
   crop_image_h: 300
