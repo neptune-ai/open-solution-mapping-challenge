@@ -78,7 +78,8 @@ def unet_padded(config, train_mode):
         output = Step(name='output',
                       transformer=Dummy(),
                       input_steps=[mask_postprocessed],
-                      adapter={'y_pred': ([(mask_postprocessed.name, 'images_with_scores')])
+                      adapter={'y_pred': ([(mask_postprocessed.name, 'images')]),
+                               'y_scores': ([(mask_postprocessed.name, 'scores')])
                                },
                       cache_dirpath=config.env.cache_dirpath,
                       save_output=save_output)
@@ -307,7 +308,7 @@ def mask_postprocessing(loader, model, config, save_output=False):
                          cache_dirpath=config.env.cache_dirpath, load_saved_output=False)
 
     score_builder = Step(name='score_builder',
-                         transformer=post.ScoreBuilderStream() if config.execution.stream_mode else post.ScoreBuilder(),
+                         transformer=post.ScoreBuilder(),
                          input_steps=[mask_dilation, mask_resize],
                          adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
                                   'probabilities': ([(mask_resize.name, 'resized_images')]),

@@ -159,7 +159,7 @@ def generate_metadata(data_dir,
         if dataset != "test_images":
             images_path = os.path.join(images_path, "images")
 
-        if public_paths: # TODO: implement public generating public path
+        if public_paths:  # TODO: implement public generating public path
             raise NotImplementedError
         else:
             images_path_to_write = images_path
