@@ -43,7 +43,8 @@ parameters:
   api_key: YOUR_CROWDAI_API_KEY
   stream_mode: 1
   evaluation_data_sample: 1000
-  masks_with_borders: 0
+  border_width: 0
+  small_annotations_size: 14
 
 # General parameters
   image_h: 256

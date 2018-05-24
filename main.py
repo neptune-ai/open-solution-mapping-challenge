@@ -6,7 +6,7 @@ import pandas as pd
 from deepsense import neptune
 import crowdai
 
-from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, SMALL_ANNOTATIONS_SIZE
+from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS
 from pipelines import PIPELINES
 from preparation import overlay_masks
 from utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
@@ -34,8 +34,8 @@ def action():
 def prepare_metadata(train_data, valid_data, test_data, public_paths):
     logger.info('creating metadata')
     meta = generate_metadata(data_dir=params.data_dir,
+                             meta_dir=params.meta_dir,
                              masks_overlayed_dir=params.masks_overlayed_dir,
-                             masks_overlayed_eroded_dir=params.masks_overlayed_eroded_dir,
                              competition_stage=params.competition_stage,
                              process_train_data=train_data,
                              process_validation_data=valid_data,
@@ -64,7 +64,8 @@ def prepare_masks(dev_mode):
                       dilate=params.dilate_selem_size,
                       is_small=dev_mode,
                       nthreads=params.num_threads,
-                      with_borders=params.masks_with_borders)
+                      border_width=params.border_width,
+                      small_annotations_size=params.small_annotations_size)
 
 
 @action.command()
@@ -136,7 +137,7 @@ def _evaluate(pipeline_name, dev_mode, chunk_size):
                                                         prediction_filepath=prediction_filepath,
                                                         image_ids=meta_valid[Y_COLUMNS_SCORING].values,
                                                         category_ids=CATEGORY_IDS[1:],
-                                                        small_annotations_size=SMALL_ANNOTATIONS_SIZE)
+                                                        small_annotations_size=params.small_annotations_size)
     logger.info('Mean precision on validation is {}'.format(average_precision))
     logger.info('Mean recall on validation is {}'.format(average_recall))
     ctx.channel_send('Precision', 0, average_precision)

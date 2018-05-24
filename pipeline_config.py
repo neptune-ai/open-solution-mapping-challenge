@@ -17,7 +17,6 @@ MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 # MEAN = [0.0, 0.0, 0.0]
 # STD = [1.0, 1.0, 1.0]
-SMALL_ANNOTATIONS_SIZE = 14
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
