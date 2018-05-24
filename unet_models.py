@@ -356,12 +356,11 @@ class UNetResNet(nn.Module):
 
         self.center = DecoderBlockV2(bottom_channel_nr, num_filters * 8 * 2, num_filters * 8, is_deconv)
         self.dec5 = DecoderBlockV2(bottom_channel_nr + num_filters * 8, num_filters * 8 * 2, num_filters * 8, is_deconv)
-        self.dec4 = DecoderBlockV2(int(bottom_channel_nr / 2.) + num_filters * 8, num_filters * 8 * 2, num_filters * 8,
+        self.dec4 = DecoderBlockV2(bottom_channel_nr // 2 + num_filters * 8, num_filters * 8 * 2, num_filters * 8,
                                    is_deconv)
-        self.dec3 = DecoderBlockV2(int(bottom_channel_nr / 4.) + num_filters * 8, num_filters * 4 * 2, num_filters * 2,
+        self.dec3 = DecoderBlockV2(bottom_channel_nr // 4 + num_filters * 8, num_filters * 4 * 2, num_filters * 2,
                                    is_deconv)
-        self.dec2 = DecoderBlockV2(int(bottom_channel_nr / 8.) + num_filters * 2, num_filters * 2 * 2,
-                                   num_filters * 2 * 2,
+        self.dec2 = DecoderBlockV2(bottom_channel_nr // 8 + num_filters * 2, num_filters * 2 * 2, num_filters * 2 * 2,
                                    is_deconv)
         self.dec1 = DecoderBlockV2(num_filters * 2 * 2, num_filters * 2 * 2, num_filters, is_deconv)
         self.dec0 = ConvRelu(num_filters, num_filters)
