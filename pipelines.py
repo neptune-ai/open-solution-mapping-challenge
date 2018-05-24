@@ -9,12 +9,8 @@ import postprocessing as post
 
 
 def unet(config, train_mode):
-    if train_mode:
-        save_output = False
-        load_saved_output = False
-    else:
-        save_output = False
-        load_saved_output = False
+    save_output = False
+    load_saved_output = False
 
     loader = preprocessing(config, model_type='single', is_train=train_mode)
     unet = Step(name='unet',
