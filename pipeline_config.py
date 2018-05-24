@@ -10,11 +10,13 @@ params = read_params(ctx)
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
-Y_COLUMNS = ['file_path_mask_eroded_30']
+Y_COLUMNS = ['file_path_mask_eroded_3']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
-MEAN = [0., 0., 0.]
-STD = [1., 1., 1.]
+MEAN = [0.485, 0.456, 0.406]
+STD = [0.229, 0.224, 0.225]
+# MEAN = [0.0, 0.0, 0.0]
+# STD = [1.0, 1.0, 1.0]
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
@@ -36,7 +38,7 @@ SOLUTION_CONFIG = AttrDict({
                       'y_columns': Y_COLUMNS,
                       },
     'loader': {'dataset_params': {'h': params.image_h,
-                                  'w': params.image_w
+                                  'w': params.image_w,
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
                                               'shuffle': True,
@@ -50,6 +52,20 @@ SOLUTION_CONFIG = AttrDict({
                                                },
                                  },
                },
+    'loader_inference_padding': {'dataset_params': {'h_pad': params.h_pad,
+                                                    'w_pad': params.w_pad,
+                                                    'h': params.image_h,
+                                                    'w': params.image_w,
+                                                    'pad_method': params.pad_method
+                                                    },
+                                 'loader_params': {'inference': {'batch_size': params.batch_size_inference,
+                                                                 'shuffle': False,
+                                                                 'num_workers': params.num_workers,
+                                                                 'pin_memory': params.pin_memory
+                                                                 },
+                                                   },
+                                 },
+
     'unet': {
         'architecture_config': {'model_params': {'n_filters': params.n_filters,
                                                  'conv_kernel': params.conv_kernel,
@@ -72,12 +88,14 @@ SOLUTION_CONFIG = AttrDict({
                                                  },
                                 'loss_weights': {'bce_mask': params.bce_mask,
                                                  'dice_mask': params.dice_mask,
-                                                 'mask': params.mask,
                                                  },
+                                'weighted_cross_entropy': {'w0': params.w0,
+                                                           'sigma': params.sigma,
+                                                           'imsize': (params.image_h, params.image_w)},
+                                'dice': {'smooth': params.dice_smooth,
+                                         'dice_activation': params.dice_activation},
                                 },
         'training_config': {'epochs': params.epochs_nr,
-                            'loss_function': {'w0': params.w0,
-                                              'sigma': params.sigma},
                             },
         'callbacks_config': {
             'model_checkpoint': {
@@ -101,8 +119,10 @@ SOLUTION_CONFIG = AttrDict({
         },
     },
     'dropper': {'min_size': params.min_nuclei_size},
-    'postprocessor': {'erode_selem_size': params.erode_selem_size,
-                      'dilate_selem_size': params.dilate_selem_size,
+    'postprocessor': {'mask_dilation': {'dilate_selem_size': params.dilate_selem_size
+                                        },
+                      'mask_erosion': {'erode_selem_size': params.erode_selem_size
+                                       },
                       'crf': {'apply_crf': params.apply_crf,
                               'nr_iter': params.nr_iter,
                               'compat_gaussian': params.compat_gaussian,
@@ -110,5 +130,9 @@ SOLUTION_CONFIG = AttrDict({
                               'compat_bilateral': params.compat_bilateral,
                               'sxy_bilateral': params.sxy_bilateral,
                               'srgb': params.srgb
-                              }}
+                              },
+                      'prediction_crop': {'h_crop': params.crop_image_h,
+                                          'w_crop': params.crop_image_w
+                                          },
+                      }
 })

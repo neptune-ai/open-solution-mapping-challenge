@@ -34,8 +34,8 @@ def action():
 def prepare_metadata(train_data, valid_data, test_data, public_paths):
     logger.info('creating metadata')
     meta = generate_metadata(data_dir=params.data_dir,
+                             meta_dir=params.meta_dir,
                              masks_overlayed_dir=params.masks_overlayed_dir,
-                             masks_overlayed_eroded_dir=params.masks_overlayed_eroded_dir,
                              competition_stage=params.competition_stage,
                              process_train_data=train_data,
                              process_validation_data=valid_data,
@@ -50,28 +50,22 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 @action.command()
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
 def prepare_masks(dev_mode):
-    erode = eval(params.erosion_percentages)
-    if erode != [0]:
-        for dataset in ["train", "val"]:
-            for erosion_percent in erode:
-                logger.info('Overlaying masks, dataset: {}'.format(dataset))
-                target_dir = "{}_{}".format(params.masks_overlayed_eroded_dir[:-1], erosion_percent)
-                overlay_masks(data_dir=params.data_dir,
-                              dataset=dataset,
-                              target_dir=target_dir,
-                              category_ids=CATEGORY_IDS,
-                              erode=erosion_percent,
-                              is_small=dev_mode)
-    else:
-        target_dir = params.masks_overlayed_dir
-        for dataset in ["train", "val"]:
-            logger.info('Overlaying masks, dataset: {}'.format(dataset))
-            overlay_masks(data_dir=params.data_dir,
-                          dataset=dataset,
-                          target_dir=target_dir,
-                          category_ids=CATEGORY_IDS,
-                          erode=0,
-                          is_small=dev_mode)
+    for dataset in ["train", "val"]:
+        logger.info('Overlaying masks, dataset: {}'.format(dataset))
+        target_dir = "{}_eroded_{}_dilated_{}".format(params.masks_overlayed_dir[:-1],
+                                                    params.erode_selem_size, params.dilate_selem_size)
+        logger.info('Output directory: {}'.format(target_dir))
+
+        overlay_masks(data_dir=params.data_dir,
+                      dataset=dataset,
+                      target_dir=target_dir,
+                      category_ids=CATEGORY_IDS,
+                      erode=params.erode_selem_size,
+                      dilate=params.dilate_selem_size,
+                      is_small=dev_mode,
+                      nthreads=params.num_threads,
+                      border_width=params.border_width,
+                      small_annotations_size=params.small_annotations_size)
 
 
 @action.command()
@@ -90,6 +84,8 @@ def _train(pipeline_name, dev_mode):
                        low_memory=False)
     meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
+
+    meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
 
     if dev_mode:
         meta_train = meta_train.sample(20, random_state=seed)
@@ -122,6 +118,8 @@ def _evaluate(pipeline_name, dev_mode, chunk_size):
     meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_valid = meta[meta['is_valid'] == 1]
 
+    meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
+
     if dev_mode:
         meta_valid = meta_valid.sample(30, random_state=seed)
 
@@ -138,7 +136,8 @@ def _evaluate(pipeline_name, dev_mode, chunk_size):
     average_precision, average_recall = coco_evaluation(gt_filepath=annotation_file_path,
                                                         prediction_filepath=prediction_filepath,
                                                         image_ids=meta_valid[Y_COLUMNS_SCORING].values,
-                                                        category_ids=CATEGORY_IDS[1:])
+                                                        category_ids=CATEGORY_IDS[1:],
+                                                        small_annotations_size=params.small_annotations_size)
     logger.info('Mean precision on validation is {}'.format(average_precision))
     logger.info('Mean recall on validation is {}'.format(average_recall))
     ctx.channel_send('Precision', 0, average_precision)

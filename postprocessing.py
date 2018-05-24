@@ -108,6 +108,19 @@ class DenseCRF(BaseTransformer):
         return original_images
 
 
+class PredictionCrop(BaseTransformer):
+    def __init__(self, h_crop, w_crop):
+        self.h_crop = h_crop
+        self.w_crop = w_crop
+
+    def transform(self, images):
+        cropped_per_class_predictions = []
+        for image in tqdm(images):
+            cropped_per_class_prediction = crop_image_center_per_class(image, (self.h_crop, self.w_crop))
+            cropped_per_class_predictions.append(cropped_per_class_prediction)
+        return {'cropped_images': cropped_per_class_predictions}
+
+
 class ScoreBuilder(BaseTransformer):
     def transform(self, images, probabilities):
         scores = []
@@ -167,7 +180,7 @@ class MaskDilatorStream(BaseTransformer):
         self.selem_size = dilate_selem_size
 
     def transform(self, images):
-        return {'categorized_images': self._transform(images)}
+        return {'dilated_images': self._transform(images)}
 
     def _transform(self, images):
         for image in tqdm(images):
@@ -180,11 +193,11 @@ class LabeledMaskDilatorStream(BaseTransformer):
 
     def transform(self, images):
         if self.selem_size > 0:
-            return {'dilated_images': self.transform(images)}
+            return {'dilated_images': self._transform(images)}
         else:
             return {'dilated_images': images}
 
-    def transform(self, images):
+    def _transform(self, images):
         for image in tqdm(images):
             yield dilate_labeled_image(image, self.selem_size)
 
@@ -218,6 +231,19 @@ class DenseCRFStream(BaseTransformer):
                 yield image
             if batch_id == steps:
                 break
+
+
+class PredictionCropStream(BaseTransformer):
+    def __init__(self, h_crop, w_crop):
+        self.h_crop = h_crop
+        self.w_crop = w_crop
+
+    def transform(self, images):
+        return {'cropped_images': self._transform(images)}
+
+    def _transform(self, images):
+        for image in tqdm(images):
+            yield crop_image_center_per_class(image, (self.h_crop, self.w_crop))
 
 
 def label_multiclass_image(mask):
@@ -277,3 +303,15 @@ def build_score(image, probabilities):
             score.append(masked_instance.mean()*np.sqrt(np.count_nonzero(category_instances == label_nr)))
         total_score.append(score)
     return total_score
+
+
+def crop_image_center_per_class(image, size):
+    h_crop, w_crop = size
+    cropped_per_class_prediction = []
+    for class_prediction in image:
+        h, w = class_prediction.shape[:2]
+        h_start, w_start = int((h - h_crop) / 2.), int((w - w_crop) / 2.)
+        cropped_prediction = class_prediction[h_start:-h_start, w_start:-w_start]
+        cropped_per_class_prediction.append(cropped_prediction)
+    cropped_per_class_prediction = np.stack(cropped_per_class_prediction)
+    return cropped_per_class_prediction
