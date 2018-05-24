@@ -11,7 +11,33 @@ from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ValidationMon
 from steps.pytorch.models import Model
 from steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
 from utils import softmax
-from unet_models import UNet11, UNet16, AlbuNet
+from unet_models import AlbuNet, UNet11, UNet16, UNetResNet
+
+PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
+                                 'model_config': {'num_classes': 2, 'pretrained': True},
+                                 'init_weights': False},
+                       'VGG16': {'model': UNet16,
+                                 'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                                 'init_weights': False},
+                       'AlbuNet': {'model': AlbuNet,
+                                   'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                                   'init_weights': False},
+                       'ResNet34': {'model': UNetResNet,
+                                    'model_config': {'encoder_depth': 34, 'num_classes': 2,
+                                                     'num_filters': 32, 'dropout_2d': 0.0,
+                                                     'pretrained': True, 'is_deconv': True, },
+                                    'init_weights': False},
+                       'ResNet101': {'model': UNetResNet,
+                                     'model_config': {'encoder_depth': 101, 'num_classes': 2,
+                                                      'num_filters': 32, 'dropout_2d': 0.0,
+                                                      'pretrained': True, 'is_deconv': True, },
+                                     'init_weights': False},
+                       'ResNet152': {'model': UNetResNet,
+                                     'model_config': {'encoder_depth': 152, 'num_classes': 2,
+                                                      'num_filters': 64, 'dropout_2d': 0.25,
+                                                      'pretrained': True, 'is_deconv': True, },
+                                     'init_weights': False}
+                       }
 
 
 class PyTorchUNet(Model):
@@ -31,24 +57,12 @@ class PyTorchUNet(Model):
         return outputs
 
     def set_model(self):
-        configs = {'VGG11': {'model': UNet11,
-                             'model_config': {'num_classes': 2, 'pretrained': True},
-                             'init_weights': False},
-                   'VGG16': {'model': UNet16,
-                             'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
-                             'init_weights': False},
-                   'ResNet': {'model': AlbuNet,
-                              'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
-                              'init_weights': False},
-                   'standard': {'model': UNet,
-                                'model_config': self.architecture_config['model_params'],
-                                'init_weights': True}
-                   }
         encoder = self.architecture_config['model_params']['encoder']
-        config = configs[encoder]
-
-        self.model = config['model'](**config['model_config'])
-        if not config['init_weights']:
+        if encoder == 'from_scratch':
+            self.model = UNet(**self.architecture_config['model_params'])
+        else:
+            config = PRETRAINED_NETWORKS[encoder]
+            self.model = config['model'](**config['model_config'])
             self._initialize_model_weights = lambda: None
 
 
@@ -71,25 +85,13 @@ class PyTorchUNetStream(Model):
             raise NotImplementedError
 
     def set_model(self):
-        configs = {'VGG11': {'model': UNet11,
-                             'model_config': {'num_classes': 2, 'pretrained': True},
-                             'init_weights': False},
-                   'VGG16': {'model': UNet16,
-                             'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
-                             'init_weights': False},
-                   'ResNet': {'model': AlbuNet,
-                              'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
-                              'init_weights': False},
-                   'standard': {'model': UNet,
-                                'model_config': self.architecture_config['model_params'],
-                                'init_weights': True}
-                   }
         encoder = self.architecture_config['model_params']['encoder']
-        config = configs[encoder]
-
-        self.model = config['model'](**config['model_config'])
-        if not config['init_weights']:
+        if encoder != 'standard':
+            config = PRETRAINED_NETWORKS[encoder]
+            self.model = config['model'](**config['model_config'])
             self._initialize_model_weights = lambda: None
+        else:
+            self.model = UNet(**self.architecture_config['model_params'])
 
     def _transform(self, datagen, validation_datagen=None):
         self.model.eval()
@@ -127,7 +129,8 @@ class PyTorchUNetWeighted(Model):
         weighted_loss = partial(multiclass_weighted_cross_entropy,
                                 **get_loss_variables(**architecture_config['weighted_cross_entropy']))
         loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
-                       cross_entropy_weight=architecture_config['loss_weights']['bce_mask'], cross_entropy_loss=weighted_loss,
+                       cross_entropy_weight=architecture_config['loss_weights']['bce_mask'],
+                       cross_entropy_loss=weighted_loss,
                        **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
         self.callbacks = callbacks_unet(self.callbacks_config)
@@ -139,24 +142,12 @@ class PyTorchUNetWeighted(Model):
         return outputs
 
     def set_model(self):
-        configs = {'VGG11': {'model': UNet11,
-                             'model_config': {'num_classes': 2, 'pretrained': True},
-                             'init_weights': False},
-                   'VGG16': {'model': UNet16,
-                             'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
-                             'init_weights': False},
-                   'ResNet': {'model': AlbuNet,
-                              'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
-                              'init_weights': False},
-                   'standard': {'model': UNet,
-                                'model_config': self.architecture_config['model_params'],
-                                'init_weights': True}
-                   }
         encoder = self.architecture_config['model_params']['encoder']
-        config = configs[encoder]
-
-        self.model = config['model'](**config['model_config'])
-        if not config['init_weights']:
+        if encoder == 'from_scratch':
+            self.model = UNet(**self.architecture_config['model_params'])
+        else:
+            config = PRETRAINED_NETWORKS[encoder]
+            self.model = config['model'](**config['model_config'])
             self._initialize_model_weights = lambda: None
 
 
@@ -170,7 +161,8 @@ class PyTorchUNetWeightedStream(Model):
         weighted_loss = partial(multiclass_weighted_cross_entropy,
                                 **get_loss_variables(**architecture_config['weighted_cross_entropy']))
         loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
-                       cross_entropy_weight=architecture_config['loss_weights']['bce_mask'], cross_entropy_loss=weighted_loss,
+                       cross_entropy_weight=architecture_config['loss_weights']['bce_mask'],
+                       cross_entropy_loss=weighted_loss,
                        **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
         self.callbacks = callbacks_unet(self.callbacks_config)
@@ -207,35 +199,13 @@ class PyTorchUNetWeightedStream(Model):
         self.model.train()
 
     def set_model(self):
-        configs = {'VGG11': {'model': UNet11,
-                             'model_config': {'num_classes': 2, 'pretrained': True},
-                             'init_weights': False},
-                   'VGG16': {'model': UNet16,
-                             'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
-                             'init_weights': False},
-                   'ResNet': {'model': AlbuNet,
-                              'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
-                              'init_weights': False},
-                   'standard': {'model': UNet,
-                                'model_config': self.architecture_config['model_params'],
-                                'init_weights': True}
-                   }
         encoder = self.architecture_config['model_params']['encoder']
-        config = configs[encoder]
-
-        self.model = config['model'](**config['model_config'])
-        if not config['init_weights']:
+        if encoder == 'from_scratch':
+            self.model = UNet(**self.architecture_config['model_params'])
+        else:
+            config = PRETRAINED_NETWORKS[encoder]
+            self.model = config['model'](**config['model_config'])
             self._initialize_model_weights = lambda: None
-
-
-def weight_regularization(model, regularize, weight_decay_conv2d, weight_decay_linear):
-    if regularize:
-        parameter_list = [{'params': model.features.parameters(), 'weight_decay': weight_decay_conv2d},
-                          {'params': model.classifier.parameters(), 'weight_decay': weight_decay_linear},
-                          ]
-    else:
-        parameter_list = [model.parameters()]
-    return parameter_list
 
 
 def weight_regularization_unet(model, regularize, weight_decay_conv2d):
@@ -302,25 +272,28 @@ def get_loss_variables(w0, sigma, imsize):
     return {'w0': w0, 'sigma': sigma, 'C': C}
 
 
-def mixed_dice_cross_entropy_loss(output, target, dice_weight, cross_entropy_weight, cross_entropy_loss=None, smooth=0, dice_activation='softmax'):
+def mixed_dice_cross_entropy_loss(output, target, dice_weight, cross_entropy_weight, cross_entropy_loss=None, smooth=0,
+                                  dice_activation='softmax'):
     dice_target = target[:, 0, :, :].long()
     cross_entropy_target = target
     if cross_entropy_loss is None:
         cross_entropy_loss = torch.nn.CrossEntropyLoss()
         cross_entropy_target = dice_target
-    return dice_weight * dice_loss(output, dice_target, smooth, dice_activation) + cross_entropy_weight * cross_entropy_loss(output,
-                                                                                                    cross_entropy_target)
+    return dice_weight * dice_loss(output, dice_target, smooth,
+                                   dice_activation) + cross_entropy_weight * cross_entropy_loss(output,
+                                                                                                cross_entropy_target)
 
 
 def dice_loss(output, target, smooth=0, activation='softmax'):
-    loss = 0
-    dice = DiceLoss(smooth=smooth)
-    if activation=='softmax':
+    if activation == 'softmax':
         activation_nn = torch.nn.Softmax2d()
-    elif activation=='sigmoid':
+    elif activation == 'sigmoid':
         activation_nn = torch.nn.Sigmoid()
     else:
-        NotImplementedError
+        raise NotImplementedError('only sigmoid and softmax are implemented')
+
+    loss = 0
+    dice = DiceLoss(smooth=smooth)
     output = activation_nn(output)
     for class_nr in range(1, int(target.max()) + 1):
         class_target = (target == class_nr)
