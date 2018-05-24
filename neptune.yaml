@@ -57,7 +57,7 @@ parameters:
   pool_kernel: 3
   pool_stride: 2
   repeat_blocks: 4
-  encoder: ResNet
+  encoder: ResNet152
 
 # U-Net loss weights (multi-output)
   mask: 0.3
