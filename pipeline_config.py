@@ -38,7 +38,7 @@ SOLUTION_CONFIG = AttrDict({
                       'y_columns': Y_COLUMNS,
                       },
     'loader': {'dataset_params': {'h': params.image_h,
-                                  'w': params.image_w
+                                  'w': params.image_w,
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
                                               'shuffle': True,
@@ -88,7 +88,6 @@ SOLUTION_CONFIG = AttrDict({
                                                  },
                                 'loss_weights': {'bce_mask': params.bce_mask,
                                                  'dice_mask': params.dice_mask,
-                                                 'mask': params.mask,
                                                  },
                                 'weighted_cross_entropy': {'w0': params.w0,
                                                            'sigma': params.sigma,
