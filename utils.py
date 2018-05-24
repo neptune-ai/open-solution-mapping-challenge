@@ -82,7 +82,7 @@ def decompose(labeled):
         return masks
 
 
-def create_annotations(meta, predictions, scores, logger, category_ids, save=False, experiment_dir='./'):
+def create_annotations(meta, predictions, logger, category_ids, save=False, experiment_dir='./'):
     '''
     :param meta: pd.DataFrame with metadata
     :param predictions: list of labeled masks or numpy array of size [n_images, im_height, im_width]
@@ -93,7 +93,7 @@ def create_annotations(meta, predictions, scores, logger, category_ids, save=Fal
     '''
     annotations = []
     logger.info('Creating annotations')
-    for image_id, prediction, image_scores in zip(meta["ImageId"].values, predictions, scores):
+    for image_id, (prediction, image_scores) in zip(meta["ImageId"].values, predictions):
         for category_nr, (category_instances, category_scores) in enumerate(zip(prediction, image_scores)):
             if category_ids[category_nr] != None:
                 masks = decompose(category_instances)
@@ -366,7 +366,7 @@ def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, s
     cocoEval.accumulate()
     cocoEval.summarize()
 
-    return cocoEval.stats[0], cocoEval.stats[4]
+    return cocoEval.stats[0], cocoEval.stats[3]
 
 
 def label(mask):
