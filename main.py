@@ -249,9 +249,8 @@ def _generate_prediction(meta_data, pipeline, logger, category_ids):
     output = pipeline.transform(data)
     pipeline.clean_cache()
     y_pred = output['y_pred']
-    y_scores = output['y_scores']
 
-    prediction = create_annotations(meta_data, y_pred, y_scores, logger, category_ids)
+    prediction = create_annotations(meta_data, y_pred, logger, category_ids)
     return prediction
 
 
@@ -269,9 +268,8 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
         output = pipeline.transform(data)
         pipeline.clean_cache()
         y_pred = output['y_pred']
-        y_scores = output['y_scores']
 
-        prediction_chunk = create_annotations(meta_chunk, y_pred, y_scores, logger, category_ids)
+        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids)
         prediction.extend(prediction_chunk)
 
     return prediction
