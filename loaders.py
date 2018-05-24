@@ -1,5 +1,3 @@
-import math
-from itertools import product
 import os
 
 import numpy as np
@@ -9,9 +7,8 @@ from PIL import Image
 from attrdict import AttrDict
 from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
-from cv2 import resize
 
-from augmentation import fast_seq, affine_seq, color_seq, patching_seq, padding_seq
+from augmentation import crop_seq, padding_seq
 from steps.base import BaseTransformer
 from steps.pytorch.utils import ImgAug
 from utils import from_pil, to_pil
@@ -327,17 +324,26 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
         self.loader_params = AttrDict(loader_params)
         self.dataset_params = AttrDict(dataset_params)
 
-        self.image_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
-                                                                      self.dataset_params.w)),
-                                                   transforms.ToTensor(),
-                                                   transforms.Normalize(mean=MEAN, std=STD),
-                                                   ])
-        self.mask_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
-                                                                     self.dataset_params.w)),
-                                                  transforms.Lambda(to_monochrome),
-                                                  transforms.Lambda(to_tensor),
-                                                  ])
-        self.image_augment_with_target = ImgAug(fast_seq)
+        self.image_transform_train = transforms.Compose([transforms.ToTensor(),
+                                                         transforms.Normalize(mean=MEAN, std=STD),
+                                                         ])
+        self.mask_transform_train = transforms.Compose([transforms.Lambda(to_monochrome),
+                                                        transforms.Lambda(to_tensor),
+                                                        ])
+
+        self.image_transform_inference = transforms.Compose([transforms.Resize((self.dataset_params.h,
+                                                                                self.dataset_params.w)),
+                                                             transforms.ToTensor(),
+                                                             transforms.Normalize(mean=MEAN, std=STD),
+                                                             ])
+        self.mask_transform_inference = transforms.Compose([transforms.Resize((self.dataset_params.h,
+                                                                               self.dataset_params.w)),
+                                                            transforms.Lambda(to_monochrome),
+                                                            transforms.Lambda(to_tensor),
+                                                            ])
+
+        self.image_augment_with_target = ImgAug(crop_seq(crop_size=(self.dataset_params.h,
+                                                                    self.dataset_params.w)))
         self.image_augment = None
 
         self.dataset = None
@@ -362,15 +368,15 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
                                    train_mode=True,
                                    image_augment=self.image_augment,
                                    image_augment_with_target=self.image_augment_with_target,
-                                   mask_transform=self.mask_transform,
-                                   image_transform=self.image_transform)
+                                   mask_transform=self.mask_transform_train,
+                                   image_transform=self.image_transform_train)
         else:
             dataset = self.dataset(X, y,
                                    train_mode=False,
                                    image_augment=None,
                                    image_augment_with_target=None,
-                                   mask_transform=self.mask_transform,
-                                   image_transform=self.image_transform)
+                                   mask_transform=self.mask_transform_inference,
+                                   image_transform=self.image_transform_inference)
 
         datagen = DataLoader(dataset, **loader_params)
         steps = len(datagen)
@@ -457,74 +463,3 @@ def to_tensor(x):
     x_ = np.expand_dims(x, axis=0)
     x_ = torch.from_numpy(x_)
     return x_
-
-
-def test_time_augmentation(img):
-    for i in range(4):
-        yield i * 90, np.rot90(img, i)
-
-
-def generate_patches(img, patch_size, patch_stride):
-    img_padded = get_mosaic_padded_image(img, patch_size, patch_stride)
-    h_pad, w_pad = img_padded.shape[:2]
-
-    h_patch_nr = math.ceil(h_pad / patch_stride) - math.floor(patch_size / patch_stride)
-    w_patch_nr = math.ceil(w_pad / patch_stride) - math.floor(patch_size / patch_stride)
-
-    for y_coordinate, x_coordinate in product(range(h_patch_nr), range(w_patch_nr)):
-        if len(img.shape) == 2:
-            img_patch = img_padded[y_coordinate * patch_stride:y_coordinate * patch_stride + patch_size,
-                        x_coordinate * patch_stride:x_coordinate * patch_stride + patch_size]
-        else:
-            img_patch = img_padded[y_coordinate * patch_stride:y_coordinate * patch_stride + patch_size,
-                        x_coordinate * patch_stride:x_coordinate * patch_stride + patch_size, :]
-        yield y_coordinate, x_coordinate, img_patch
-
-
-def get_mosaic_padded_image(img, patch_size, patch_stride):
-    if len(img.shape) == 2:
-        h_, w_ = img.shape
-        c = 1
-        img = np.expand_dims(img, axis=2)
-        squeeze_output = True
-    else:
-        h_, w_, c = img.shape
-        squeeze_output = False
-
-    h, w = (max(h_, patch_size), max(w_, patch_size))
-    if h > h_ or w > w_:
-        img = resize(img, (h, w))
-
-    h_pad, h_pad_top, h_pad_bottom, h_pad_end = get_padded_size(h, patch_size, patch_stride)
-    w_pad, w_pad_left, w_pad_right, w_pad_end = get_padded_size(w, patch_size, patch_stride)
-
-    img_padded = np.zeros((h_pad, w_pad, c))
-    img_padded[h_pad_top:-h_pad_bottom, w_pad_left:-w_pad_right, :] = img
-
-    img_padded[h_pad_top:-h_pad_bottom, :w_pad_left, :] = np.fliplr(img[:, :w_pad_left, :])
-    img_padded[:h_pad_top, w_pad_left:-w_pad_right, :] = np.flipud(img[:h_pad_top, :, :])
-
-    img_padded[h_pad_top:-h_pad_bottom, -w_pad_right:-w_pad_right + w_pad_end, :] = np.fliplr(
-        img[:, -w_pad_right:-w_pad_right + w_pad_end, :])
-    img_padded[-h_pad_bottom:-h_pad_bottom + h_pad_end, w_pad_left:-w_pad_right, :] = np.flipud(
-        img[-h_pad_bottom:-h_pad_bottom + h_pad_end, :, :])
-
-    if squeeze_output:
-        img_padded = np.squeeze(img_padded)
-
-    return img_padded
-
-
-def get_padded_size(img_size, patch_size, patch_stride):
-    min_image_size = img_size + 2 * patch_size
-    for img_size_padded in range(img_size, 6 * img_size, 1):
-        if (img_size_padded - patch_size) % patch_stride == 0 and img_size_padded >= min_image_size:
-            break
-
-    diff = img_size_padded - img_size
-    pad_down, pad_up = patch_size, diff - patch_size
-    if pad_up > patch_size and img_size < patch_size:
-        pad_end = patch_size
-    else:
-        pad_end = pad_up
-    return img_size_padded, pad_down, pad_up, pad_end
