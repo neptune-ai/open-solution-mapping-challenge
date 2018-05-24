@@ -34,8 +34,8 @@ def action():
 def prepare_metadata(train_data, valid_data, test_data, public_paths):
     logger.info('creating metadata')
     meta = generate_metadata(data_dir=params.data_dir,
+                             meta_dir=params.meta_dir,
                              masks_overlayed_dir=params.masks_overlayed_dir,
-                             masks_overlayed_eroded_dir=params.masks_overlayed_eroded_dir,
                              competition_stage=params.competition_stage,
                              process_train_data=train_data,
                              process_validation_data=valid_data,
@@ -52,14 +52,20 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 def prepare_masks(dev_mode):
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
-        target_dir = "{}_{}".format(params.masks_overlayed_eroded_dir[:-1], params.erode_selem_size)
+        target_dir = "{}_eroded_{}_dilated_{}".format(params.masks_overlayed_dir[:-1],
+                                                    params.erode_selem_size, params.dilate_selem_size)
+        logger.info('Output directory: {}'.format(target_dir))
+
         overlay_masks(data_dir=params.data_dir,
                       dataset=dataset,
                       target_dir=target_dir,
                       category_ids=CATEGORY_IDS,
                       erode=params.erode_selem_size,
+                      dilate=params.dilate_selem_size,
                       is_small=dev_mode,
-                      nthreads=params.num_threads)
+                      nthreads=params.num_threads,
+                      border_width=params.border_width,
+                      small_annotations_size=params.small_annotations_size)
 
 
 @action.command()
@@ -130,7 +136,8 @@ def _evaluate(pipeline_name, dev_mode, chunk_size):
     average_precision, average_recall = coco_evaluation(gt_filepath=annotation_file_path,
                                                         prediction_filepath=prediction_filepath,
                                                         image_ids=meta_valid[Y_COLUMNS_SCORING].values,
-                                                        category_ids=CATEGORY_IDS[1:])
+                                                        category_ids=CATEGORY_IDS[1:],
+                                                        small_annotations_size=params.small_annotations_size)
     logger.info('Mean precision on validation is {}'.format(average_precision))
     logger.info('Mean recall on validation is {}'.format(average_recall))
     ctx.channel_send('Precision', 0, average_precision)
