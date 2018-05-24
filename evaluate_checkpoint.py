@@ -14,8 +14,6 @@ MISSING_TRANSFORMERS = ['prediction_crop',
                         'score_builder',
                         'output']
 
-NEPTUNE_FILE = 'neptune_local.yaml'
-
 
 @click.group()
 def main():
@@ -25,7 +23,8 @@ def main():
 @main.command()
 @click.option('-e', '--experiment_dir', help='experiment that you want to run evaluation on', required=True)
 @click.option('-t', '--temp_inference_dir', help='temporary directory', required=True)
-def run(temp_inference_dir, experiment_dir):
+@click.option('-n', '--neptune_file', help='neptne file path', required=True)
+def run(temp_inference_dir, experiment_dir, neptune_file):
     transformer_dir = os.path.join(temp_inference_dir, 'transformers')
     checkpoints_dir = os.path.join(temp_inference_dir, 'checkpoints')
 
@@ -39,10 +38,10 @@ def run(temp_inference_dir, experiment_dir):
         cmd = 'touch {}/{}'.format(transformer_dir, missing_transformer)
         subprocess.call(cmd, shell=True)
 
-    cmd = 'cp {} temporary_neptune.yaml'.format(NEPTUNE_FILE, checkpoints_dir, transformer_dir)
+    cmd = 'cp {} temporary_neptune.yaml'.format(neptune_file, checkpoints_dir, transformer_dir)
     subprocess.call(cmd, shell=True)
 
-    cmd = 'cp {} temporary_neptune.yaml'.format(NEPTUNE_FILE, checkpoints_dir, transformer_dir)
+    cmd = 'cp {} temporary_neptune.yaml'.format(neptune_file, checkpoints_dir, transformer_dir)
     subprocess.call(cmd, shell=True)
 
     with open("temporary_neptune.yaml", 'r+') as f:

@@ -78,8 +78,7 @@ def unet_padded(config, train_mode):
         output = Step(name='output',
                       transformer=Dummy(),
                       input_steps=[mask_postprocessed],
-                      adapter={'y_pred': ([(mask_postprocessed.name, 'images')]),
-                               'y_scores': ([(mask_postprocessed.name, 'scores')])
+                      adapter={'y_pred': ([(mask_postprocessed.name, 'images_with_scores')]),
                                },
                       cache_dirpath=config.env.cache_dirpath,
                       save_output=save_output)
@@ -246,7 +245,6 @@ def _preprocessing_multitask_generator(config, is_train, use_patching):
 
 
 def mask_postprocessing(loader, model, config, save_output=False):
-
     if config.postprocessor.crf.apply_crf:
         dense_crf = Step(name='dense_crf',
                          transformer=post.DenseCRFStream(**config.postprocessor.crf) if config.execution.stream_mode \
