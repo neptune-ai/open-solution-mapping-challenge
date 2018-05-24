@@ -123,11 +123,10 @@ class PredictionCrop(BaseTransformer):
 
 class ScoreBuilder(BaseTransformer):
     def transform(self, images, probabilities):
-        scores = []
+        images_with_scores = []
         for image, image_probabilities in tqdm(zip(images, probabilities)):
-            scores.append(build_score(image, image_probabilities))
-        return {'images': images,
-                'scores': scores}
+            images_with_scores.append((image, build_score(image, image_probabilities)))
+        return {'images_with_scores': images_with_scores}
 
 
 class MulticlassLabelerStream(BaseTransformer):
@@ -244,6 +243,15 @@ class PredictionCropStream(BaseTransformer):
     def _transform(self, images):
         for image in tqdm(images):
             yield crop_image_center_per_class(image, (self.h_crop, self.w_crop))
+
+
+class ScoreBuilderStream(BaseTransformer):
+    def transform(self, images, probabilities):
+        return {'images_with_scores': self._transform(images, probabilities)}
+
+    def _transform(self, images, probabilities):
+        for image, image_probabilities in tqdm(zip(images, probabilities)):
+            yield (image, build_score(image, image_probabilities))
 
 
 def label_multiclass_image(mask):
