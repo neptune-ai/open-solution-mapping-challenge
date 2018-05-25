@@ -46,7 +46,6 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, dilate=0
 
 def overlay_mask_one_image(image_id, dataset, target_dir, coco, category_ids, erode, dilate, border_width,
                            small_annotations_size):
-    logger.info('Preparing image: {}'.format(image_id))
     image = coco.loadImgs(image_id)[0]
     image_size = (image["height"], image["width"])
     mask_overlayed = np.zeros(image_size).astype('uint8')

@@ -5,6 +5,7 @@ import os
 import random
 import sys
 from itertools import product
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -159,7 +160,7 @@ def generate_metadata(data_dir,
         if dataset != "test_images":
             images_path = os.path.join(images_path, "images")
 
-        if public_paths:  # TODO: implement public generating public path
+        if public_paths: # TODO: implement public generating public path
             raise NotImplementedError
         else:
             images_path_to_write = images_path
@@ -171,11 +172,7 @@ def generate_metadata(data_dir,
                 if masks_dir_name.startswith(masks_dir_prefix):
                     masks_overlayed_sufix_to_write.append(masks_dir_name[len(masks_dir_prefix):])
 
-        df_columns = ['ImageId', 'file_path_image', 'is_train', 'is_valid', 'is_test', 'n_buildings']
-        for mask_dir_sufix in masks_overlayed_sufix_to_write:
-            df_columns.append('file_path_mask' + mask_dir_sufix)
-
-        df_metadata = pd.DataFrame(columns=df_columns)
+        df_dict = defaultdict(lambda: [])
 
         for image_file_name in tqdm(sorted(os.listdir(images_path))):
             file_path_image = os.path.join(images_path_to_write, image_file_name)
@@ -188,14 +185,14 @@ def generate_metadata(data_dir,
             if dataset == "test_images":
                 n_buildings = None
                 is_test = 1
-                row = {'ImageId': image_id,
-                       'file_path_image': file_path_image,
-                       'is_train': is_train,
-                       'is_valid': is_valid,
-                       'is_test': is_test,
-                       'n_buildings': n_buildings}
+                df_dict['ImageId'].append(image_id)
+                df_dict['file_path_image'].append(file_path_image)
+                df_dict['is_train'].append(is_train)
+                df_dict['is_valid'].append(is_valid)
+                df_dict['is_test'].append(is_test)
+                df_dict['n_buildings'].append( n_buildings)
                 for mask_dir_sufix in masks_overlayed_sufix_to_write:
-                    row['file_path_mask' + mask_dir_sufix] = None
+                    df_dict['file_path_mask' + mask_dir_sufix].append(None)
 
             else:
                 n_buildings = None
@@ -203,20 +200,19 @@ def generate_metadata(data_dir,
                     is_valid = 1
                 else:
                     is_train = 1
-                row = {'ImageId': image_id,
-                       'file_path_image': file_path_image,
-                       'is_train': is_train,
-                       'is_valid': is_valid,
-                       'is_test': is_test,
-                       'n_buildings': n_buildings}
+                df_dict['ImageId'].append(image_id)
+                df_dict['file_path_image'].append(file_path_image)
+                df_dict['is_train'].append(is_train)
+                df_dict['is_valid'].append(is_valid)
+                df_dict['is_test'].append(is_test)
+                df_dict['n_buildings'].append(n_buildings)
 
                 for mask_dir_sufix in masks_overlayed_sufix_to_write:
                     file_path_mask = os.path.join(meta_dir, masks_dir_prefix + mask_dir_sufix, dataset, "masks",
                                                   image_file_name[:-4] + ".png")
-                    row['file_path_mask' + mask_dir_sufix] = file_path_mask
-            df_metadata = df_metadata.append(row, ignore_index=True)
+                    df_dict['file_path_mask' + mask_dir_sufix].append(file_path_mask)
 
-        return df_metadata
+        return pd.DataFrame.from_dict(df_dict)
 
     metadata = pd.DataFrame()
     if process_train_data:
