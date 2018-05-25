@@ -34,7 +34,7 @@ PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
                                      'init_weights': False},
                        'ResNet152': {'model': UNetResNet,
                                      'model_config': {'encoder_depth': 152, 'num_classes': 2,
-                                                      'num_filters': 64, 'dropout_2d': 0.25,
+                                                      'num_filters': 32, 'dropout_2d': 0.0,
                                                       'pretrained': True, 'is_deconv': True, },
                                      'init_weights': False}
                        }
