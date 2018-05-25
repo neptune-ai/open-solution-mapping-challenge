@@ -144,7 +144,6 @@ class MetadataImageSegmentationDatasetDistances(Dataset):
                 Xi, Mi, Di, Si = self.image_augment_with_target(Xi, Mi, Di, Si)
             if self.image_augment is not None:
                 Xi = self.image_augment(Xi)
-            print(Xi.shape)
             Xi, Mi, Di, Si = to_pil(Xi, Mi, Di, Si)
 
             if self.mask_transform is not None:
