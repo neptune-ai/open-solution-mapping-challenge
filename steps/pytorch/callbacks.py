@@ -159,7 +159,7 @@ class ValidationMonitor(Callback):
     def on_epoch_end(self, *args, **kwargs):
         if self.epoch_every and ((self.epoch_id % self.epoch_every) == 0):
             self.model.eval()
-            val_loss = self.get_validation_loss()
+            val_loss = score_model(self.model, self.loss_function, self.validation_datagen)
             self.model.train()
             for name, loss in val_loss.items():
                 loss = loss.data.cpu().numpy()[0]
