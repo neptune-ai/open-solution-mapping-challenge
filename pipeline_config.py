@@ -10,7 +10,7 @@ params = read_params(ctx)
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
-Y_COLUMNS = ['file_path_mask_eroded_3']
+Y_COLUMNS = ['file_path_mask_eroded_3_dilated_0']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
 MEAN = [0.485, 0.456, 0.406]
@@ -25,7 +25,8 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'img_H-W': (params.image_h, params.image_w),
                  'batch_size_train': params.batch_size_train,
                  'batch_size_inference': params.batch_size_inference,
-                 'stream_mode': params.stream_mode
+                 'stream_mode': params.stream_mode,
+                 'loader_mode': params.loader_mode
                  }
 
 SOLUTION_CONFIG = AttrDict({
@@ -37,8 +38,11 @@ SOLUTION_CONFIG = AttrDict({
     'reader_single': {'x_columns': X_COLUMNS,
                       'y_columns': Y_COLUMNS,
                       },
-    'loader': {'dataset_params': {'h': params.image_h,
+    'loader': {'dataset_params': {'h_pad': params.h_pad,
+                                  'w_pad': params.w_pad,
+                                  'h': params.image_h,
                                   'w': params.image_w,
+                                  'pad_method': params.pad_method
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
                                               'shuffle': True,
@@ -52,19 +56,6 @@ SOLUTION_CONFIG = AttrDict({
                                                },
                                  },
                },
-    'loader_inference_padding': {'dataset_params': {'h_pad': params.h_pad,
-                                                    'w_pad': params.w_pad,
-                                                    'h': params.image_h,
-                                                    'w': params.image_w,
-                                                    'pad_method': params.pad_method
-                                                    },
-                                 'loader_params': {'inference': {'batch_size': params.batch_size_inference,
-                                                                 'shuffle': False,
-                                                                 'num_workers': params.num_workers,
-                                                                 'pin_memory': params.pin_memory
-                                                                 },
-                                                   },
-                                 },
 
     'unet': {
         'architecture_config': {'model_params': {'n_filters': params.n_filters,
@@ -106,13 +97,13 @@ SOLUTION_CONFIG = AttrDict({
             'plateau_lr_scheduler': {'lr_factor': params.lr_factor,
                                      'lr_patience': params.lr_patience,
                                      'epoch_every': 1},
-            'training_monitor': {'batch_every': 0,
+            'training_monitor': {'batch_every': 1,
                                  'epoch_every': 1},
-            'experiment_timing': {'batch_every': 0,
+            'experiment_timing': {'batch_every': 10,
                                   'epoch_every': 1},
             'validation_monitor': {'epoch_every': 1},
             'neptune_monitor': {'model_name': 'unet',
-                                'image_nr': 4,
+                                'image_nr': 16,
                                 'image_resize': 0.2,
                                 'outputs_to_plot': params.unet_outputs_to_plot},
             'early_stopping': {'patience': params.patience},

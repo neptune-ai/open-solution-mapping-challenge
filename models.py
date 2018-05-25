@@ -34,7 +34,7 @@ PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
                                      'init_weights': False},
                        'ResNet152': {'model': UNetResNet,
                                      'model_config': {'encoder_depth': 152, 'num_classes': 2,
-                                                      'num_filters': 64, 'dropout_2d': 0.25,
+                                                      'num_filters': 32, 'dropout_2d': 0.0,
                                                       'pretrained': True, 'is_deconv': True, },
                                      'init_weights': False}
                        }
@@ -238,13 +238,17 @@ def multiclass_weighted_cross_entropy(output, target, w0, sigma, C):
     distances = target[:, 1, :, :]
     sizes = target[:, 2, :, :]
     target = target[:, 0, :, :].long()
+
     w1 = Variable(torch.ones(distances.size()), requires_grad=False)  # TODO: fix it to handle class imbalance
     if torch.cuda.is_available():
         w1 = w1.cuda()
     size_weights = _get_size_weights(sizes, C)
+
     distance_weights = _get_distance_weights(distances, w1, w0, sigma)
+
     weights = distance_weights * size_weights
     loss_per_pixel = torch.nn.CrossEntropyLoss(reduce=False)(output, target)
+
     loss = torch.mean(loss_per_pixel * weights)
     return loss
 
@@ -256,8 +260,10 @@ def _get_distance_weights(d, w1, w0, sigma):
 
 
 def _get_size_weights(sizes, C):
-    size_weights = C / sizes
-    size_weights[sizes == 1] = 1
+    sizes_ = sizes.clone()
+    sizes_[sizes == 0] = 1
+    size_weights = C / sizes_
+    size_weights[sizes_ == 1] = 1
     return size_weights
 
 

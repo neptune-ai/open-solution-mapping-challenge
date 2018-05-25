@@ -5,8 +5,8 @@ from imgaug import augmenters as iaa
 fast_seq = iaa.SomeOf((1, 2),
                       [iaa.Fliplr(0.5),
                        iaa.Flipud(0.5),
-                       iaa.Affine(rotate=(0, 360),
-                                  translate_percent=(-0.1, 0.1), mode='reflect'),
+                       iaa.Affine(rotate=(-10, 10),
+                                  translate_percent=(-0.1, 0.1)),
                        ], random_order=True)
 
 
@@ -35,7 +35,7 @@ class PadFixed(iaa.Augmenter):
     def _augment_images(self, images, random_state, parents, hooks):
         result = []
         for i, image in enumerate(images):
-            image_pad = self._reflect_pad(image)
+            image_pad = self._pad(image)
             result.append(image_pad)
         return result
 
@@ -43,14 +43,28 @@ class PadFixed(iaa.Augmenter):
         result = []
         return result
 
-    def _reflect_pad(self, img):
+    def _pad(self, img):
+        img_ = img.copy()
+
+        if self._is_expanded_grey_format(img):
+            img_ = np.squeeze(img_, axis=-1)
+
         h_pad, w_pad = self.pad
-        img_padded = cv2.copyMakeBorder(img.copy(), h_pad, h_pad, w_pad, w_pad,
-                                        PadFixed.PAD_FUNCTION[self.pad_method])
-        return img_padded
+        img_ = cv2.copyMakeBorder(img_.copy(), h_pad, h_pad, w_pad, w_pad, PadFixed.PAD_FUNCTION[self.pad_method])
+
+        if self._is_expanded_grey_format(img):
+            img_ = np.expand_dims(img_, axis=-1)
+
+        return img_
 
     def get_parameters(self):
         return []
+
+    def _is_expanded_grey_format(self, img):
+        if len(img.shape) == 3 and img.shape[2] == 1:
+            return True
+        else:
+            return False
 
 
 class RandomCropFixedSize(iaa.Augmenter):
