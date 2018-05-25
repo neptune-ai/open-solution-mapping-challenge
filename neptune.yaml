@@ -76,7 +76,7 @@ parameters:
   patience: 30
   lr_factor: 0.3
   lr_patience: 30
-  w0: 10
+  w0: 50
   sigma: 10
   dice_smooth: 1
   dice_activation: 'softmax'
