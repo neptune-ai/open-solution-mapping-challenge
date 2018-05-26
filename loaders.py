@@ -139,8 +139,8 @@ class MetadataImageSegmentationDatasetDistances(Dataset):
             Di = Di.astype(np.uint16)
             Si = self.load_joblib(size_filepath).astype(np.uint16)
             Si = np.sqrt(Si).astype(np.uint16)
+            Xi, Mi = from_pil(Xi, Mi)
             if self.image_augment_with_target is not None:
-                Xi, Mi = from_pil(Xi, Mi)
                 Xi, Mi, Di, Si = self.image_augment_with_target(Xi, Mi, Di, Si)
             if self.image_augment is not None:
                 Xi = self.image_augment(Xi)
