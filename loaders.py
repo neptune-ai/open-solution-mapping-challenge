@@ -382,11 +382,16 @@ class TestTimeAugmentationGenerator(BaseTransformer):
     def _get_tta_data(self, i, row):
         original_specs = {'ud_flip': False, 'lr_flip': False, 'rotation': 0}
         tta_specs = [original_specs]
-        if self.tta_transformations.flip and self.tta_transformations.rotation:
-            for ud, lr, rot in product([True, False], [True, False], [0, 90, 180, 270]):
+
+        ud_options = [True, False] if self.tta_transformations.flip_ud else [False]
+        lr_options = [True, False] if self.tta_transformations.flip_lr else [False]
+        rot_options = [0, 90, 180, 270] if self.tta_transformations.rotation else [0]
+
+        for ud, lr, rot in product(ud_options, lr_options, rot_options):
+            if ud is False and lr is False and rot == 0:
+                continue
+            else:
                 tta_specs.append({'ud_flip': ud, 'lr_flip': lr, 'rotation': rot})
-        else:
-            raise NotImplementedError('only flips and rotation is available')
 
         img_ids = [i] * len(tta_specs)
         X_rows = [row] * len(tta_specs)
@@ -413,18 +418,40 @@ def test_time_augmentation_transform(image, tta_parameters):
     if tta_parameters['ud_flip']:
         image = np.flipud(image)
     elif tta_parameters['lr_flip']:
-        image = np.flipud(image)
-    image = rotate(image, tta_parameters['rotation'])
+        image = np.fliplr(image)
+    image = rotate(image, tta_parameters['rotation'], preserve_range=True)
     return image
 
 
 def test_time_augmentation_inverse_transform(image, tta_parameters):
+    image = per_channel_rotation(image.copy(), -1 * tta_parameters['rotation'])
+
     if tta_parameters['ud_flip']:
-        image = np.flipud(image)
+        image = per_channel_flipud(image.copy())
     elif tta_parameters['lr_flip']:
-        image = np.flipud(image)
-    image = rotate(image, -1 * tta_parameters['rotation'])
+        image = per_channel_fliplr(image.copy())
     return image
+
+
+def per_channel_flipud(x):
+    x_ = x.copy()
+    for i, channel in enumerate(x):
+        x_[i, :, :] = np.flipud(channel)
+    return x_
+
+
+def per_channel_fliplr(x):
+    x_ = x.copy()
+    for i, channel in enumerate(x):
+        x_[i, :, :] = np.fliplr(channel)
+    return x_
+
+
+def per_channel_rotation(x, angle):
+    x_ = x.copy()
+    for i, channel in enumerate(x):
+        x_[i, :, :] = rotate(channel, angle, preserve_range=True)
+    return x_
 
 
 def binarize(x):

@@ -114,7 +114,6 @@ class PredictionCrop(BaseTransformer):
         self.w_crop = w_crop
 
     def transform(self, images):
-        print('IMAGES',len(images))
         cropped_per_class_predictions = []
         for image in tqdm(images):
             cropped_per_class_prediction = crop_image_center_per_class(image, (self.h_crop, self.w_crop))
@@ -309,7 +308,7 @@ def build_score(image, probabilities):
         score = []
         for label_nr in range(1, category_instances.max() + 1):
             masked_instance = np.ma.masked_array(category_probabilities, mask=category_instances != label_nr)
-            score.append(masked_instance.mean()*np.sqrt(np.count_nonzero(category_instances == label_nr)))
+            score.append(masked_instance.mean() * np.sqrt(np.count_nonzero(category_instances == label_nr)))
         total_score.append(score)
     return total_score
 
