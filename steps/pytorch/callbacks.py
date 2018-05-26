@@ -159,7 +159,7 @@ class ValidationMonitor(Callback):
     def on_epoch_end(self, *args, **kwargs):
         if self.epoch_every and ((self.epoch_id % self.epoch_every) == 0):
             self.model.eval()
-            val_loss = score_model(self.model, self.loss_function, self.validation_datagen)
+            val_loss = self.get_validation_loss()
             self.model.train()
             for name, loss in val_loss.items():
                 loss = loss.data.cpu().numpy()[0]
@@ -174,8 +174,9 @@ class EarlyStopping(Callback):
         self.minimize = minimize
         self.best_score = None
         self.epoch_since_best = 0
+        self._training_break = False
 
-    def training_break(self, *args, **kwargs):
+    def on_epoch_end(self, *args, **kwargs):
         self.model.eval()
         val_loss = self.get_validation_loss()
         loss_sum = val_loss['sum']
@@ -193,9 +194,11 @@ class EarlyStopping(Callback):
             self.epoch_since_best += 1
 
         if self.epoch_since_best > self.patience:
-            return True
-        else:
-            return False
+            self._training_break = True
+        self.epoch_id += 1
+
+    def training_break(self, *args, **kwargs):
+        return self._training_break
 
 
 class ExponentialLRScheduler(Callback):
