@@ -1,12 +1,15 @@
+from itertools import product
 import os
 
+from attrdict import AttrDict
 import numpy as np
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
-from attrdict import AttrDict
+import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
+from skimage.transform import rotate
 
 from augmentation import fast_seq, crop_seq, padding_seq
 from steps.base import BaseTransformer
@@ -364,22 +367,63 @@ class ImageSegmentationLoaderInferencePaddingTTA(ImageSegmentationLoaderBasic):
 
 class TestTimeAugmentationGenerator(BaseTransformer):
     def __init__(self, **kwargs):
-        pass
+        self.tta_transformations = AttrDict(kwargs)
 
     def transform(self, X, **kwargs):
-        return {'X': [], 'tta_params': []}
+        X_tta_rows, tta_params, img_ids = [], [], []
+        for i in range(len(X)):
+            rows, params, ids = self._get_tta_data(i, X[i])
+            tta_params.extend(params)
+            img_ids.extend(ids)
+            X_tta_rows.extend(rows)
+        X_tta = pd.DataFrame(X_tta_rows)
+        return {'X_tta': X_tta, 'tta_params': tta_params, 'img_ids': img_ids}
+
+    def _get_tta_data(self, i, row):
+        original_specs = {'ud_flip': False, 'lr_flip': False, 'rotation': 0}
+        tta_specs = [original_specs]
+        if self.tta_transformations.flip and self.tta_transformations.rotation:
+            for ud, lr, rot in product([True, False], [True, False], [0, 90, 180, 270]):
+                tta_specs.append({'ud_flip': ud, 'lr_flip': lr, 'rotation': rot})
+        else:
+            raise NotImplementedError('only flips and rotation is available')
+
+        img_ids = [i] * len(tta_specs)
+        X_rows = [row] * len(tta_specs)
+        return X_rows, tta_specs, img_ids
 
 
 class TestTimeAugmentationAggregator(BaseTransformer):
-    def transform(self, images, tta_params, **kwargs):
-        return {'aggregated_prediction': []}
+    def transform(self, images, tta_params, img_ids, **kwargs):
+        averages_images = []
+        for img_id in set(img_ids):
+            tta_predictions_for_id = []
+            for image, tta_param, ids in zip(images, tta_params, img_ids):
+                if ids == img_id:
+                    tta_prediction = test_time_augmentation_inverse_transform(image, tta_param)
+                    tta_predictions_for_id.append(tta_prediction)
+                else:
+                    continue
+            tta_averaged = np.mean(np.stack(tta_predictions_for_id, axis=-1), axis=-1)
+            averages_images.append(tta_averaged)
+        return {'aggregated_prediction': averages_images}
 
 
 def test_time_augmentation_transform(image, tta_parameters):
+    if tta_parameters['ud_flip']:
+        image = np.flipud(image)
+    elif tta_parameters['lr_flip']:
+        image = np.flipud(image)
+    image = rotate(image, tta_parameters['rotation'])
     return image
 
 
 def test_time_augmentation_inverse_transform(image, tta_parameters):
+    if tta_parameters['ud_flip']:
+        image = np.flipud(image)
+    elif tta_parameters['lr_flip']:
+        image = np.flipud(image)
+    image = rotate(image, -1 * tta_parameters['rotation'])
     return image
 
 

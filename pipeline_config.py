@@ -109,7 +109,7 @@ SOLUTION_CONFIG = AttrDict({
             'early_stopping': {'patience': params.patience},
         },
     },
-    'tta_generator': {},
+    'tta_generator': {'flip': True, 'rotation': False},
     'dropper': {'min_size': params.min_nuclei_size},
     'postprocessor': {'mask_dilation': {'dilate_selem_size': params.dilate_selem_size
                                         },

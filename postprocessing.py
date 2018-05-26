@@ -114,6 +114,7 @@ class PredictionCrop(BaseTransformer):
         self.w_crop = w_crop
 
     def transform(self, images):
+        print('IMAGES',len(images))
         cropped_per_class_predictions = []
         for image in tqdm(images):
             cropped_per_class_prediction = crop_image_center_per_class(image, (self.h_crop, self.w_crop))

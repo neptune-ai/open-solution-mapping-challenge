@@ -101,7 +101,8 @@ def unet_padded_tta(config):
                           transformer=loaders.TestTimeAugmentationAggregator(),
                           input_steps=[unet, tta_generator],
                           adapter={'images': ([(unet.name, 'multichannel_map_prediction')]),
-                                   'tta_params': ([(tta_generator.name, 'tta_params')])
+                                   'tta_params': ([(tta_generator.name, 'tta_params')]),
+                                   'img_ids': ([(tta_generator.name, 'img_ids')]),
                                    },
                           cache_dirpath=config.env.cache_dirpath,
                           save_output=save_output)
@@ -213,16 +214,14 @@ def preprocessing_generator_padded_tta(config):
                          transformer=loaders.TestTimeAugmentationGenerator(**config.tta_generator),
                          input_steps=[xy_inference],
                          adapter={'X': ([('xy_inference', 'X')]),
-                                  'train_mode': ([('input', 'train_mode')])
                                   },
                          cache_dirpath=config.env.cache_dirpath)
 
     loader = Step(name='loader',
                   transformer=loaders.ImageSegmentationLoaderInferencePaddingTTA(**config.loader),
-                  input_data=['input'],
-                  input_steps=[tta_generator],
-                  adapter={'X': ([(tta_generator.name, 'X')], squeeze_inputs),
-                           'tta_params': ([(tta_generator, 'tta_params')], squeeze_inputs),
+                  input_steps=[xy_inference, tta_generator],
+                  adapter={'X': ([(tta_generator.name, 'X_tta')], squeeze_inputs),
+                           'tta_params': ([(tta_generator.name, 'tta_params')], squeeze_inputs),
                            },
                   cache_dirpath=config.env.cache_dirpath)
     return loader, tta_generator
