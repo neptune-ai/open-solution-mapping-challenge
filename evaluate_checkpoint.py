@@ -51,7 +51,7 @@ def run(temp_inference_dir, experiment_dir, neptune_file):
     with open("temporary_neptune.yaml", 'w+') as f:
         yaml.dump(doc, f, default_flow_style=False)
 
-    cmd = 'neptune run --config temporary_neptune.yaml main.py -- evaluate -p unet_weighted_padded'
+    cmd = 'neptune run --config temporary_neptune.yaml main.py -- evaluate -p unet_padded'
     subprocess.call(cmd, shell=True)
 
     cmd = 'rm temporary_neptune.yaml'
