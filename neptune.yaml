@@ -80,6 +80,7 @@ parameters:
   sigma: 10
   dice_smooth: 1
   dice_activation: 'softmax'
+  validate_with_map: 1
 
 # Regularization
   use_batch_norm: 1

@@ -23,7 +23,7 @@ class Callback:
         self.validation_datagen = None
         self.lr_scheduler = None
 
-    def set_params(self, transformer, validation_datagen):
+    def set_params(self, transformer, validation_datagen, *args, **kwargs):
         self.model = transformer.model
         self.optimizer = transformer.optimizer
         self.loss_function = transformer.loss_function
@@ -54,9 +54,9 @@ class Callback:
         self.batch_id += 1
 
     def get_validation_loss(self):
-        return self.validation_loss.setdefault(self.epoch_id, score_model(self.model,
-                                                                          self.loss_function,
-                                                                          self.validation_datagen))
+        if self.epoch_id not in self.validation_loss.keys():
+            self.validation_loss[self.epoch_id] = score_model(self.model, self.loss_function, self.validation_datagen)
+        return self.validation_loss[self.epoch_id]
 
 
 class CallbackList:
@@ -214,7 +214,7 @@ class ExponentialLRScheduler(Callback):
         else:
             self.batch_every = batch_every
 
-    def set_params(self, transformer, validation_datagen):
+    def set_params(self, transformer, validation_datagen, *args, **kwargs):
         self.validation_datagen = validation_datagen
         self.model = transformer.model
         self.optimizer = transformer.optimizer

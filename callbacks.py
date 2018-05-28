@@ -1,12 +1,18 @@
+import os
 import numpy as np
 import torch
+import json
 from PIL import Image
 from deepsense import neptune
 from torch.autograd import Variable
+from tempfile import TemporaryDirectory
 
-from steps.pytorch.callbacks import NeptuneMonitor
-from utils import softmax, categorize_image
-from pipeline_config import CATEGORY_IDS
+from steps.utils import get_logger
+from steps.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
+from utils import softmax, categorize_image, coco_evaluation, create_annotations
+from pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING
+
+logger = get_logger()
 
 
 class NeptuneMonitorSegmentation(NeptuneMonitor):
@@ -91,3 +97,99 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
                                 prediction_masks[mask_key] = np.stack([prediction, channel_ground_truth], axis=1)
             break
         return prediction_masks
+
+
+class ValidationMonitorSegmentation(ValidationMonitor):
+    def __init__(self, data_dir, validate_with_map=False, small_annotations_size=14, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.data_dir = data_dir
+        self.validate_with_map = validate_with_map
+        self.small_annotations_size = small_annotations_size
+        self.validation_loss = None
+        self.validation_pipeline = None
+        self.meta_valid = None
+
+    def set_params(self, transformer, validation_datagen, *args, meta_valid=None, **kwargs):
+        self.model = transformer.model
+        self.optimizer = transformer.optimizer
+        self.loss_function = transformer.loss_function
+        self.output_names = transformer.output_names
+        self.validation_datagen = validation_datagen
+        self.validation_loss = transformer.validation_loss
+        self.validation_pipeline = transformer.validation_pipeline
+        self.meta_valid = meta_valid
+
+    def get_validation_loss(self):
+        if self.validate_with_map and self.validation_pipeline is not None:
+            return self._get_validation_loss()
+        else:
+            return super().get_validation_loss()
+
+    def _get_validation_loss(self):
+        outputs = self._transform()
+        prediction = self._generate_prediction(outputs)
+        if len(prediction) == 0:
+            return self.validation_loss.setdefault(self.epoch_id, {'sum': Variable(torch.Tensor([0]))})
+
+        with TemporaryDirectory() as temp_dir:
+            prediction_filepath = os.path.join(temp_dir, 'prediction.json')
+            with open(prediction_filepath, "w") as fp:
+                fp.write(json.dumps(prediction))
+
+            annotation_file_path = os.path.join(self.data_dir, 'val', "annotation.json")
+
+            logger.info('Calculating mean precision and recall')
+            average_precision, average_recall = coco_evaluation(gt_filepath=annotation_file_path,
+                                                                prediction_filepath=prediction_filepath,
+                                                                image_ids=self.meta_valid[Y_COLUMNS_SCORING].values,
+                                                                category_ids=CATEGORY_IDS[1:],
+                                                                small_annotations_size=self.small_annotations_size)
+        return self.validation_loss.setdefault(self.epoch_id, {'sum': Variable(torch.Tensor([average_precision]))})
+
+    def _transform(self):
+        self.model.eval()
+        batch_gen, steps = self.validation_datagen
+        outputs = {}
+        for batch_id, data in enumerate(batch_gen):
+            if isinstance(data, list):
+                X = data[0]
+            else:
+                X = data
+
+            if torch.cuda.is_available():
+                X = Variable(X, volatile=True).cuda()
+            else:
+                X = Variable(X, volatile=True)
+
+            outputs_batch = self.model(X)
+            if len(self.output_names) == 1:
+                outputs.setdefault(self.output_names[0], []).append(outputs_batch.data.cpu().numpy())
+            else:
+                for name, output in zip(self.output_names, outputs_batch):
+                    output_ = output.data.cpu().numpy()
+                    outputs.setdefault(name, []).append(output_)
+            if batch_id == steps:
+                break
+        self.model.train()
+        outputs = {'{}_prediction'.format(name): np.vstack(outputs_) for name, outputs_ in outputs.items()}
+        for name, prediction in outputs.items():
+            outputs[name] = softmax(prediction, axis=1)
+
+        return outputs
+
+    def _generate_prediction(self, outputs):
+        data = {'input': {'meta': self.meta_valid,
+                          'meta_valid': None,
+                          'train_mode': False,
+                          'target_sizes': [(300, 300)] * len(self.meta_valid),
+                          **outputs
+                          },
+                }
+
+        self.validation_pipeline.clean_cache()
+        output = self.validation_pipeline.fit_transform(data)
+        self.validation_pipeline.clean_cache()
+        y_pred = output['y_pred']
+
+        prediction = create_annotations(self.meta_valid, y_pred, logger, CATEGORY_IDS)
+        return prediction

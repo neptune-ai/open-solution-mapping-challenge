@@ -101,7 +101,12 @@ SOLUTION_CONFIG = AttrDict({
                                  'epoch_every': 1},
             'experiment_timing': {'batch_every': 10,
                                   'epoch_every': 1},
-            'validation_monitor': {'epoch_every': 1},
+            'validation_monitor': {
+                'epoch_every': 1,
+                'data_dir': params.data_dir,
+                'validate_with_map': params.validate_with_map,
+                'small_annotations_size': params.small_annotations_size,
+            },
             'neptune_monitor': {'model_name': 'unet',
                                 'image_nr': 16,
                                 'image_resize': 0.2,

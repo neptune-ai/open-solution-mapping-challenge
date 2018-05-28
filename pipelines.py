@@ -1,4 +1,5 @@
 from functools import partial
+import os
 
 import loaders
 from steps.base import Step, Dummy
@@ -14,8 +15,10 @@ def unet(config, train_mode):
 
     loader = preprocessing_generator(config, is_train=train_mode)
     unet = Step(name='unet',
-                transformer=PyTorchUNetStream(**config.unet) if config.execution.stream_mode else PyTorchUNet(
-                    **config.unet),
+                transformer=PyTorchUNetStream(**config.unet)
+                if config.execution.stream_mode
+                else PyTorchUNet(**config.unet),
+                input_data=['input'],
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
@@ -25,8 +28,7 @@ def unet(config, train_mode):
     output = Step(name='output',
                   transformer=Dummy(),
                   input_steps=[mask_postprocessed],
-                  adapter={'y_pred': ([(mask_postprocessed.name, 'images')]),
-                           'y_scores': ([(mask_postprocessed.name, 'scores')])
+                  adapter={'y_pred': ([(mask_postprocessed.name, 'images_with_scores')]),
                            },
                   cache_dirpath=config.env.cache_dirpath,
                   save_output=save_output,
@@ -131,6 +133,17 @@ def unet_padded_tta(config):
                   cache_dirpath=config.env.cache_dirpath,
                   save_output=save_output)
     return output
+
+def unet_validation_padded(config):
+    unet_validation_padded = unet_padded(config, False)
+    first_step = unet_validation_padded.get_step('prediction_crop')
+    first_step.input_steps = []
+    first_step.input_data = ['input']
+    first_step.adapter = {'images': ([('input', 'multichannel_map_prediction')]), }
+    for step_name in unet_validation_padded.all_steps:
+        step = unet_validation_padded.get_step(step_name)
+        step.cache_dirpath = os.path.join(step.cache_dirpath, 'temp')
+    return unet_validation_padded
 
 
 def multiclass_object_labeler(postprocessed_mask, config, save_output=False):
