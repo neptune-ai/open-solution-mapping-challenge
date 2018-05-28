@@ -2,11 +2,14 @@ import os
 import numpy as np
 import torch
 import json
+import subprocess
 from PIL import Image
 from deepsense import neptune
 from torch.autograd import Variable
 from tempfile import TemporaryDirectory
 
+import postprocessing as post
+from steps.base import Step, Dummy
 from steps.utils import get_logger
 from steps.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
 from utils import softmax, categorize_image, coco_evaluation, create_annotations
@@ -100,38 +103,37 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
 
 
 class ValidationMonitorSegmentation(ValidationMonitor):
-    def __init__(self, data_dir, validate_with_map=False, small_annotations_size=14, *args, **kwargs):
+    def __init__(self, data_dir, small_annotations_size, validate_with_map=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data_dir = data_dir
-        self.validate_with_map = validate_with_map
         self.small_annotations_size = small_annotations_size
+        self.validate_with_map = validate_with_map
+        self.validation_pipeline = postprocessing__pipeline_simplified
         self.validation_loss = None
-        self.validation_pipeline = None
         self.meta_valid = None
 
-    def set_params(self, transformer, validation_datagen, *args, meta_valid=None, **kwargs):
+    def set_params(self, transformer, validation_datagen, meta_valid=None, *args, **kwargs):
         self.model = transformer.model
         self.optimizer = transformer.optimizer
         self.loss_function = transformer.loss_function
         self.output_names = transformer.output_names
         self.validation_datagen = validation_datagen
-        self.validation_loss = transformer.validation_loss
-        self.validation_pipeline = transformer.validation_pipeline
         self.meta_valid = meta_valid
+        self.validation_loss = transformer.validation_loss
 
     def get_validation_loss(self):
-        if self.validate_with_map and self.validation_pipeline is not None:
+        if self.validate_with_map:
             return self._get_validation_loss()
         else:
             return super().get_validation_loss()
 
     def _get_validation_loss(self):
-        outputs = self._transform()
-        prediction = self._generate_prediction(outputs)
-        if len(prediction) == 0:
-            return self.validation_loss.setdefault(self.epoch_id, {'sum': Variable(torch.Tensor([0]))})
-
         with TemporaryDirectory() as temp_dir:
+            outputs = self._transform()
+            prediction = self._generate_prediction(temp_dir, outputs)
+            if len(prediction) == 0:
+                return self.validation_loss.setdefault(self.epoch_id, {'sum': Variable(torch.Tensor([0]))})
+
             prediction_filepath = os.path.join(temp_dir, 'prediction.json')
             with open(prediction_filepath, "w") as fp:
                 fp.write(json.dumps(prediction))
@@ -177,19 +179,61 @@ class ValidationMonitorSegmentation(ValidationMonitor):
 
         return outputs
 
-    def _generate_prediction(self, outputs):
-        data = {'input': {'meta': self.meta_valid,
-                          'meta_valid': None,
-                          'train_mode': False,
-                          'target_sizes': [(300, 300)] * len(self.meta_valid),
-                          **outputs
-                          },
+    def _generate_prediction(self, cache_dirpath, outputs):
+        data = {'callback_input': {'meta': self.meta_valid,
+                                   'meta_valid': None,
+                                   'target_sizes': [(300, 300)] * len(self.meta_valid),
+                                   },
+                'unet_output': {**outputs}
                 }
 
-        self.validation_pipeline.clean_cache()
-        output = self.validation_pipeline.fit_transform(data)
-        self.validation_pipeline.clean_cache()
+        pipeline = self.validation_pipeline(cache_dirpath)
+        for step_name in pipeline.all_steps:
+            cmd = 'touch {}'.format(os.path.join(cache_dirpath, 'transformers', step_name))
+            subprocess.call(cmd, shell=True)
+        output = pipeline.transform(data)
         y_pred = output['y_pred']
 
         prediction = create_annotations(self.meta_valid, y_pred, logger, CATEGORY_IDS)
         return prediction
+
+
+def postprocessing__pipeline_simplified(cache_dirpath):
+    mask_resize = Step(name='mask_resize',
+                       transformer=post.Resizer(),
+                       input_data=['unet_output', 'callback_input'],
+                       adapter={'images': ([('unet_output', 'multichannel_map_prediction')]),
+                                'target_sizes': ([('callback_input', 'target_sizes')]),
+                                },
+                       cache_dirpath=cache_dirpath)
+
+    category_mapper = Step(name='category_mapper',
+                           transformer=post.CategoryMapper(),
+                           input_steps=[mask_resize],
+                           adapter={'images': ([('mask_resize', 'resized_images')]),
+                                    },
+                           cache_dirpath=cache_dirpath)
+
+    labeler = Step(name='labeler',
+                   transformer=post.MulticlassLabeler(),
+                   input_steps=[category_mapper],
+                   adapter={'images': ([(category_mapper.name, 'categorized_images')]),
+                            },
+                   cache_dirpath=cache_dirpath)
+
+    score_builder = Step(name='score_builder',
+                         transformer=post.ScoreBuilder(),
+                         input_steps=[labeler, mask_resize],
+                         adapter={'images': ([(labeler.name, 'labeled_images')]),
+                                  'probabilities': ([(mask_resize.name, 'resized_images')]),
+                                  },
+                         cache_dirpath=cache_dirpath)
+
+    output = Step(name='output',
+                  transformer=Dummy(),
+                  input_steps=[score_builder],
+                  adapter={'y_pred': ([(score_builder.name, 'images_with_scores')]),
+                           },
+                  cache_dirpath=cache_dirpath)
+
+    return output

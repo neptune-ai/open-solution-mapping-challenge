@@ -10,7 +10,7 @@ params = read_params(ctx)
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
-Y_COLUMNS = ['file_path_mask_eroded_3_dilated_0']
+Y_COLUMNS = ['file_path_mask_eroded_0_dilated_0']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
 MEAN = [0.485, 0.456, 0.406]
@@ -91,7 +91,9 @@ SOLUTION_CONFIG = AttrDict({
         'callbacks_config': {
             'model_checkpoint': {
                 'filepath': os.path.join(GLOBAL_CONFIG['exp_root'], 'checkpoints', 'unet', 'best.torch'),
-                'epoch_every': 1},
+                'epoch_every': 1,
+                'minimize': not params.validate_with_map
+            },
             'exp_lr_scheduler': {'gamma': params.gamma,
                                  'epoch_every': 1},
             'plateau_lr_scheduler': {'lr_factor': params.lr_factor,
@@ -111,7 +113,8 @@ SOLUTION_CONFIG = AttrDict({
                                 'image_nr': 16,
                                 'image_resize': 0.2,
                                 'outputs_to_plot': params.unet_outputs_to_plot},
-            'early_stopping': {'patience': params.patience},
+            'early_stopping': {'patience': params.patience,
+                'minimize': not params.validate_with_map},
         },
     },
     'tta_generator': {'flip_ud': True,

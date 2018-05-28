@@ -267,7 +267,7 @@ class ModelCheckpoint(Callback):
 
             self.model.train()
 
-            if not self.best_score:
+            if self.best_score is None:
                 self.best_score = loss_sum
 
             if (self.minimize and loss_sum < self.best_score) or (not self.minimize and loss_sum > self.best_score) or (

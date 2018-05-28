@@ -7,7 +7,7 @@ from torch import optim
 
 from callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
 from steps.pytorch.architectures.unet import UNet
-from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ValidationMonitor, ModelCheckpoint, \
+from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
 from steps.pytorch.models import Model
 from steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
@@ -42,7 +42,7 @@ PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
 
 
 class BasePyTorchUNet(Model):
-    def __init__(self, architecture_config, training_config, callbacks_config, validation_pipeline):
+    def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
         self.set_model()
         self.weight_regularization = weight_regularization_unet
@@ -50,9 +50,8 @@ class BasePyTorchUNet(Model):
                                     **architecture_config['optimizer_params'])
         self.loss_function = None
         self.callbacks = callbacks_unet(self.callbacks_config)
-        self.validation_pipeline = validation_pipeline
 
-    def fit(self, datagen, validation_datagen=None, meta_valid=None, *args, **kwargs):
+    def fit(self, datagen, validation_datagen=None, meta_valid=None):
         self._initialize_model_weights()
 
         self.model = nn.DataParallel(self.model)
@@ -95,14 +94,14 @@ class BasePyTorchUNet(Model):
 
 
 class PyTorchUNet(BasePyTorchUNet):
-    def __init__(self, architecture_config, training_config, callbacks_config, validation_pipeline=None):
-        super().__init__(architecture_config, training_config, callbacks_config, validation_pipeline)
+    def __init__(self, architecture_config, training_config, callbacks_config):
+        super().__init__(architecture_config, training_config, callbacks_config)
         self.loss_function = [('multichannel_map', multiclass_segmentation_loss, 1.0)]
 
 
 class PyTorchUNetStream(BasePyTorchUNet):
-    def __init__(self, architecture_config, training_config, callbacks_config, validation_pipeline=None):
-        super().__init__(architecture_config, training_config, callbacks_config, validation_pipeline)
+    def __init__(self, architecture_config, training_config, callbacks_config):
+        super().__init__(architecture_config, training_config, callbacks_config)
         self.loss_function = [('multichannel_map', multiclass_segmentation_loss, 1.0)]
 
     def transform(self, datagen, validation_datagen=None):
@@ -140,8 +139,8 @@ class PyTorchUNetStream(BasePyTorchUNet):
 
 
 class PyTorchUNetWeighted(BasePyTorchUNet):
-    def __init__(self, architecture_config, training_config, callbacks_config, validation_pipeline=None):
-        super().__init__(architecture_config, training_config, callbacks_config, validation_pipeline)
+    def __init__(self, architecture_config, training_config, callbacks_config):
+        super().__init__(architecture_config, training_config, callbacks_config)
         weighted_loss = partial(multiclass_weighted_cross_entropy,
                                 **get_loss_variables(**architecture_config['weighted_cross_entropy']))
         loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
@@ -158,8 +157,8 @@ class PyTorchUNetWeighted(BasePyTorchUNet):
 
 
 class PyTorchUNetWeightedStream(BasePyTorchUNet):
-    def __init__(self, architecture_config, training_config, callbacks_config, validation_pipeline=None):
-        super().__init__(architecture_config, training_config, callbacks_config, validation_pipeline)
+    def __init__(self, architecture_config, training_config, callbacks_config):
+        super().__init__(architecture_config, training_config, callbacks_config)
         weighted_loss = partial(multiclass_weighted_cross_entropy,
                                 **get_loss_variables(**architecture_config['weighted_cross_entropy']))
         loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],

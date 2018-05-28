@@ -93,8 +93,8 @@ parameters:
   threshold: 0.5
   min_nuclei_size: 20
   erosion_percentages: '[10,20,30]'
-  erode_selem_size: 2
-  dilate_selem_size: 3
+  erode_selem_size: 0
+  dilate_selem_size: 0
 
 # Inference padding
   crop_image_h: 300

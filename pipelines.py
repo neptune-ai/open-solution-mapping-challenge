@@ -18,7 +18,7 @@ def unet(config, train_mode):
                 transformer=PyTorchUNetStream(**config.unet)
                 if config.execution.stream_mode
                 else PyTorchUNet(**config.unet),
-                input_data=['input'],
+                input_data=['callback_input'],
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
@@ -134,17 +134,6 @@ def unet_padded_tta(config):
                   save_output=save_output)
     return output
 
-def unet_validation_padded(config):
-    unet_validation_padded = unet_padded(config, False)
-    first_step = unet_validation_padded.get_step('prediction_crop')
-    first_step.input_steps = []
-    first_step.input_data = ['input']
-    first_step.adapter = {'images': ([('input', 'multichannel_map_prediction')]), }
-    for step_name in unet_validation_padded.all_steps:
-        step = unet_validation_padded.get_step(step_name)
-        step.cache_dirpath = os.path.join(step.cache_dirpath, 'temp')
-    return unet_validation_padded
-
 
 def multiclass_object_labeler(postprocessed_mask, config, save_output=False):
     labeler = Step(name='labeler',
@@ -168,27 +157,27 @@ def preprocessing_generator(config, is_train):
     if is_train:
         xy_train = Step(name='xy_train',
                         transformer=XYSplit(**config.xy_splitter),
-                        input_data=['input'],
+                        input_data=['input', 'specs'],
                         adapter={'meta': ([('input', 'meta')]),
-                                 'train_mode': ([('input', 'train_mode')])
+                                 'train_mode': ([('specs', 'train_mode')])
                                  },
                         cache_dirpath=config.env.cache_dirpath)
 
         xy_inference = Step(name='xy_inference',
                             transformer=XYSplit(**config.xy_splitter),
-                            input_data=['input'],
-                            adapter={'meta': ([('input', 'meta_valid')]),
-                                     'train_mode': ([('input', 'train_mode')])
+                            input_data=['callback_input', 'specs'],
+                            adapter={'meta': ([('callback_input', 'meta_valid')]),
+                                     'train_mode': ([('specs', 'train_mode')])
                                      },
                             cache_dirpath=config.env.cache_dirpath)
 
         loader = Step(name='loader',
                       transformer=Loader(**config.loader),
-                      input_data=['input'],
+                      input_data=['specs'],
                       input_steps=[xy_train, xy_inference],
                       adapter={'X': ([('xy_train', 'X')], squeeze_inputs),
                                'y': ([('xy_train', 'y')], squeeze_inputs),
-                               'train_mode': ([('input', 'train_mode')]),
+                               'train_mode': ([('specs', 'train_mode')]),
                                'X_valid': ([('xy_inference', 'X')], squeeze_inputs),
                                'y_valid': ([('xy_inference', 'y')], squeeze_inputs),
                                },
@@ -196,19 +185,19 @@ def preprocessing_generator(config, is_train):
     else:
         xy_inference = Step(name='xy_inference',
                             transformer=XYSplit(**config.xy_splitter),
-                            input_data=['input'],
+                            input_data=['input', 'specs'],
                             adapter={'meta': ([('input', 'meta')]),
-                                     'train_mode': ([('input', 'train_mode')])
+                                     'train_mode': ([('specs', 'train_mode')])
                                      },
                             cache_dirpath=config.env.cache_dirpath)
 
         loader = Step(name='loader',
                       transformer=Loader(**config.loader),
-                      input_data=['input'],
+                      input_data=['specs'],
                       input_steps=[xy_inference, xy_inference],
                       adapter={'X': ([('xy_inference', 'X')], squeeze_inputs),
                                'y': ([('xy_inference', 'y')], squeeze_inputs),
-                               'train_mode': ([('input', 'train_mode')]),
+                               'train_mode': ([('specs', 'train_mode')]),
                                },
                       cache_dirpath=config.env.cache_dirpath)
     return loader
@@ -217,9 +206,9 @@ def preprocessing_generator(config, is_train):
 def preprocessing_generator_padded_tta(config):
     xy_inference = Step(name='xy_inference',
                         transformer=XYSplit(**config.xy_splitter),
-                        input_data=['input'],
+                        input_data=['input', 'specs'],
                         adapter={'meta': ([('input', 'meta')]),
-                                 'train_mode': ([('input', 'train_mode')])
+                                 'train_mode': ([('specs', 'train_mode')])
                                  },
                         cache_dirpath=config.env.cache_dirpath)
 
