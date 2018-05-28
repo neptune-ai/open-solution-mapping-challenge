@@ -149,7 +149,7 @@ class Step:
                     step_inputs[input_data_part] = data[input_data_part]
 
             for input_step in self.input_steps:
-                step_inputs[input_step.name] = input_step.fit_transform(data)
+                step_inputs[input_step.name] = input_step.transform(data)
 
             if self.adapter:
                 step_inputs = self.adapt(step_inputs)
