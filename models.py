@@ -77,7 +77,7 @@ class BasePyTorchUNet(Model):
         self.callbacks.on_train_end()
         return self
 
-    def transform(self, datagen, validation_datagen=None):
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
         outputs = self._transform(datagen, validation_datagen)
         for name, prediction in outputs.items():
             outputs[name] = softmax(prediction, axis=1)
@@ -104,7 +104,7 @@ class PyTorchUNetStream(BasePyTorchUNet):
         super().__init__(architecture_config, training_config, callbacks_config)
         self.loss_function = [('multichannel_map', multiclass_segmentation_loss, 1.0)]
 
-    def transform(self, datagen, validation_datagen=None):
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
         if len(self.output_names) == 1:
             output_generator = self._transform(datagen, validation_datagen)
             output = {'{}_prediction'.format(self.output_names[0]): output_generator}
@@ -149,7 +149,7 @@ class PyTorchUNetWeighted(BasePyTorchUNet):
                        **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
 
-    def transform(self, datagen, validation_datagen=None):
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
         outputs = self._transform(datagen, validation_datagen)
         for name, prediction in outputs.items():
             outputs[name] = softmax(prediction, axis=1)
@@ -167,7 +167,7 @@ class PyTorchUNetWeightedStream(BasePyTorchUNet):
                        **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
 
-    def transform(self, datagen, validation_datagen=None):
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
         if len(self.output_names) == 1:
             output_generator = self._transform(datagen, validation_datagen)
             output = {'{}_prediction'.format(self.output_names[0]): output_generator}
