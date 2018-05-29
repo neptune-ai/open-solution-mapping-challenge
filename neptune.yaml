@@ -41,14 +41,15 @@ parameters:
   pin_memory: 1
   competition_stage: 1
   api_key: YOUR_CROWDAI_API_KEY
-  stream_mode: 1
+  stream_mode: 0
   evaluation_data_sample: 1000
   border_width: 0
   small_annotations_size: 14
+  loader_mode: crop_and_pad
 
 # General parameters
-  image_h: 192
-  image_w: 192
+  image_h: 256
+  image_w: 256
   image_channels: 3
 
 # U-Net parameters (multi-output)
@@ -63,22 +64,23 @@ parameters:
 
 # U-Net loss weights (multi-output)
   bce_mask: 1.0
-  dice_mask: 1.0
+  dice_mask: 0.2
 
 # Training schedule
   epochs_nr: 100
   batch_size_train: 20
   batch_size_inference: 20
-  lr: 0.0001
+  lr: 0.0005
   momentum: 0.9
-  gamma: 0.99
+  gamma: 1.0
   patience: 30
   lr_factor: 0.3
   lr_patience: 30
-  w0: 10
+  w0: 50
   sigma: 10
   dice_smooth: 1
   dice_activation: 'softmax'
+  validate_with_map: 1
 
 # Regularization
   use_batch_norm: 1
@@ -91,8 +93,8 @@ parameters:
   threshold: 0.5
   min_nuclei_size: 20
   erosion_percentages: '[10,20,30]'
-  erode_selem_size: 2
-  dilate_selem_size: 3
+  erode_selem_size: 0
+  dilate_selem_size: 0
 
 # Inference padding
   crop_image_h: 300

@@ -92,10 +92,9 @@ def _train(pipeline_name, dev_mode):
         meta_valid = meta_valid.sample(10, random_state=seed)
 
     data = {'input': {'meta': meta_train,
-                      'meta_valid': meta_valid,
-                      'train_mode': True,
-                      'target_sizes': [(300, 300)] * len(meta_train),
-                      },
+                      'target_sizes': [(300, 300)] * len(meta_train)},
+            'specs': {'train_mode': True},
+            'callback_input': {'meta_valid': meta_valid}
             }
 
     pipeline = PIPELINES[pipeline_name]['train'](SOLUTION_CONFIG)
@@ -239,10 +238,10 @@ def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size):
 
 def _generate_prediction(meta_data, pipeline, logger, category_ids):
     data = {'input': {'meta': meta_data,
-                      'meta_valid': None,
-                      'train_mode': False,
                       'target_sizes': [(300, 300)] * len(meta_data),
                       },
+            'specs': {'train_mode': True},
+            'callback_input': {'meta_valid': None}
             }
 
     pipeline.clean_cache()
@@ -258,10 +257,10 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
     prediction = []
     for meta_chunk in generate_data_frame_chunks(meta_data, chunk_size):
         data = {'input': {'meta': meta_chunk,
-                          'meta_valid': None,
-                          'train_mode': False,
                           'target_sizes': [(300, 300)] * len(meta_chunk)
                           },
+                'specs': {'train_mode': True},
+                'callback_input': {'meta_valid': None}
                 }
 
         pipeline.clean_cache()

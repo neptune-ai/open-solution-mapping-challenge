@@ -23,7 +23,7 @@ class Callback:
         self.validation_datagen = None
         self.lr_scheduler = None
 
-    def set_params(self, transformer, validation_datagen):
+    def set_params(self, transformer, validation_datagen, *args, **kwargs):
         self.model = transformer.model
         self.optimizer = transformer.optimizer
         self.loss_function = transformer.loss_function
@@ -54,9 +54,9 @@ class Callback:
         self.batch_id += 1
 
     def get_validation_loss(self):
-        return self.validation_loss.setdefault(self.epoch_id, score_model(self.model,
-                                                                          self.loss_function,
-                                                                          self.validation_datagen))
+        if self.epoch_id not in self.validation_loss.keys():
+            self.validation_loss[self.epoch_id] = score_model(self.model, self.loss_function, self.validation_datagen)
+        return self.validation_loss[self.epoch_id]
 
 
 class CallbackList:
@@ -174,8 +174,9 @@ class EarlyStopping(Callback):
         self.minimize = minimize
         self.best_score = None
         self.epoch_since_best = 0
+        self._training_break = False
 
-    def training_break(self, *args, **kwargs):
+    def on_epoch_end(self, *args, **kwargs):
         self.model.eval()
         val_loss = self.get_validation_loss()
         loss_sum = val_loss['sum']
@@ -193,9 +194,11 @@ class EarlyStopping(Callback):
             self.epoch_since_best += 1
 
         if self.epoch_since_best > self.patience:
-            return True
-        else:
-            return False
+            self._training_break = True
+        self.epoch_id += 1
+
+    def training_break(self, *args, **kwargs):
+        return self._training_break
 
 
 class ExponentialLRScheduler(Callback):
@@ -211,7 +214,7 @@ class ExponentialLRScheduler(Callback):
         else:
             self.batch_every = batch_every
 
-    def set_params(self, transformer, validation_datagen):
+    def set_params(self, transformer, validation_datagen, *args, **kwargs):
         self.validation_datagen = validation_datagen
         self.model = transformer.model
         self.optimizer = transformer.optimizer
@@ -264,7 +267,7 @@ class ModelCheckpoint(Callback):
 
             self.model.train()
 
-            if not self.best_score:
+            if self.best_score is None:
                 self.best_score = loss_sum
 
             if (self.minimize and loss_sum < self.best_score) or (not self.minimize and loss_sum > self.best_score) or (

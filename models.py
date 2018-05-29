@@ -1,12 +1,13 @@
 from functools import partial
 
 import torch
+import torch.nn as nn
 from torch.autograd import Variable
 from torch import optim
 
-from callbacks import NeptuneMonitorSegmentation
+from callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
 from steps.pytorch.architectures.unet import UNet
-from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ValidationMonitor, ModelCheckpoint, \
+from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
 from steps.pytorch.models import Model
 from steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
@@ -34,23 +35,49 @@ PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
                                      'init_weights': False},
                        'ResNet152': {'model': UNetResNet,
                                      'model_config': {'encoder_depth': 152, 'num_classes': 2,
-                                                      'num_filters': 64, 'dropout_2d': 0.25,
+                                                      'num_filters': 32, 'dropout_2d': 0.0,
                                                       'pretrained': True, 'is_deconv': True, },
                                      'init_weights': False}
                        }
 
 
-class PyTorchUNet(Model):
+class BasePyTorchUNet(Model):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
         self.set_model()
         self.weight_regularization = weight_regularization_unet
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
-        self.loss_function = [('multichannel_map', multiclass_segmentation_loss, 1.0)]
+        self.loss_function = None
         self.callbacks = callbacks_unet(self.callbacks_config)
 
-    def transform(self, datagen, validation_datagen=None):
+    def fit(self, datagen, validation_datagen=None, meta_valid=None):
+        self._initialize_model_weights()
+
+        self.model = nn.DataParallel(self.model)
+
+        if torch.cuda.is_available():
+            self.model = self.model.cuda()
+
+        self.callbacks.set_params(self, validation_datagen=validation_datagen, meta_valid=meta_valid)
+        self.callbacks.on_train_begin()
+
+        batch_gen, steps = datagen
+        for epoch_id in range(self.training_config['epochs']):
+            self.callbacks.on_epoch_begin()
+            for batch_id, data in enumerate(batch_gen):
+                self.callbacks.on_batch_begin()
+                metrics = self._fit_loop(data)
+                self.callbacks.on_batch_end(metrics=metrics)
+                if batch_id == steps:
+                    break
+            self.callbacks.on_epoch_end()
+            if self.callbacks.training_break():
+                break
+        self.callbacks.on_train_end()
+        return self
+
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
         outputs = self._transform(datagen, validation_datagen)
         for name, prediction in outputs.items():
             outputs[name] = softmax(prediction, axis=1)
@@ -66,17 +93,18 @@ class PyTorchUNet(Model):
             self._initialize_model_weights = lambda: None
 
 
-class PyTorchUNetStream(Model):
+class PyTorchUNet(BasePyTorchUNet):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        self.set_model()
-        self.weight_regularization = weight_regularization_unet
-        self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
-                                    **architecture_config['optimizer_params'])
         self.loss_function = [('multichannel_map', multiclass_segmentation_loss, 1.0)]
-        self.callbacks = callbacks_unet(self.callbacks_config)
 
-    def transform(self, datagen, validation_datagen=None):
+
+class PyTorchUNetStream(BasePyTorchUNet):
+    def __init__(self, architecture_config, training_config, callbacks_config):
+        super().__init__(architecture_config, training_config, callbacks_config)
+        self.loss_function = [('multichannel_map', multiclass_segmentation_loss, 1.0)]
+
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
         if len(self.output_names) == 1:
             output_generator = self._transform(datagen, validation_datagen)
             output = {'{}_prediction'.format(self.output_names[0]): output_generator}
@@ -84,15 +112,6 @@ class PyTorchUNetStream(Model):
         else:
             raise NotImplementedError
 
-    def set_model(self):
-        encoder = self.architecture_config['model_params']['encoder']
-        if encoder != 'standard':
-            config = PRETRAINED_NETWORKS[encoder]
-            self.model = config['model'](**config['model_config'])
-            self._initialize_model_weights = lambda: None
-        else:
-            self.model = UNet(**self.architecture_config['model_params'])
-
     def _transform(self, datagen, validation_datagen=None):
         self.model.eval()
         batch_gen, steps = datagen
@@ -119,13 +138,9 @@ class PyTorchUNetStream(Model):
         self.model.train()
 
 
-class PyTorchUNetWeighted(Model):
+class PyTorchUNetWeighted(BasePyTorchUNet):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        self.set_model()
-        self.weight_regularization = weight_regularization_unet
-        self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
-                                    **architecture_config['optimizer_params'])
         weighted_loss = partial(multiclass_weighted_cross_entropy,
                                 **get_loss_variables(**architecture_config['weighted_cross_entropy']))
         loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
@@ -133,45 +148,32 @@ class PyTorchUNetWeighted(Model):
                        cross_entropy_loss=weighted_loss,
                        **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
-        self.callbacks = callbacks_unet(self.callbacks_config)
 
-    def transform(self, datagen, validation_datagen=None):
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
         outputs = self._transform(datagen, validation_datagen)
         for name, prediction in outputs.items():
             outputs[name] = softmax(prediction, axis=1)
         return outputs
 
-    def set_model(self):
-        encoder = self.architecture_config['model_params']['encoder']
-        if encoder == 'from_scratch':
-            self.model = UNet(**self.architecture_config['model_params'])
+
+class PyTorchUNetWeightedStream(BasePyTorchUNet):
+    def __init__(self, architecture_config, training_config, callbacks_config):
+        super().__init__(architecture_config, training_config, callbacks_config)
+        weighted_loss = partial(multiclass_weighted_cross_entropy,
+                                **get_loss_variables(**architecture_config['weighted_cross_entropy']))
+        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
+                       cross_entropy_weight=architecture_config['loss_weights']['bce_mask'],
+                       cross_entropy_loss=weighted_loss,
+                       **architecture_config['dice'])
+        self.loss_function = [('multichannel_map', loss, 1.0)]
+
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
+        if len(self.output_names) == 1:
+            output_generator = self._transform(datagen, validation_datagen)
+            output = {'{}_prediction'.format(self.output_names[0]): output_generator}
+            return output
         else:
-            config = PRETRAINED_NETWORKS[encoder]
-            self.model = config['model'](**config['model_config'])
-            self._initialize_model_weights = lambda: None
-
-
-class PyTorchUNetWeightedStream(Model):
-    def __init__(self, architecture_config, training_config, callbacks_config):
-        super().__init__(architecture_config, training_config, callbacks_config)
-        self.set_model()
-        self.weight_regularization = weight_regularization_unet
-        self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
-                                    **architecture_config['optimizer_params'])
-        weighted_loss = partial(multiclass_weighted_cross_entropy,
-                                **get_loss_variables(**architecture_config['weighted_cross_entropy']))
-        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
-                       cross_entropy_weight=architecture_config['loss_weights']['bce_mask'],
-                       cross_entropy_loss=weighted_loss,
-                       **architecture_config['dice'])
-        self.loss_function = [('multichannel_map', loss, 1.0)]
-        self.callbacks = callbacks_unet(self.callbacks_config)
-
-    def transform(self, datagen, validation_datagen=None):
-        outputs = self._transform(datagen, validation_datagen)
-        for name, prediction in outputs.items():
-            outputs[name] = softmax(prediction, axis=1)
-        return outputs
+            raise NotImplementedError
 
     def _transform(self, datagen, validation_datagen=None):
         self.model.eval()
@@ -197,15 +199,6 @@ class PyTorchUNetWeightedStream(Model):
             if batch_id == steps:
                 break
         self.model.train()
-
-    def set_model(self):
-        encoder = self.architecture_config['model_params']['encoder']
-        if encoder == 'from_scratch':
-            self.model = UNet(**self.architecture_config['model_params'])
-        else:
-            config = PRETRAINED_NETWORKS[encoder]
-            self.model = config['model'](**config['model_config'])
-            self._initialize_model_weights = lambda: None
 
 
 def weight_regularization_unet(model, regularize, weight_decay_conv2d):
@@ -221,7 +214,7 @@ def callbacks_unet(callbacks_config):
     model_checkpoints = ModelCheckpoint(**callbacks_config['model_checkpoint'])
     lr_scheduler = ExponentialLRScheduler(**callbacks_config['exp_lr_scheduler'])
     training_monitor = TrainingMonitor(**callbacks_config['training_monitor'])
-    validation_monitor = ValidationMonitor(**callbacks_config['validation_monitor'])
+    validation_monitor = ValidationMonitorSegmentation(**callbacks_config['validation_monitor'])
     neptune_monitor = NeptuneMonitorSegmentation(**callbacks_config['neptune_monitor'])
     early_stopping = EarlyStopping(**callbacks_config['early_stopping'])
 
@@ -238,13 +231,17 @@ def multiclass_weighted_cross_entropy(output, target, w0, sigma, C):
     distances = target[:, 1, :, :]
     sizes = target[:, 2, :, :]
     target = target[:, 0, :, :].long()
+
     w1 = Variable(torch.ones(distances.size()), requires_grad=False)  # TODO: fix it to handle class imbalance
     if torch.cuda.is_available():
         w1 = w1.cuda()
     size_weights = _get_size_weights(sizes, C)
+
     distance_weights = _get_distance_weights(distances, w1, w0, sigma)
+
     weights = distance_weights * size_weights
     loss_per_pixel = torch.nn.CrossEntropyLoss(reduce=False)(output, target)
+
     loss = torch.mean(loss_per_pixel * weights)
     return loss
 
@@ -256,8 +253,10 @@ def _get_distance_weights(d, w1, w0, sigma):
 
 
 def _get_size_weights(sizes, C):
-    size_weights = C / sizes
-    size_weights[sizes == 1] = 1
+    sizes_ = sizes.clone()
+    sizes_[sizes == 0] = 1
+    size_weights = C / sizes_
+    size_weights[sizes_ == 1] = 1
     return size_weights
 
 
