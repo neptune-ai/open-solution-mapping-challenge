@@ -6,7 +6,7 @@ from deepsense import neptune
 from utils import read_params
 
 ctx = neptune.Context()
-params = read_params(ctx)
+params = read_params(ctx, fallback_file='neptune.yaml')
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']

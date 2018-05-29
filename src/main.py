@@ -15,7 +15,7 @@ import json
 
 logger = init_logger()
 ctx = neptune.Context()
-params = read_params(ctx)
+params = read_params(ctx, fallback_file='neptune.yaml')
 
 seed = 1234
 set_seed(seed)

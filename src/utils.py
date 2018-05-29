@@ -127,9 +127,9 @@ def bounding_box_from_rle(rle):
     return list(cocomask.toBbox(rle))
 
 
-def read_params(ctx):
+def read_params(ctx, fallback_file):
     if ctx.params.__class__.__name__ == 'OfflineContextParams':
-        neptune_config = read_yaml('neptune.yaml')
+        neptune_config = read_yaml(fallback_file)
         params = neptune_config.parameters
     else:
         params = ctx.params
@@ -160,7 +160,7 @@ def generate_metadata(data_dir,
         if dataset != "test_images":
             images_path = os.path.join(images_path, "images")
 
-        if public_paths: # TODO: implement public generating public path
+        if public_paths:  # TODO: implement public generating public path
             raise NotImplementedError
         else:
             images_path_to_write = images_path
@@ -190,7 +190,7 @@ def generate_metadata(data_dir,
                 df_dict['is_train'].append(is_train)
                 df_dict['is_valid'].append(is_valid)
                 df_dict['is_test'].append(is_test)
-                df_dict['n_buildings'].append( n_buildings)
+                df_dict['n_buildings'].append(n_buildings)
                 for mask_dir_sufix in masks_overlayed_sufix_to_write:
                     df_dict['file_path_mask' + mask_dir_sufix].append(None)
 
