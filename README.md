@@ -17,7 +17,11 @@ $ neptune login
 ```
 
 4. download/upload competition data and change data-related paths in the configuration file `neptune.yaml`
-5. Prepare the data:
+5. Prepare target masks:
+```bash
+$ neptune experiment run main.py -- prepare_masks
+```
+6. Prepare the data:
 
 ```bash
 $ neptune experiment run main.py -- prepare_metadata \
@@ -26,8 +30,8 @@ $ neptune experiment run main.py -- prepare_metadata \
 --test_data
 ```
 
-6. Put your competition API key in the configuration file
-7. run experiment (for example via neptune):
+7. Put your competition API key in the configuration file
+8. run experiment (for example via neptune):
 
 ```bash
 $ neptune login
@@ -35,7 +39,7 @@ $ neptune experiment run \
 main.py -- train_evaluate_predict --pipeline_name unet --chunk_size 5000
 ```
 
-7. check your leaderboard score!
+9. check your leaderboard score!
 
 ## Usage: Detailed
 1. clone this repository: `git clone https://github.com/minerva-ml/open-solution-talking-data.git`
