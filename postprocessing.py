@@ -6,7 +6,7 @@ from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
 
 from steps.base import BaseTransformer
-from utils import categorize_image, denormalize_img, add_dropped_objects, label
+from utils import categorize_image, denormalize_img, add_dropped_objects, label, relabel
 from pipeline_config import MEAN, STD
 
 
@@ -303,14 +303,16 @@ def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilat
 
 
 def build_score(image, probabilities):
-    total_score = []
+    total_scores = []
     for category_instances, category_probabilities in zip(image, probabilities):
-        score = []
+        scores = []
         for label_nr in range(1, category_instances.max() + 1):
             masked_instance = np.ma.masked_array(category_probabilities, mask=category_instances != label_nr)
-            score.append(masked_instance.mean() * np.sqrt(np.count_nonzero(category_instances == label_nr)))
-        total_score.append(score)
-    return total_score
+            score = masked_instance.mean() * np.sqrt(np.count_nonzero(category_instances == label_nr))
+            if isinstance(score, float):
+                scores.append(score)
+        total_scores.append(scores)
+    return total_scores
 
 
 def crop_image_center_per_class(image, size):

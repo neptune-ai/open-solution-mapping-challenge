@@ -1,4 +1,5 @@
 from itertools import product
+from functools import partial
 import os
 
 from attrdict import AttrDict
@@ -10,6 +11,7 @@ import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
 from skimage.transform import rotate
+from scipy.stats import gmean
 
 from augmentation import fast_seq, crop_seq, padding_seq
 from steps.base import BaseTransformer
@@ -399,6 +401,18 @@ class TestTimeAugmentationGenerator(BaseTransformer):
 
 
 class TestTimeAugmentationAggregator(BaseTransformer):
+    def __init__(self, method):
+        self.method = method
+
+    @property
+    def agg_method(self):
+        methods = {'mean': np.mean,
+                   'max': np.max,
+                   'min': np.min,
+                   'gmean': gmean
+                   }
+        return partial(methods[self.method], axis=-1)
+
     def transform(self, images, tta_params, img_ids, **kwargs):
         averages_images = []
         for img_id in set(img_ids):
@@ -409,7 +423,7 @@ class TestTimeAugmentationAggregator(BaseTransformer):
                     tta_predictions_for_id.append(tta_prediction)
                 else:
                     continue
-            tta_averaged = np.mean(np.stack(tta_predictions_for_id, axis=-1), axis=-1)
+            tta_averaged = self.agg_method(np.stack(tta_predictions_for_id, axis=-1))
             averages_images.append(tta_averaged)
         return {'aggregated_prediction': averages_images}
 

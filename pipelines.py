@@ -100,7 +100,7 @@ def unet_padded_tta(config):
                 save_output=save_output)
 
     tta_aggregator = Step(name='tta_aggregator',
-                          transformer=loaders.TestTimeAugmentationAggregator(),
+                          transformer=loaders.TestTimeAugmentationAggregator(**config.tta_aggregator),
                           input_steps=[unet, tta_generator],
                           adapter={'images': ([(unet.name, 'multichannel_map_prediction')]),
                                    'tta_params': ([(tta_generator.name, 'tta_params')]),
