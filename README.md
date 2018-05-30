@@ -31,15 +31,23 @@ $ neptune experiment run main.py -- prepare_metadata \
 ```
 
 7. Put your competition API key in the configuration file
-8. run experiment (for example via neptune):
+8. train model experiment (for example via neptune):
 
 ```bash
 $ neptune login
 $ neptune experiment run \
-main.py -- train_evaluate_predict --pipeline_name unet --chunk_size 5000
+main.py -- train --pipeline_name unet_weighted
 ```
 
-9. check your leaderboard score!
+9. evaluate the results and submit predictions to crowdai (for example via neptune):
+
+```bash
+$ neptune login
+$ neptune experiment run \
+main.py -- evaluate_predict --pipeline_name unet_padded_tta --chunk_size 200 --submit_predictions
+```
+
+10. check your leaderboard score!
 
 ## Usage: Detailed
 1. clone this repository: `git clone https://github.com/minerva-ml/open-solution-talking-data.git`
