@@ -1,12 +1,11 @@
 from functools import partial
-import os
 
-import loaders
-from steps.base import Step, Dummy
-from steps.preprocessing.misc import XYSplit
-from utils import squeeze_inputs
-from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted, PyTorchUNetWeightedStream
-import postprocessing as post
+from src import loaders
+from src.steps.base import Step, Dummy
+from src.steps.preprocessing.misc import XYSplit
+from src.utils import squeeze_inputs
+from src.models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted, PyTorchUNetWeightedStream
+from src import postprocessing as post
 
 
 def unet(config, train_mode):

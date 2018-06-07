@@ -11,11 +11,11 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
 from skimage.transform import rotate
 
-from augmentation import fast_seq, crop_seq, padding_seq
-from steps.base import BaseTransformer
-from steps.pytorch.utils import ImgAug
-from utils import from_pil, to_pil
-from pipeline_config import MEAN, STD
+from src.augmentation import fast_seq, crop_seq, padding_seq
+from src.steps.base import BaseTransformer
+from src.steps.pytorch.utils import ImgAug
+from src.utils import from_pil, to_pil
+from src.pipeline_config import MEAN, STD
 
 
 class MetadataImageSegmentationDataset(Dataset):
@@ -451,13 +451,6 @@ def per_channel_rotation(x, angle):
     x_ = x.copy()
     for i, channel in enumerate(x):
         x_[i, :, :] = rotate(channel, angle, preserve_range=True)
-    return x_
-
-
-def binarize(x):
-    x_ = x.convert('L')  # convert image to monochrome
-    x_ = np.array(x_)
-    x_ = (x_ > 125).astype(np.float32)
     return x_
 
 
