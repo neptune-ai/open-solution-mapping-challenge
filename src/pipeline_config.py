@@ -3,7 +3,7 @@ import os
 from attrdict import AttrDict
 from deepsense import neptune
 
-from src.utils import read_params
+from utils import read_params
 
 ctx = neptune.Context()
 params = read_params(ctx, fallback_file='neptune.yaml')

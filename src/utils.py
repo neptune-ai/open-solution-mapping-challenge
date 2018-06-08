@@ -17,7 +17,7 @@ from pycocotools.coco import COCO
 from tqdm import tqdm
 from scipy import ndimage as ndi
 
-from src.cocoeval import COCOeval
+from cocoeval import COCOeval
 
 
 def read_yaml(filepath):

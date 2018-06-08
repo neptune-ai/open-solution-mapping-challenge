@@ -1,6 +1,6 @@
 from sklearn.externals import joblib
 
-from src.steps.base import BaseTransformer
+from steps.base import BaseTransformer
 
 
 class XYSplit(BaseTransformer):

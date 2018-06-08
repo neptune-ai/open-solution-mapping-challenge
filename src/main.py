@@ -7,10 +7,10 @@ from deepsense import neptune
 import crowdai
 import json
 
-from src.pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS
-from src.pipelines import PIPELINES
-from src.preparation import overlay_masks
-from src.utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
+from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS
+from pipelines import PIPELINES
+from preparation import overlay_masks
+from utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
     create_annotations, generate_data_frame_chunks
 
 logger = init_logger()

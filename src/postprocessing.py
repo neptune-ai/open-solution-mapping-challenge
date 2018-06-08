@@ -5,9 +5,9 @@ from tqdm import tqdm
 from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
 
-from src.steps.base import BaseTransformer
-from src.utils import categorize_image, denormalize_img, add_dropped_objects, label
-from src.pipeline_config import MEAN, STD
+from steps.base import BaseTransformer
+from utils import categorize_image, denormalize_img, add_dropped_objects, label
+from pipeline_config import MEAN, STD
 
 
 class MulticlassLabeler(BaseTransformer):
