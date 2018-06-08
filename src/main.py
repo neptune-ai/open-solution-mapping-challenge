@@ -6,7 +6,7 @@ import pandas as pd
 from deepsense import neptune
 import crowdai
 
-from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS
+from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, CATEGORY_LAYERS
 from pipelines import PIPELINES
 from preparation import overlay_masks
 from utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
@@ -123,7 +123,7 @@ def _evaluate(pipeline_name, dev_mode, chunk_size):
         meta_valid = meta_valid.sample(30, random_state=seed)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    prediction = generate_prediction(meta_valid, pipeline, logger, CATEGORY_IDS, chunk_size)
+    prediction = generate_prediction(meta_valid, pipeline, logger, CATEGORY_IDS, CATEGORY_LAYERS, chunk_size)
 
     prediction_filepath = os.path.join(params.experiment_dir, 'prediction.json')
     with open(prediction_filepath, "w") as fp:
@@ -162,7 +162,7 @@ def _predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
         meta_test = meta_test.sample(2, random_state=seed)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, chunk_size)
+    prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, CATEGORY_LAYERS, chunk_size)
 
     submission = prediction
     submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
@@ -229,18 +229,18 @@ def _make_submission(submission_filepath):
     challenge.submit(submission_filepath)
 
 
-def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size):
+def generate_prediction(meta_data, pipeline, logger, category_ids, category_layers, chunk_size):
     if chunk_size is not None:
-        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size)
+        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, category_layers, chunk_size)
     else:
-        return _generate_prediction(meta_data, pipeline, logger, category_ids)
+        return _generate_prediction(meta_data, pipeline, logger, category_ids, category_layers)
 
 
-def _generate_prediction(meta_data, pipeline, logger, category_ids):
+def _generate_prediction(meta_data, pipeline, logger, category_ids, category_layers):
     data = {'input': {'meta': meta_data,
                       'target_sizes': [(300, 300)] * len(meta_data),
                       },
-            'specs': {'train_mode': True},
+            'specs': {'train_mode': False},
             'callback_input': {'meta_valid': None}
             }
 
@@ -249,17 +249,17 @@ def _generate_prediction(meta_data, pipeline, logger, category_ids):
     pipeline.clean_cache()
     y_pred = output['y_pred']
 
-    prediction = create_annotations(meta_data, y_pred, logger, category_ids)
+    prediction = create_annotations(meta_data, y_pred, logger, category_ids, category_layers)
     return prediction
 
 
-def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size):
+def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, category_layers, chunk_size):
     prediction = []
     for meta_chunk in generate_data_frame_chunks(meta_data, chunk_size):
         data = {'input': {'meta': meta_chunk,
                           'target_sizes': [(300, 300)] * len(meta_chunk)
                           },
-                'specs': {'train_mode': True},
+                'specs': {'train_mode': False},
                 'callback_input': {'meta_valid': None}
                 }
 
@@ -268,7 +268,7 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
         pipeline.clean_cache()
         y_pred = output['y_pred']
 
-        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids)
+        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids, category_layers)
         prediction.extend(prediction_chunk)
 
     return prediction

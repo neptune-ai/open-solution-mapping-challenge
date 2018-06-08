@@ -6,8 +6,8 @@ from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
 
 from steps.base import BaseTransformer
-from utils import categorize_image, denormalize_img, add_dropped_objects, label
-from pipeline_config import MEAN, STD
+from utils import denormalize_img, add_dropped_objects, label
+from pipeline_config import MEAN, STD, CATEGORY_LAYERS
 
 
 class MulticlassLabeler(BaseTransformer):
@@ -256,8 +256,8 @@ class ScoreBuilderStream(BaseTransformer):
 
 def label_multiclass_image(mask):
     labeled_channels = []
-    for label_nr in range(0, mask.max() + 1):
-        labeled_channels.append(label(mask == label_nr))
+    for channel in mask:
+        labeled_channels.append(label(channel))
     labeled_image = np.stack(labeled_channels)
     return labeled_image
 
@@ -304,11 +304,16 @@ def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1, compat_bilat
 
 def build_score(image, probabilities):
     total_score = []
-    for category_instances, category_probabilities in zip(image, probabilities):
+    category_layers_inds = np.cumsum(CATEGORY_LAYERS)
+    for category_ind, category_instances in enumerate(image):
+        category_nr = np.searchsorted(category_layers_inds, category_ind)
+        category_probabilities = probabilities[category_nr]
         score = []
         for label_nr in range(1, category_instances.max() + 1):
-            masked_instance = np.ma.masked_array(category_probabilities, mask=category_instances != label_nr)
-            score.append(masked_instance.mean() * np.sqrt(np.count_nonzero(category_instances == label_nr)))
+            mask = category_instances == label_nr
+            area = np.count_nonzero(mask)
+            mean_prob = np.where(mask, category_probabilities, 0).sum() / area
+            score.append(mean_prob * np.sqrt(area))
         total_score.append(score)
     return total_score
 
@@ -323,3 +328,13 @@ def crop_image_center_per_class(image, size):
         cropped_per_class_prediction.append(cropped_prediction)
     cropped_per_class_prediction = np.stack(cropped_per_class_prediction)
     return cropped_per_class_prediction
+
+
+def categorize_image(image):
+    categorized_image = []
+    for category_id, category_output in enumerate(image):
+        thrs_step = 1. / (CATEGORY_LAYERS[category_id] + 1)
+        thresholds = np.arange(thrs_step, 1, thrs_step)
+        for thrs in thresholds:
+            categorized_image.append(category_output > thrs)
+    return np.stack(categorized_image)

@@ -83,7 +83,7 @@ def decompose(labeled):
         return masks
 
 
-def create_annotations(meta, predictions, logger, category_ids, save=False, experiment_dir='./'):
+def create_annotations(meta, predictions, logger, category_ids, category_layers, save=False, experiment_dir='./'):
     '''
     :param meta: pd.DataFrame with metadata
     :param predictions: list of labeled masks or numpy array of size [n_images, im_height, im_width]
@@ -94,8 +94,10 @@ def create_annotations(meta, predictions, logger, category_ids, save=False, expe
     '''
     annotations = []
     logger.info('Creating annotations')
+    category_layers_inds = np.cumsum(category_layers)
     for image_id, (prediction, image_scores) in zip(meta["ImageId"].values, predictions):
-        for category_nr, (category_instances, category_scores) in enumerate(zip(prediction, image_scores)):
+        for category_ind, (category_instances, category_scores) in enumerate(zip(prediction, image_scores)):
+            category_nr = np.searchsorted(category_layers_inds, category_ind, side='right')
             if category_ids[category_nr] != None:
                 masks = decompose(category_instances)
                 for mask_nr, (mask, score) in enumerate(zip(masks, category_scores)):
@@ -358,6 +360,7 @@ def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, s
     cocoEval.params.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, small_annotations_size ** 2],
                                [small_annotations_size ** 2, 1e5 ** 2]]
     cocoEval.params.areaRngLbl = ['all', 'small', 'large']
+    cocoEval.params.maxDets = [1, 10, 100000]
     cocoEval.evaluate()
     cocoEval.accumulate()
     cocoEval.summarize()
