@@ -114,9 +114,11 @@ SOLUTION_CONFIG = AttrDict({
                                 'image_resize': 0.2,
                                 'outputs_to_plot': params.unet_outputs_to_plot},
             'early_stopping': {'patience': params.patience,
-                'minimize': not params.validate_with_map},
+                               'minimize': not params.validate_with_map},
         },
     },
+    'tta_aggregator': {'method': params.tta_aggregation_method
+                       },
     'tta_generator': {'flip_ud': True,
                       'flip_lr': True,
                       'rotation': True},
