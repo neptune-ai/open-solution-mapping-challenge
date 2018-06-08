@@ -7,7 +7,7 @@ from PIL import Image
 from sklearn.externals import joblib
 from torch.utils.data import Dataset, DataLoader
 
-from steps.base import BaseTransformer
+from ...steps.base import BaseTransformer
 
 
 class MetadataImageDataset(Dataset):

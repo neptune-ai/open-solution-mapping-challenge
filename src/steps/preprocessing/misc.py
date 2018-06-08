@@ -3,7 +3,7 @@ import sklearn.preprocessing as sk_prep
 from sklearn.externals import joblib
 from sklearn.feature_extraction import text
 
-from steps.base import BaseTransformer
+from ...steps.base import BaseTransformer
 
 
 class XYSplit(BaseTransformer):

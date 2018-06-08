@@ -8,8 +8,8 @@ from sklearn import svm
 from sklearn.externals import joblib
 from xgboost import XGBClassifier
 
-from steps.base import BaseTransformer
-from steps.utils import get_logger
+from ...steps.base import BaseTransformer
+from ...steps.utils import get_logger
 
 logger = get_logger()
 

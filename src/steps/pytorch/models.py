@@ -8,8 +8,8 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.nn import init
 
-from steps.base import BaseTransformer
-from steps.utils import get_logger
+from ...steps.base import BaseTransformer
+from ...steps.utils import get_logger
 from .utils import save_model
 
 logger = get_logger()

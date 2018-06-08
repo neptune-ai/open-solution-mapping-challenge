@@ -5,14 +5,14 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch import optim
 
-from callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
-from steps.pytorch.architectures.unet import UNet
-from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
+from .callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
+from .steps.pytorch.architectures.unet import UNet
+from .steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
-from steps.pytorch.models import Model
-from steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
-from utils import softmax
-from unet_models import AlbuNet, UNet11, UNet16, UNetResNet
+from .steps.pytorch.models import Model
+from .steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
+from .utils import softmax
+from .unet_models import AlbuNet, UNet11, UNet16, UNetResNet
 
 PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
                                  'model_config': {'num_classes': 2, 'pretrained': True},

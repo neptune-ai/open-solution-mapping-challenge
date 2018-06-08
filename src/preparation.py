@@ -13,7 +13,7 @@ from skimage.morphology import binary_erosion, rectangle, binary_dilation
 from scipy.ndimage.morphology import distance_transform_edt
 from sklearn.externals import joblib
 
-from utils import get_logger, add_dropped_objects, label
+from .utils import get_logger, add_dropped_objects, label
 
 logger = get_logger()
 

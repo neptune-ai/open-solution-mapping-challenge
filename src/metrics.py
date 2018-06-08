@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 
-from utils import decompose, get_logger
+from .utils import decompose, get_logger
 
 logger = get_logger()
 

@@ -15,10 +15,10 @@ from PIL import Image
 from attrdict import AttrDict
 from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
-from cocoeval import COCOeval
 from tqdm import tqdm
 from scipy import ndimage as ndi
 from scipy.ndimage.morphology import distance_transform_edt
+from .cocoeval import COCOeval
 
 
 def read_yaml(filepath):
