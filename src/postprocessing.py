@@ -41,7 +41,19 @@ class Resizer(BaseTransformer):
 
 
 class CategoryMapper(BaseTransformer):
+    """Creates transformer that maps probability maps (e.g. output of a neural network) to categories."""
     def transform(self, images):
+        """Maps probability maps to categories. Each pixel is assigned with a category with highest probability.
+
+        Args:
+            images (list): list of N probability maps.
+                Probability map is a numpy.ndarray of shape (C x H x W), where C is a number of categories.
+                Cell [i, h, w] contains a probability of a pixel (h, w) of an image belonging to class C_i.
+
+        Returns:
+            list: list of N categorized images, each is a numpy.ndarray of shape (H x W)
+
+        """
         categorized_images = []
         for image in tqdm(images):
             categorized_images.append(categorize_image(image))

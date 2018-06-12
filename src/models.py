@@ -42,7 +42,16 @@ PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
 
 
 class BasePyTorchUNet(Model):
+    """Base class for PyTorch U-net models.
+
+    Args:
+        architecture_config (dict):
+        training_config:
+        callbacks_config:
+    """
     def __init__(self, architecture_config, training_config, callbacks_config):
+        """
+        """
         super().__init__(architecture_config, training_config, callbacks_config)
         self.set_model()
         self.weight_regularization = weight_regularization_unet
