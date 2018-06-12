@@ -1,37 +1,46 @@
 import os
 import shutil
 
-import click
 import pandas as pd
 from deepsense import neptune
 import crowdai
-
-from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS
-from pipelines import PIPELINES
-from preparation import overlay_masks
-from utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
-    create_annotations, generate_data_frame_chunks
 import json
 
-logger = init_logger()
-ctx = neptune.Context()
-params = read_params(ctx, fallback_file='neptune.yaml')
-
-seed = 1234
-set_seed(seed)
-
-
-@click.group()
-def action():
-    pass
+from .pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, SEED
+from .pipelines import PIPELINES
+from .preparation import overlay_masks
+from .utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
+    create_annotations, generate_data_frame_chunks
 
 
-@action.command()
-@click.option('-tr', '--train_data', help='calculate for train data', is_flag=True, required=False)
-@click.option('-val', '--valid_data', help='calculate for validation data', is_flag=True, required=False)
-@click.option('-te', '--test_data', help='calculate for test data', is_flag=True, required=False)
-@click.option('-pub', '--public_paths', help='use public Neptune paths', is_flag=True, required=False)
-def prepare_metadata(train_data, valid_data, test_data, public_paths):
+class PipelineManager():
+    def __init__(self):
+        self.logger = init_logger()
+        self.seed = SEED
+        set_seed(self.seed)
+        self.ctx = neptune.Context()
+        self.params = read_params(self.ctx, fallback_file='neptune.yaml')
+
+    def prepare_metadata(self, train_data, valid_data, test_data, public_paths):
+        prepare_metadata(train_data, valid_data, test_data, public_paths, self.logger, self.params)
+
+    def prepare_masks(self, dev_mode):
+        prepare_masks(dev_mode, self.logger, self.params)
+
+    def train(self, pipeline_name, dev_mode):
+        train(pipeline_name, dev_mode, self.logger, self.params, self.seed)
+
+    def evaluate(self, pipeline_name, dev_mode, chunk_size):
+        evaluate(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed)
+
+    def predict(self, pipeline_name, dev_mode, submit_predictions, chunk_size):
+        predict(pipeline_name, dev_mode, submit_predictions, chunk_size, self.logger, self.params, self.seed)
+
+    def make_submission(self, submission_filepath):
+        make_submission(submission_filepath, self.logger, self.params)
+
+
+def prepare_metadata(train_data, valid_data, test_data, public_paths, logger, params):
     logger.info('creating metadata')
     meta = generate_metadata(data_dir=params.data_dir,
                              meta_dir=params.meta_dir,
@@ -42,14 +51,13 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
                              process_test_data=test_data,
                              public_paths=public_paths)
 
-    metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadata.csv').format(params.competition_stage)
+    metadata_filepath = os.path.join(params.meta_dir,
+                                     'stage{}_metadata.csv').format(params.competition_stage)
     logger.info('saving metadata to {}'.format(metadata_filepath))
     meta.to_csv(metadata_filepath, index=None)
 
 
-@action.command()
-@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def prepare_masks(dev_mode):
+def prepare_masks(dev_mode, logger, params):
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
         target_dir = "{}_eroded_{}_dilated_{}".format(params.masks_overlayed_dir[:-1],
@@ -68,15 +76,8 @@ def prepare_masks(dev_mode):
                       small_annotations_size=params.small_annotations_size)
 
 
-@action.command()
-@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def train(pipeline_name, dev_mode):
+def train(pipeline_name, dev_mode, logger, params, seed):
     logger.info('training')
-    _train(pipeline_name, dev_mode)
-
-
-def _train(pipeline_name, dev_mode):
     if bool(params.overwrite) and os.path.isdir(params.experiment_dir):
         shutil.rmtree(params.experiment_dir)
 
@@ -103,18 +104,10 @@ def _train(pipeline_name, dev_mode):
     pipeline.clean_cache()
 
 
-@action.command()
-@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-c', '--chunk_size', help='size of the chunks to run evaluation on', type=int, default=None,
-              required=False)
-def evaluate(pipeline_name, dev_mode, chunk_size):
+def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed):
     logger.info('evaluating')
-    _evaluate(pipeline_name, dev_mode, chunk_size)
-
-
-def _evaluate(pipeline_name, dev_mode, chunk_size):
-    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
+    meta = pd.read_csv(os.path.join(params.meta_dir,
+                                    'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_valid = meta[meta['is_valid'] == 1]
 
     meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
@@ -139,23 +132,12 @@ def _evaluate(pipeline_name, dev_mode, chunk_size):
                                                         small_annotations_size=params.small_annotations_size)
     logger.info('Mean precision on validation is {}'.format(average_precision))
     logger.info('Mean recall on validation is {}'.format(average_recall))
-    ctx.channel_send('Precision', 0, average_precision)
-    ctx.channel_send('Recall', 0, average_recall)
 
 
-@action.command()
-@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
-@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
-              required=False)
-def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
+def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, params, seed):
     logger.info('predicting')
-    _predict(pipeline_name, dev_mode, submit_predictions, chunk_size)
-
-
-def _predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
-    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)))
+    meta = pd.read_csv(os.path.join(params.meta_dir,
+                                    'stage{}_metadata.csv'.format(params.competition_stage)))
     meta_test = meta[meta['is_test'] == 1]
 
     if dev_mode:
@@ -168,60 +150,14 @@ def _predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
     with open(submission_filepath, "w") as fp:
         fp.write(json.dumps(submission))
-    logger.info('submission saved to {}'.format(submission_filepath))
-    logger.info('submission head \n\n{}'.format(submission[0]))
+        logger.info('submission saved to {}'.format(submission_filepath))
+        logger.info('submission head \n\n{}'.format(submission[0]))
 
     if submit_predictions:
-        _make_submission(submission_filepath)
+        make_submission(submission_filepath)
 
 
-@action.command()
-@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
-@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-c', '--chunk_size', help='size of the chunks to run evaluation and prediction on', type=int,
-              default=None, required=False)
-def train_evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
-    logger.info('training')
-    _train(pipeline_name, dev_mode)
-    logger.info('evaluating')
-    _evaluate(pipeline_name, dev_mode, chunk_size)
-    logger.info('predicting')
-    _predict(pipeline_name, dev_mode, submit_predictions, chunk_size)
-
-
-@action.command()
-@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-c', '--chunk_size', help='size of the chunks to run evaluation and prediction on', type=int,
-              default=None, required=False)
-def train_evaluate(pipeline_name, dev_mode, chunk_size):
-    logger.info('training')
-    _train(pipeline_name, dev_mode)
-    logger.info('evaluating')
-    _evaluate(pipeline_name, dev_mode, chunk_size)
-
-
-@action.command()
-@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
-@click.option('-s', '--submit_predictions', help='submit predictions if true', is_flag=True, required=False)
-@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
-              required=False)
-def evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
-    logger.info('evaluating')
-    _evaluate(pipeline_name, dev_mode, chunk_size)
-    logger.info('predicting')
-    _predict(pipeline_name, dev_mode, submit_predictions, chunk_size)
-
-
-@action.command()
-@click.option('-f', '--submission_filepath', help='filepath to json submission file', required=True)
-def submit_predictions(submission_filepath):
-    _make_submission(submission_filepath)
-
-
-def _make_submission(submission_filepath):
+def make_submission( submission_filepath, logger, params):
     api_key = params.api_key
 
     challenge = crowdai.Challenge("crowdAIMappingChallenge", api_key)
@@ -240,7 +176,7 @@ def _generate_prediction(meta_data, pipeline, logger, category_ids):
     data = {'input': {'meta': meta_data,
                       'target_sizes': [(300, 300)] * len(meta_data),
                       },
-            'specs': {'train_mode': True},
+            'specs': {'train_mode': False},
             'callback_input': {'meta_valid': None}
             }
 
@@ -259,7 +195,7 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
         data = {'input': {'meta': meta_chunk,
                           'target_sizes': [(300, 300)] * len(meta_chunk)
                           },
-                'specs': {'train_mode': True},
+                'specs': {'train_mode': False},
                 'callback_input': {'meta_valid': None}
                 }
 
@@ -272,7 +208,3 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
         prediction.extend(prediction_chunk)
 
     return prediction
-
-
-if __name__ == "__main__":
-    action()

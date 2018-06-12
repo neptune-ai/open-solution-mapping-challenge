@@ -11,11 +11,11 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
 from skimage.transform import rotate
 
-from augmentation import fast_seq, crop_seq, padding_seq
-from steps.base import BaseTransformer
-from steps.pytorch.utils import ImgAug
-from utils import from_pil, to_pil
-from pipeline_config import MEAN, STD
+from .augmentation import fast_seq, crop_seq, padding_seq
+from .steps.base import BaseTransformer
+from .steps.pytorch.utils import ImgAug
+from .utils import from_pil, to_pil
+from .pipeline_config import MEAN, STD
 
 
 class MetadataImageSegmentationDataset(Dataset):
