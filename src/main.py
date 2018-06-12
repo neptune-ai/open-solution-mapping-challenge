@@ -92,7 +92,8 @@ def _train(pipeline_name, dev_mode):
         meta_valid = meta_valid.sample(10, random_state=seed)
 
     data = {'input': {'meta': meta_train,
-                      'target_sizes': [(300, 300)] * len(meta_train)},
+                      'target_sizes': [(300, 300)] * len(meta_train),
+                      'annotation_file_path': os.path.join(params.data_dir, 'train', "annotation.json")},
             'specs': {'train_mode': True},
             'callback_input': {'meta_valid': meta_valid}
             }

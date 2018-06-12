@@ -4,9 +4,13 @@ from skimage.morphology import binary_dilation, binary_erosion, dilation, rectan
 from tqdm import tqdm
 from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
+from pycocotools import mask as cocomask
+from pycocotools.coco import COCO
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
 from steps.base import BaseTransformer
-from utils import denormalize_img, add_dropped_objects, label
+from utils import denormalize_img, add_dropped_objects, label, rle_from_binary
 from pipeline_config import MEAN, STD, CATEGORY_LAYERS
 
 
@@ -127,6 +131,38 @@ class ScoreBuilder(BaseTransformer):
         for image, image_probabilities in tqdm(zip(images, probabilities)):
             images_with_scores.append((image, build_score(image, image_probabilities)))
         return {'images_with_scores': images_with_scores}
+
+
+class FeatureExtractor(BaseTransformer):
+    def __init__(self, train_size, target):
+        self.train_size = train_size
+        self.target = target
+
+    def transform(self, images, probabilities, train_mode, annotations=None):
+        all_features = pd.DataFrame()
+        if annotations is None:
+            annotations = [None] * len(images)
+        for image, image_probabilities, image_annotations in tqdm(zip(images, probabilities, annotations)):
+            all_features = all_features.append(get_features_for_image(image, image_probabilities, image_annotations))
+        feature_names = list(all_features.columns.drop(self.target))
+        train_data, val_data = train_test_split(all_features, train_size=self.train_size)
+        return {'X': train_data[feature_names],
+                'y': train_data[self.target],
+                'X_valid': val_data[feature_names],
+                'y_valid': val_data[self.target],
+                'feature_names': feature_names,
+                'categorical_features': []}
+
+
+class AnnotationLoader(BaseTransformer):
+    def transform(self, annotation_file_path, meta):
+        annotations = []
+        coco = COCO(annotation_file_path)
+        for image_id in meta['ImageId'].values:
+            annotation_ids = coco.getAnnIds(imgIds=image_id)
+            image_annotations = coco.loadAnns(annotation_ids)
+            annotations.append(image_annotations)
+        return {'annotations': annotations}
 
 
 class MulticlassLabelerStream(BaseTransformer):
@@ -306,7 +342,7 @@ def build_score(image, probabilities):
     total_score = []
     category_layers_inds = np.cumsum(CATEGORY_LAYERS)
     for category_ind, category_instances in enumerate(image):
-        category_nr = np.searchsorted(category_layers_inds, category_ind)
+        category_nr = np.searchsorted(category_layers_inds, category_ind, side='right')
         category_probabilities = probabilities[category_nr]
         score = []
         for label_nr in range(1, category_instances.max() + 1):
@@ -338,3 +374,59 @@ def categorize_image(image):
         for thrs in thresholds:
             categorized_image.append(category_output > thrs)
     return np.stack(categorized_image)
+
+
+def get_features_for_image(image, probabilities, annotations):
+    image_features = []
+    category_layers_inds = np.cumsum(CATEGORY_LAYERS)
+    thresholds = get_thresholds()
+    for category_ind, category_instances in enumerate(image):
+        if category_ind > 0:
+            category_nr = np.searchsorted(category_layers_inds, category_ind, side='right')
+            category_probabilities = probabilities[category_nr]
+            threshold = round(thresholds[category_ind], 2)
+            iou_matrix = get_iou_matrix(category_instances, annotations)
+            for label_nr in range(1, category_instances.max() + 1):
+                mask = category_instances == label_nr
+                iou = get_iou(iou_matrix, label_nr)
+                mask_probabilities = np.where(mask, category_probabilities, 0)
+                area = np.count_nonzero(mask)
+                mean_prob = mask_probabilities.sum() / area
+                max_prob = mask_probabilities.max()
+                mask_features = {'iou': iou, 'threshold': threshold, 'area': area, 'mean_prob': mean_prob,
+                                 'max_prob': max_prob, 'label_nr': label_nr}
+                image_features.append(mask_features)
+    return pd.DataFrame(image_features)
+
+
+def get_iou_matrix(labels, annotations):
+    mask_anns = []
+    if annotations is None:
+        return None
+    else:
+        for annotation in annotations:
+            if not isinstance(annotation['segmentation'], dict):
+                annotation['segmentation'] = \
+                cocomask.frPyObjects(annotation['segmentation'], labels.shape[0], labels.shape[1])[0]
+        annotations = [annotation['segmentation'] for annotation in annotations]
+        for label_nr in range(1, labels.max() + 1):
+            mask = labels == label_nr
+            mask_anns.append(rle_from_binary(mask.astype('uint8')))
+        iou_matrix = cocomask.iou(mask_anns, annotations, [0, ] * len(annotations))
+        return iou_matrix
+
+
+def get_iou(iou_matrix, label_nr):
+    if iou_matrix is not None:
+        return iou_matrix[label_nr - 1].max()
+    else:
+        return None
+
+
+def get_thresholds():
+    thresholds = []
+    for n_thresholds in CATEGORY_LAYERS:
+        thrs_step = 1. / (n_thresholds + 1)
+        category_thresholds = np.arange(thrs_step, 1, thrs_step)
+        thresholds.extend(category_thresholds)
+    return thresholds

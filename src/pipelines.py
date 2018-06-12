@@ -4,6 +4,7 @@ import os
 import loaders
 from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
+from steps.sklearn.models import LightGBM
 from utils import squeeze_inputs
 from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted, PyTorchUNetWeightedStream
 import postprocessing as post
@@ -23,7 +24,7 @@ def unet(config, train_mode):
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
 
-    mask_postprocessed = mask_postprocessing(loader, unet, config, save_output=save_output)
+    mask_postprocessed = mask_postprocessing(loader, unet, config, save_output=save_output, train_mode=train_mode)
 
     output = Step(name='output',
                   transformer=Dummy(),
@@ -229,7 +230,7 @@ def preprocessing_generator_padded_tta(config):
     return loader, tta_generator
 
 
-def mask_postprocessing(loader, model, config, save_output=False):
+def mask_postprocessing(loader, model, config, save_output=False, train_mode=False):
     if config.postprocessor.crf.apply_crf:
         dense_crf = Step(name='dense_crf',
                          transformer=post.DenseCRFStream(**config.postprocessor.crf) if config.execution.stream_mode \
@@ -259,7 +260,7 @@ def mask_postprocessing(loader, model, config, save_output=False):
                                     'target_sizes': ([('input', 'target_sizes')]),
                                     },
                            cache_dirpath=config.env.cache_dirpath,
-                           save_output=save_output)
+                           save_output=True, load_saved_output=True)
 
     category_mapper = Step(name='category_mapper',
                            transformer=post.CategoryMapperStream() if config.execution.stream_mode else post.CategoryMapper(),
@@ -288,16 +289,61 @@ def mask_postprocessing(loader, model, config, save_output=False):
                          input_steps=[detached],
                          adapter={'images': ([(detached.name, 'labeled_images')]),
                                   },
-                         cache_dirpath=config.env.cache_dirpath, save_output=save_output)
+                         cache_dirpath=config.env.cache_dirpath, save_output=True, load_saved_output=True)
 
-    score_builder = Step(name='score_builder',
-                         transformer=post.ScoreBuilder(),
-                         input_steps=[mask_dilation, mask_resize],
-                         adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
-                                  'probabilities': ([(mask_resize.name, 'resized_images')]),
-                                  },
-                         cache_dirpath=config.env.cache_dirpath,
-                         save_output=save_output)
+    simple_score = False
+    if simple_score:
+        score_builder = Step(name='score_builder',
+                             transformer=post.ScoreBuilder(),
+                             input_steps=[mask_dilation, mask_resize],
+                             adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
+                                      'probabilities': ([(mask_resize.name, 'resized_images')]),
+                                      },
+                             cache_dirpath=config.env.cache_dirpath,
+                             save_output=save_output)
+    else:
+
+        if train_mode:
+            annotation_loader = Step(name='annotation_loader',
+                                     transformer=post.AnnotationLoader(),
+                                     input_data=['input'],
+                                     adapter={'annotation_file_path': ([('input', 'annotation_file_path')]),
+                                              'meta': ([('input', 'meta')])
+                                              },
+                                     cache_dirpath=config.env.cache_dirpath,
+                                     save_output=True, load_saved_output=True)
+
+            feature_extractor = Step(name='feature_extractor',
+                                     transformer=post.FeatureExtractor(**config['postprocessor']['feature_extractor']),
+                                     input_steps=[annotation_loader, mask_dilation, mask_resize],
+                                     input_data=['specs'],
+                                     adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
+                                              'probabilities': ([(mask_resize.name, 'resized_images')]),
+                                              'annotations': ([(annotation_loader.name, 'annotations')]),
+                                              'train_mode': ([('specs', 'train_mode')]),
+                                              },
+                                     cache_dirpath=config.env.cache_dirpath,
+                                     save_output=save_output)
+        else:
+            feature_extractor = Step(name='feature_extractor',
+                                     transformer=post.FeatureExtractor(**config['postprocessor']['feature_extractor']),
+                                     input_steps=[mask_dilation, mask_resize],
+                                     input_data=['specs'],
+                                     adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
+                                              'probabilities': ([(mask_resize.name, 'resized_images')]),
+                                              'train_mode': ([('specs', 'train_mode')]),
+                                              },
+                                     cache_dirpath=config.env.cache_dirpath,
+                                     save_output=save_output)
+
+        scoring_model = Step(name='scoring_model',
+                             transformer=LightGBM(**config['postprocessor']['lightGBM']),
+                             input_steps=[feature_extractor],
+                             cache_dirpath=config.env.cache_dirpath,
+                             save_output=save_output,
+                             force_fitting=True)
+
+        score_builder = scoring_model
 
     return score_builder
 

@@ -51,7 +51,7 @@ class BasePyTorchUNet(Model):
         self.loss_function = None
         self.callbacks = callbacks_unet(self.callbacks_config)
 
-    def fit(self, datagen, validation_datagen=None, meta_valid=None):
+    def fit(self, datagen, validation_datagen=None, inference_datagen=None, meta_valid=None):
         self._initialize_model_weights()
 
         self.model = nn.DataParallel(self.model)
@@ -77,7 +77,9 @@ class BasePyTorchUNet(Model):
         self.callbacks.on_train_end()
         return self
 
-    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
+    def transform(self, datagen, validation_datagen=None, inference_datagen=None, *args, **kwargs):
+        if inference_datagen is not None and inference_datagen[0] is not None:
+            datagen = inference_datagen
         outputs = self._transform(datagen, validation_datagen)
         for name, prediction in outputs.items():
             outputs[name] = softmax(prediction, axis=1)
@@ -104,7 +106,9 @@ class PyTorchUNetStream(BasePyTorchUNet):
         super().__init__(architecture_config, training_config, callbacks_config)
         self.loss_function = [('multichannel_map', multiclass_segmentation_loss, 1.0)]
 
-    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
+    def transform(self, datagen, validation_datagen=None, inference_datagen=None, *args, **kwargs):
+        if inference_datagen is not None and inference_datagen[0] is not None:
+            datagen = inference_datagen
         if len(self.output_names) == 1:
             output_generator = self._transform(datagen, validation_datagen)
             output = {'{}_prediction'.format(self.output_names[0]): output_generator}
@@ -149,12 +153,6 @@ class PyTorchUNetWeighted(BasePyTorchUNet):
                        **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
 
-    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
-        outputs = self._transform(datagen, validation_datagen)
-        for name, prediction in outputs.items():
-            outputs[name] = softmax(prediction, axis=1)
-        return outputs
-
 
 class PyTorchUNetWeightedStream(BasePyTorchUNet):
     def __init__(self, architecture_config, training_config, callbacks_config):
@@ -167,7 +165,9 @@ class PyTorchUNetWeightedStream(BasePyTorchUNet):
                        **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
 
-    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
+    def transform(self, datagen, validation_datagen=None, inference_datagen=None, *args, **kwargs):
+        if inference_datagen is not None and inference_datagen[0] is not None:
+            datagen = inference_datagen
         if len(self.output_names) == 1:
             output_generator = self._transform(datagen, validation_datagen)
             output = {'{}_prediction'.format(self.output_names[0]): output_generator}

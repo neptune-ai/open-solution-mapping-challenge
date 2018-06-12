@@ -115,7 +115,7 @@ SOLUTION_CONFIG = AttrDict({
                                 'image_resize': 0.2,
                                 'outputs_to_plot': params.unet_outputs_to_plot},
             'early_stopping': {'patience': params.patience,
-                'minimize': not params.validate_with_map},
+                               'minimize': not params.validate_with_map},
         },
     },
     'tta_generator': {'flip_ud': True,
@@ -137,5 +137,17 @@ SOLUTION_CONFIG = AttrDict({
                       'prediction_crop': {'h_crop': params.crop_image_h,
                                           'w_crop': params.crop_image_w
                                           },
+                      'lightGBM': {'model_params': {'learning_rate': 0.001,
+                                                    'boosting_type': 'gbdt',
+                                                    'objective': 'binary',
+                                                    'metric': 'binary_logloss',
+                                                    'sub_feature': 0.5,
+                                                    'num_leaves': 10,
+                                                    'min_data': 50,
+                                                    'max_depth': 10},
+                                   'training_params': {'number_boosting_rounds': 100,
+                                                       'early_stopping_rounds': 5}},
+                      'feature_extractor': {'train_size': 0.7,
+                                            'target': 'iou'}
                       }
 })

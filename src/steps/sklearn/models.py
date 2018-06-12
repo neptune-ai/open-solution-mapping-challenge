@@ -2,7 +2,7 @@ import lightgbm as lgb
 import numpy as np
 import sklearn.linear_model as lr
 from attrdict import AttrDict
-from catboost import CatBoostClassifier
+#from catboost import CatBoostClassifier
 from sklearn import ensemble
 from sklearn import svm
 from sklearn.externals import joblib

@@ -189,8 +189,10 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
     def transform(self, X, y, X_valid=None, y_valid=None, train_mode=True):
         if train_mode and y is not None:
             flow, steps = self.get_datagen(X, y, True, self.loader_params.training)
+            inference_flow, inference_steps = self.get_datagen(X, None, False, self.loader_params.inference)
         else:
             flow, steps = self.get_datagen(X, None, False, self.loader_params.inference)
+            inference_flow, inference_steps = (None, None)
 
         if X_valid is not None and y_valid is not None:
             valid_flow, valid_steps = self.get_datagen(X_valid, y_valid, False, self.loader_params.inference)
@@ -198,7 +200,8 @@ class ImageSegmentationLoaderBasic(BaseTransformer):
             valid_flow = None
             valid_steps = None
         return {'datagen': (flow, steps),
-                'validation_datagen': (valid_flow, valid_steps)}
+                'validation_datagen': (valid_flow, valid_steps),
+                'inference_datagen': (inference_flow, inference_steps)}
 
     def get_datagen(self, X, y, train_mode, loader_params):
         if train_mode:
