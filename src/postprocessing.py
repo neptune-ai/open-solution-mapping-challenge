@@ -20,7 +20,18 @@ class MulticlassLabeler(BaseTransformer):
 
 
 class Resizer(BaseTransformer):
+    """Creates transformer that resize images to target sizes."""
+
     def transform(self, images, target_sizes):
+        """Resize images to target sizes.
+
+        Args:
+            images (list): list of N images, each image is a numpy.ndarray of shape (C x H x W)
+            target_sizes (list): list of N target sizes, each target size is a tuple (H, W)
+
+        Returns:
+            list: list of N resized images
+        """
         resized_images = []
         for image, target_size in tqdm(zip(images, target_sizes)):
             n_channels = image.shape[0]
