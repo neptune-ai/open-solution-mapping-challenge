@@ -1,54 +1,11 @@
 import numpy as np
 from skimage.transform import resize
 from skimage.morphology import binary_dilation, binary_erosion, dilation, rectangle
-from tqdm import tqdm
 from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
 
-from .steps.base import BaseTransformer
-from .utils import categorize_image, denormalize_img, add_dropped_objects, label
+from .utils import denormalize_img, add_dropped_objects, label
 from .pipeline_config import MEAN, STD
-
-
-class Resizer(BaseTransformer):
-    """Creates transformer that resize images to target sizes."""
-
-    def transform(self, images, target_sizes):
-        """Resize images to target sizes.
-
-        Args:
-            images (list): list of N images, each image is a numpy.ndarray of shape (C x H x W)
-            target_sizes (list): list of N target sizes, each target size is a tuple (H, W)
-
-        Returns:
-            list: list of N resized images
-        """
-        resized_images = []
-        for image, target_size in tqdm(zip(images, target_sizes)):
-            n_channels = image.shape[0]
-            resized_image = resize(image, (n_channels,) + target_size, mode='constant')
-            resized_images.append(resized_image)
-        return {'resized_images': resized_images}
-
-
-class CategoryMapper(BaseTransformer):
-    """Creates transformer that maps probability maps (e.g. output of a neural network) to categories."""
-    def transform(self, images):
-        """Maps probability maps to categories. Each pixel is assigned with a category with highest probability.
-
-        Args:
-            images (list): list of N probability maps.
-                Probability map is a numpy.ndarray of shape (C x H x W), where C is a number of categories.
-                Cell [i, h, w] contains a probability of a pixel (h, w) of an image belonging to class C_i.
-
-        Returns:
-            list: list of N categorized images, each is a numpy.ndarray of shape (H x W)
-
-        """
-        categorized_images = []
-        for image in tqdm(images):
-            categorized_images.append(categorize_image(image))
-        return {'categorized_images': categorized_images}
 
 
 def resize_image(image, target_size):
