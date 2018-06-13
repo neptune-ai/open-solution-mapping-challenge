@@ -6,7 +6,7 @@ from steps.base import Step, Dummy
 from steps.preprocessing.misc import XYSplit
 from steps.sklearn.models import LightGBM
 from utils import squeeze_inputs
-from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted, PyTorchUNetWeightedStream
+from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted, PyTorchUNetWeightedStream, ScoringLightGBM
 import postprocessing as post
 
 
@@ -314,7 +314,7 @@ def mask_postprocessing(loader, model, config, save_output=False, train_mode=Fal
                                      save_output=True, load_saved_output=True)
 
             feature_extractor = Step(name='feature_extractor',
-                                     transformer=post.FeatureExtractor(**config['postprocessor']['feature_extractor']),
+                                     transformer=post.FeatureExtractorV2(**config['postprocessor']['feature_extractor']),
                                      input_steps=[annotation_loader, mask_dilation, mask_resize],
                                      input_data=['specs'],
                                      adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
@@ -337,13 +337,19 @@ def mask_postprocessing(loader, model, config, save_output=False, train_mode=Fal
                                      save_output=save_output)
 
         scoring_model = Step(name='scoring_model',
-                             transformer=LightGBM(**config['postprocessor']['lightGBM']),
+                             transformer=ScoringLightGBM(**config['postprocessor']['lightGBM']),
                              input_steps=[feature_extractor],
                              cache_dirpath=config.env.cache_dirpath,
                              save_output=save_output,
                              force_fitting=True)
 
-        score_builder = scoring_model
+        score_builder = Step(name='score_builder',
+                             transformer=post.ScoreImageJoiner(),
+                             input_steps=[scoring_model, mask_dilation],
+                             adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
+                                      'scores': ([(scoring_model.name, 'scores')])},
+                             cache_dirpath=config.env.cache_dirpath,
+                             save_output=save_output)
 
     return score_builder
 

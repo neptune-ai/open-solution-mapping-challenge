@@ -146,7 +146,10 @@ SOLUTION_CONFIG = AttrDict({
                                                     'min_data': 50,
                                                     'max_depth': 10},
                                    'training_params': {'number_boosting_rounds': 100,
-                                                       'early_stopping_rounds': 5}},
+                                                       'early_stopping_rounds': 5},
+                                   'train_size': 0.7,
+                                   'target': 'iou'
+                                   },
                       'feature_extractor': {'train_size': 0.7,
                                             'target': 'iou'}
                       }

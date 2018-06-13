@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch import optim
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
 from callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
 from steps.pytorch.architectures.unet import UNet
@@ -11,6 +13,7 @@ from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoi
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
 from steps.pytorch.models import Model
 from steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
+from steps.sklearn.models import LightGBM
 from utils import softmax
 from unet_models import AlbuNet, UNet11, UNet16, UNetResNet
 
@@ -199,6 +202,40 @@ class PyTorchUNetWeightedStream(BasePyTorchUNet):
             if batch_id == steps:
                 break
         self.model.train()
+
+
+class ScoringLightGBM(LightGBM):
+    def __init__(self, model_params, training_params, train_size, target):
+        self.train_size = train_size
+        self.target = target
+        super().__init__(model_params, training_params)
+
+    def fit(self, features, **kwargs):
+        df_features = pd.DataFrame()
+        for image_features in features:
+            for layer_features in image_features:
+                df_features = df_features.append(layer_features)
+        train_data, val_data = train_test_split(df_features, train_size=self.train_size)
+        self.feature_names = list(df_features.columns.drop(self.target))
+        super().fit(X=train_data[self.feature_names],
+                    y=train_data[self.target],
+                    X_valid=val_data[self.feature_names],
+                    y_valid=val_data[self.target],
+                    feature_names=self.feature_names,
+                    categorical_features=[])
+
+    def transform(self, features, **kwargs):
+        scores = []
+        for image_features in features:
+            image_scores = []
+            for layer_features in image_features:
+                if len(layer_features)>0:
+                    layer_scores = super().transform(layer_features[self.feature_names])
+                    image_scores.append(list(layer_scores['prediction']))
+                else:
+                    image_scores.append([])
+            scores.append(image_scores)
+        return {'scores': scores}
 
 
 def weight_regularization_unet(model, regularize, weight_decay_conv2d):

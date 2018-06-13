@@ -154,6 +154,20 @@ class FeatureExtractor(BaseTransformer):
                 'categorical_features': []}
 
 
+class FeatureExtractorV2(BaseTransformer):
+    def __init__(self, train_size, target):
+        self.train_size = train_size
+        self.target = target
+
+    def transform(self, images, probabilities, train_mode, annotations=None):
+        all_features = []
+        if annotations is None:
+            annotations = [None] * len(images)
+        for image, image_probabilities, image_annotations in tqdm(zip(images, probabilities, annotations)):
+            all_features.append(get_features_for_image_v2(image, image_probabilities, image_annotations))
+        return {'features': all_features}
+
+
 class AnnotationLoader(BaseTransformer):
     def transform(self, annotation_file_path, meta):
         annotations = []
@@ -163,6 +177,14 @@ class AnnotationLoader(BaseTransformer):
             image_annotations = coco.loadAnns(annotation_ids)
             annotations.append(image_annotations)
         return {'annotations': annotations}
+
+
+class ScoreImageJoiner(BaseTransformer):
+    def transform(self, images, scores):
+        images_with_scores = []
+        for image, score in tqdm(zip(images, scores)):
+            images_with_scores.append((image, score))
+        return {'images_with_scores': images_with_scores}
 
 
 class MulticlassLabelerStream(BaseTransformer):
@@ -399,6 +421,30 @@ def get_features_for_image(image, probabilities, annotations):
     return pd.DataFrame(image_features)
 
 
+def get_features_for_image_v2(image, probabilities, annotations):
+    image_features = []
+    category_layers_inds = np.cumsum(CATEGORY_LAYERS)
+    thresholds = get_thresholds()
+    for category_ind, category_instances in enumerate(image):
+        layer_features = []
+        category_nr = np.searchsorted(category_layers_inds, category_ind, side='right')
+        category_probabilities = probabilities[category_nr]
+        threshold = round(thresholds[category_ind], 2)
+        iou_matrix = get_iou_matrix(category_instances, annotations)
+        for label_nr in range(1, category_instances.max() + 1):
+            mask = category_instances == label_nr
+            iou = get_iou(iou_matrix, label_nr)
+            mask_probabilities = np.where(mask, category_probabilities, 0)
+            area = np.count_nonzero(mask)
+            mean_prob = mask_probabilities.sum() / area
+            max_prob = mask_probabilities.max()
+            mask_features = {'iou': iou, 'threshold': threshold, 'area': area, 'mean_prob': mean_prob,
+                             'max_prob': max_prob, 'label_nr': label_nr}
+            layer_features.append(mask_features)
+        image_features.append(pd.DataFrame(layer_features))
+    return image_features
+
+
 def get_iou_matrix(labels, annotations):
     mask_anns = []
     if annotations is None:
@@ -407,7 +453,7 @@ def get_iou_matrix(labels, annotations):
         for annotation in annotations:
             if not isinstance(annotation['segmentation'], dict):
                 annotation['segmentation'] = \
-                cocomask.frPyObjects(annotation['segmentation'], labels.shape[0], labels.shape[1])[0]
+                    cocomask.frPyObjects(annotation['segmentation'], labels.shape[0], labels.shape[1])[0]
         annotations = [annotation['segmentation'] for annotation in annotations]
         for label_nr in range(1, labels.max() + 1):
             mask = labels == label_nr
