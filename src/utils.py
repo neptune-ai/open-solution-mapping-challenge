@@ -346,10 +346,6 @@ def generate_data_frame_chunks(meta, chunk_size):
         yield meta_chunk
 
 
-def categorize_image(image, channel_axis=0):
-    return np.argmax(image, axis=channel_axis)
-
-
 def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, small_annotations_size):
     coco = COCO(gt_filepath)
     coco_results = coco.loadRes(prediction_filepath)

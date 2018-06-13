@@ -4,7 +4,7 @@ import os
 from . import loaders
 from .steps.base import Step, Dummy
 from .steps.preprocessing.misc import XYSplit
-from .utils import squeeze_inputs, categorize_image, make_apply_transformer
+from .utils import squeeze_inputs, make_apply_transformer
 from .models import PyTorchUNet, PyTorchUNetWeighted
 from . import postprocessing as post
 
@@ -241,7 +241,7 @@ def mask_postprocessing(model, config, save_output=False):
                        cache_output=True)
 
     category_mapper = Step(name='category_mapper',
-                           transformer=make_apply_transformer(categorize_image,
+                           transformer=make_apply_transformer(post.categorize_image,
                                                               output_name='categorized_images'),
                            input_steps=[mask_resize],
                            adapter={'images': ([('mask_resize', 'resized_images')]),
@@ -262,7 +262,7 @@ def mask_postprocessing(model, config, save_output=False):
     detached = multiclass_object_labeler(mask_erosion, config, save_output=save_output)
 
     mask_dilation = Step(name='mask_dilation',
-                         transformer=make_apply_transformer(partial(post.dilate_labeled_image,
+                         transformer=make_apply_transformer(partial(post.dilate_image,
                                                                     **config.postprocessor.mask_dilation),
                                                             output_name='dilated_images'),
                          input_steps=[detached],
