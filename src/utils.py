@@ -4,8 +4,8 @@ import math
 import os
 import random
 import sys
-from itertools import product
-from collections import defaultdict
+from itertools import product, chain
+from collections import defaultdict, Iterable
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,7 @@ from tqdm import tqdm
 from scipy import ndimage as ndi
 from scipy.ndimage.morphology import distance_transform_edt
 from .cocoeval import COCOeval
+from .steps.base import BaseTransformer
 
 
 def read_yaml(filepath):
@@ -411,3 +412,37 @@ def add_dropped_objects(original, processed):
         if not np.any(np.where((labeled == i) & processed)):
             reconstructed += (labeled == i)
     return reconstructed.astype('uint8')
+
+
+def make_apply_transformer(func, output_name='output', apply_on=None):
+    class StaticApplyTransformer(BaseTransformer):
+        def transform(self, *args, **kwargs):
+            iterator_length = self.check_input(*args, **kwargs)
+
+            if not apply_on:
+                iterator = zip(*args, *kwargs.values())
+            else:
+                iterator = zip(*args, *[kwargs[key] for key in apply_on])
+
+            output = []
+            for func_args in tqdm(iterator, total=iterator_length):
+                output.append(func(*func_args))
+            return {output_name: output}
+
+        @staticmethod
+        def check_input(*args, **kwargs):
+            if len(args) and len(kwargs) == 0:
+                raise Exception('Input must not be empty')
+
+            arg_length = None
+            for arg in chain(args, kwargs.values()):
+                if not isinstance(arg, Iterable):
+                    raise Exception('All inputs must be iterable')
+                if not arg_length:
+                    try:
+                        arg_length = len(arg)
+                    except:
+                        pass
+            return arg_length
+
+    return StaticApplyTransformer()
