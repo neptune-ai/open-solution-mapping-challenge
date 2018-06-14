@@ -27,7 +27,7 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
 
     def on_epoch_end(self, *args, **kwargs):
         self._send_numeric_channels()
-        self._send_image_channels()
+        #self._send_image_channels()
         self.epoch_id += 1
 
     def _send_image_channels(self):

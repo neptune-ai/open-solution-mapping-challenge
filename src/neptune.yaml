@@ -114,3 +114,13 @@ parameters:
 
 #Neptune monitor
   unet_outputs_to_plot: '["multichannel_map",]'
+
+#LightGBM
+  lgbm__learning_rate: 0.001
+  lgbm__num_leaves: 10
+  lgbm__min_data: 50
+  lgbm__max_depth: 10
+  lgbm__number_of_trees: 100
+  lgbm__early_stopping: 5
+  lgbm__train_size: 0.7
+  lgbm__target: 'iou'

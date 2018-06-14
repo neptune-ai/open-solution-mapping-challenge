@@ -137,20 +137,18 @@ SOLUTION_CONFIG = AttrDict({
                       'prediction_crop': {'h_crop': params.crop_image_h,
                                           'w_crop': params.crop_image_w
                                           },
-                      'lightGBM': {'model_params': {'learning_rate': 0.001,
+                      'lightGBM': {'model_params': {'learning_rate': params.lgbm__learning_rate,
                                                     'boosting_type': 'gbdt',
                                                     'objective': 'binary',
                                                     'metric': 'binary_logloss',
                                                     'sub_feature': 0.5,
-                                                    'num_leaves': 10,
-                                                    'min_data': 50,
-                                                    'max_depth': 10},
-                                   'training_params': {'number_boosting_rounds': 100,
-                                                       'early_stopping_rounds': 5},
-                                   'train_size': 0.7,
-                                   'target': 'iou'
+                                                    'num_leaves': params.lgbm__num_leaves,
+                                                    'min_data': params.lgbm__min_data,
+                                                    'max_depth': params.lgbm__max_depth},
+                                   'training_params': {'number_boosting_rounds': params.lgbm__number_of_trees,
+                                                       'early_stopping_rounds': params.lgbm__early_stopping},
+                                   'train_size': params.lgbm__train_size,
+                                   'target': params.lgbm__target
                                    },
-                      'feature_extractor': {'train_size': 0.7,
-                                            'target': 'iou'}
                       }
 })

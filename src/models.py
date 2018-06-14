@@ -6,6 +6,7 @@ from torch.autograd import Variable
 from torch import optim
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.externals import joblib
 
 from callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
 from steps.pytorch.architectures.unet import UNet
@@ -14,7 +15,7 @@ from steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoi
 from steps.pytorch.models import Model
 from steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
 from steps.sklearn.models import LightGBM
-from utils import softmax
+from utils import softmax, get_logger
 from unet_models import AlbuNet, UNet11, UNet16, UNetResNet
 
 PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
@@ -43,6 +44,7 @@ PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
                                      'init_weights': False}
                        }
 
+logger = get_logger()  # test
 
 class BasePyTorchUNet(Model):
     def __init__(self, architecture_config, training_config, callbacks_config):
@@ -208,34 +210,50 @@ class ScoringLightGBM(LightGBM):
     def __init__(self, model_params, training_params, train_size, target):
         self.train_size = train_size
         self.target = target
+        self.feature_names = []
+        self.estimator = None
         super().__init__(model_params, training_params)
 
     def fit(self, features, **kwargs):
+        logger.info("fitting")
         df_features = pd.DataFrame()
         for image_features in features:
-            for layer_features in image_features:
+            for layer_features in image_features[1:]:
                 df_features = df_features.append(layer_features)
+        logger.info("data frame created")#test
+        import pdb#test
+        pdb.set_trace()
+        joblib.dump(df_features, "/mnt/ml-team/minerva/open-solutions/mapping-challenge/andrzej/input_to_lgbm")#test
         train_data, val_data = train_test_split(df_features, train_size=self.train_size)
+        logger.info("train test split done")#test
         self.feature_names = list(df_features.columns.drop(self.target))
-        super().fit(X=train_data[self.feature_names],
-                    y=train_data[self.target],
-                    X_valid=val_data[self.feature_names],
-                    y_valid=val_data[self.target],
-                    feature_names=self.feature_names,
-                    categorical_features=[])
+        logger.info("fitting started")#test
+        return super().fit(X=train_data[self.feature_names],
+                           y=train_data[self.target],
+                           X_valid=val_data[self.feature_names],
+                           y_valid=val_data[self.target],
+                           feature_names=self.feature_names,
+                           categorical_features=[])
 
     def transform(self, features, **kwargs):
+        logger.info("transforming")#test
         scores = []
         for image_features in features:
             image_scores = []
             for layer_features in image_features:
-                if len(layer_features)>0:
+                if len(layer_features) > 0:
                     layer_scores = super().transform(layer_features[self.feature_names])
                     image_scores.append(list(layer_scores['prediction']))
                 else:
                     image_scores.append([])
             scores.append(image_scores)
         return {'scores': scores}
+
+    def save(self, filepath):
+        joblib.dump((self.estimator, self.feature_names), filepath)
+
+    def load(self, filepath):
+        self.estimator, self.feature_names = joblib.load(filepath)
 
 
 def weight_regularization_unet(model, regularize, weight_decay_conv2d):

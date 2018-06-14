@@ -7,11 +7,11 @@ from pydensecrf.utils import unary_from_softmax
 from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
 import pandas as pd
-from sklearn.model_selection import train_test_split
+import cv2
 
 from steps.base import BaseTransformer
 from utils import denormalize_img, add_dropped_objects, label, rle_from_binary
-from pipeline_config import MEAN, STD, CATEGORY_LAYERS
+from pipeline_config import MEAN, STD, CATEGORY_LAYERS, CATEGORY_IDS
 
 
 class MulticlassLabeler(BaseTransformer):
@@ -134,37 +134,12 @@ class ScoreBuilder(BaseTransformer):
 
 
 class FeatureExtractor(BaseTransformer):
-    def __init__(self, train_size, target):
-        self.train_size = train_size
-        self.target = target
-
-    def transform(self, images, probabilities, train_mode, annotations=None):
-        all_features = pd.DataFrame()
-        if annotations is None:
-            annotations = [None] * len(images)
-        for image, image_probabilities, image_annotations in tqdm(zip(images, probabilities, annotations)):
-            all_features = all_features.append(get_features_for_image(image, image_probabilities, image_annotations))
-        feature_names = list(all_features.columns.drop(self.target))
-        train_data, val_data = train_test_split(all_features, train_size=self.train_size)
-        return {'X': train_data[feature_names],
-                'y': train_data[self.target],
-                'X_valid': val_data[feature_names],
-                'y_valid': val_data[self.target],
-                'feature_names': feature_names,
-                'categorical_features': []}
-
-
-class FeatureExtractorV2(BaseTransformer):
-    def __init__(self, train_size, target):
-        self.train_size = train_size
-        self.target = target
-
     def transform(self, images, probabilities, train_mode, annotations=None):
         all_features = []
         if annotations is None:
-            annotations = [None] * len(images)
+            annotations = [{}] * len(images)
         for image, image_probabilities, image_annotations in tqdm(zip(images, probabilities, annotations)):
-            all_features.append(get_features_for_image_v2(image, image_probabilities, image_annotations))
+            all_features.append(get_features_for_image(image, image_probabilities, image_annotations))
         return {'features': all_features}
 
 
@@ -173,8 +148,11 @@ class AnnotationLoader(BaseTransformer):
         annotations = []
         coco = COCO(annotation_file_path)
         for image_id in meta['ImageId'].values:
-            annotation_ids = coco.getAnnIds(imgIds=image_id)
-            image_annotations = coco.loadAnns(annotation_ids)
+            image_annotations = {}
+            for category_id in CATEGORY_IDS:
+                annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=category_id)
+                category_annotations = coco.loadAnns(annotation_ids)
+                image_annotations[category_id] = category_annotations
             annotations.append(image_annotations)
         return {'annotations': annotations}
 
@@ -185,6 +163,17 @@ class ScoreImageJoiner(BaseTransformer):
         for image, score in tqdm(zip(images, scores)):
             images_with_scores.append((image, score))
         return {'images_with_scores': images_with_scores}
+
+
+class NonMaximumSupression(BaseTransformer):
+    def __init__(self, iou_threshold):
+        self.iou_threshold = iou_threshold
+
+    def transform(self, images_with_scores):
+        cleaned_images_with_scores = []
+        for image, scores in images_with_scores:
+            cleaned_images_with_scores.append(remove_overlapping_masks(image, scores, self.iou_threshold))
+        return cleaned_images_with_scores
 
 
 class MulticlassLabelerStream(BaseTransformer):
@@ -403,34 +392,12 @@ def get_features_for_image(image, probabilities, annotations):
     category_layers_inds = np.cumsum(CATEGORY_LAYERS)
     thresholds = get_thresholds()
     for category_ind, category_instances in enumerate(image):
-        if category_ind > 0:
-            category_nr = np.searchsorted(category_layers_inds, category_ind, side='right')
-            category_probabilities = probabilities[category_nr]
-            threshold = round(thresholds[category_ind], 2)
-            iou_matrix = get_iou_matrix(category_instances, annotations)
-            for label_nr in range(1, category_instances.max() + 1):
-                mask = category_instances == label_nr
-                iou = get_iou(iou_matrix, label_nr)
-                mask_probabilities = np.where(mask, category_probabilities, 0)
-                area = np.count_nonzero(mask)
-                mean_prob = mask_probabilities.sum() / area
-                max_prob = mask_probabilities.max()
-                mask_features = {'iou': iou, 'threshold': threshold, 'area': area, 'mean_prob': mean_prob,
-                                 'max_prob': max_prob, 'label_nr': label_nr}
-                image_features.append(mask_features)
-    return pd.DataFrame(image_features)
-
-
-def get_features_for_image_v2(image, probabilities, annotations):
-    image_features = []
-    category_layers_inds = np.cumsum(CATEGORY_LAYERS)
-    thresholds = get_thresholds()
-    for category_ind, category_instances in enumerate(image):
         layer_features = []
         category_nr = np.searchsorted(category_layers_inds, category_ind, side='right')
         category_probabilities = probabilities[category_nr]
         threshold = round(thresholds[category_ind], 2)
-        iou_matrix = get_iou_matrix(category_instances, annotations)
+        category_annotations = annotations.get(CATEGORY_IDS[category_nr], [])
+        iou_matrix = get_iou_matrix(category_instances, category_annotations)
         for label_nr in range(1, category_instances.max() + 1):
             mask = category_instances == label_nr
             iou = get_iou(iou_matrix, label_nr)
@@ -438,8 +405,18 @@ def get_features_for_image_v2(image, probabilities, annotations):
             area = np.count_nonzero(mask)
             mean_prob = mask_probabilities.sum() / area
             max_prob = mask_probabilities.max()
+            bbox = get_bbox(mask)
+            bbox_height = bbox[1] - bbox[0]
+            bbox_width = bbox[3] - bbox[2]
+            bbox_aspect_ratio = bbox_height / bbox_width
+            bbox_area = bbox_width * bbox_height
+            bbox_fill = area / bbox_area
+            dist_to_boarder = get_distance_to_boarder(bbox, mask.shape)
+            contour_length = get_contour_length(mask)
             mask_features = {'iou': iou, 'threshold': threshold, 'area': area, 'mean_prob': mean_prob,
-                             'max_prob': max_prob, 'label_nr': label_nr}
+                             'max_prob': max_prob, 'label_nr': label_nr, 'bbox_ar': bbox_aspect_ratio,
+                             'bbox_area': bbox_area, 'bbox_fill': bbox_fill, 'dist_to_boarder': dist_to_boarder,
+                             'contour_length': contour_length}
             layer_features.append(mask_features)
         image_features.append(pd.DataFrame(layer_features))
     return image_features
@@ -447,7 +424,7 @@ def get_features_for_image_v2(image, probabilities, annotations):
 
 def get_iou_matrix(labels, annotations):
     mask_anns = []
-    if annotations is None:
+    if annotations is None or annotations == []:
         return None
     else:
         for annotation in annotations:
@@ -476,3 +453,52 @@ def get_thresholds():
         category_thresholds = np.arange(thrs_step, 1, thrs_step)
         thresholds.extend(category_thresholds)
     return thresholds
+
+
+def get_bbox(mask):
+    '''taken from https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array and
+    modified to prevent bbox of zero area'''
+    rows = np.any(mask, axis=1)
+    cols = np.any(mask, axis=0)
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+    return rmin, rmax + 1, cmin, cmax + 1
+
+
+def get_distance_to_boarder(bbox, im_size):
+    return min(bbox[0], im_size[0] - bbox[1], bbox[2], im_size[1] - bbox[3])
+
+
+def get_contour(mask):
+    mask_contour = np.zeros_like(mask).astype(np.uint8)
+    _, contours, hierarchy = cv2.findContours(mask.astype(np.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    cv2.drawContours(mask_contour, contours, -1, (255, 255, 255), 1)
+    return mask_contour
+
+
+def get_contour_length(mask):
+    return np.count_nonzero(get_contour(mask))
+
+
+def remove_overlapping_masks(image, scores, iou_thrshold):
+    import pdb
+    pdb.set_trace()  # test, I want to check if score is from [0,1], not binary
+    scores_with_labels = []
+    for layer_nr, layer_scores in enumerate(scores):
+        scores_with_labels.extend([(score, layer_nr, label_nr + 1) for label_nr, score in enumerate(layer_scores)])
+    scores_with_labels.sort(key=lambda x: x[0], reverse=True)
+    for i, (score_i, layer_nr_i, label_nr_i) in enumerate(scores_with_labels):
+        base_mask = image[label_nr_i] == label_nr_i
+        for score_j, layer_nr_j, label_nr_j in scores_with_labels[i+1:]:
+            mask_to_check = image[label_nr_j] == label_nr_j
+            iou = get_iou_for_mask_pair(base_mask, mask_to_check)
+            if iou > iou_thrshold:
+                scores_with_labels.remove((score_j, layer_nr_j, label_nr_j))
+                scores[label_nr_j][label_nr_j - 1] = 0
+    return image, scores
+
+
+def get_iou_for_mask_pair(mask1, mask2):
+    intersection = np.count_nonzero(mask1 * mask2)
+    union = np.count_nonzero(mask1 + mask2)
+    return intersection/union
