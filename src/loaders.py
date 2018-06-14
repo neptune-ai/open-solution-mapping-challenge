@@ -1,4 +1,6 @@
+from functools import partial
 from itertools import product
+import multiprocessing as mp
 import os
 
 from attrdict import AttrDict
@@ -10,6 +12,7 @@ import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
 from skimage.transform import rotate
+from scipy.stats import gmean
 
 from .augmentation import fast_seq, crop_seq, padding_seq
 from .steps.base import BaseTransformer
@@ -365,6 +368,36 @@ class ImageSegmentationLoaderInferencePaddingTTA(ImageSegmentationLoaderBasic):
         return datagen, steps
 
 
+class ImageSegmentationLoaderResizeTTA(ImageSegmentationLoaderBasic):
+    def __init__(self, loader_params, dataset_params):
+        super().__init__(loader_params, dataset_params)
+
+        self.image_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
+                                                                      self.dataset_params.w)),
+                                                   transforms.ToTensor(),
+                                                   transforms.Normalize(mean=MEAN, std=STD),
+                                                   ])
+        self.dataset = MetadataImageSegmentationTTA
+
+    def transform(self, X, tta_params, **kwargs):
+        flow, steps = self.get_datagen(X, tta_params, self.loader_params.inference)
+        valid_flow = None
+        valid_steps = None
+        return {'datagen': (flow, steps),
+                'validation_datagen': (valid_flow, valid_steps)}
+
+    def get_datagen(self, X, tta_params, loader_params):
+        dataset = self.dataset(X, tta_params,
+                               image_augment=None,
+                               image_augment_with_target=None,
+                               mask_transform=None,
+                               image_transform=self.image_transform)
+
+        datagen = DataLoader(dataset, **loader_params)
+        steps = len(datagen)
+        return datagen, steps
+
+
 class TestTimeAugmentationGenerator(BaseTransformer):
     def __init__(self, **kwargs):
         self.tta_transformations = AttrDict(kwargs)
@@ -399,19 +432,43 @@ class TestTimeAugmentationGenerator(BaseTransformer):
 
 
 class TestTimeAugmentationAggregator(BaseTransformer):
+    def __init__(self, method, nthreads):
+        self.method = method
+        self.nthreads = nthreads
+
+    @property
+    def agg_method(self):
+        methods = {'mean': np.mean,
+                   'max': np.max,
+                   'min': np.min,
+                   'gmean': gmean
+                   }
+        return partial(methods[self.method], axis=-1)
+
     def transform(self, images, tta_params, img_ids, **kwargs):
-        averages_images = []
-        for img_id in set(img_ids):
-            tta_predictions_for_id = []
-            for image, tta_param, ids in zip(images, tta_params, img_ids):
-                if ids == img_id:
-                    tta_prediction = test_time_augmentation_inverse_transform(image, tta_param)
-                    tta_predictions_for_id.append(tta_prediction)
-                else:
-                    continue
-            tta_averaged = np.mean(np.stack(tta_predictions_for_id, axis=-1), axis=-1)
-            averages_images.append(tta_averaged)
+        _aggregate_augmentations = partial(aggregate_augmentations,
+                                           images=images,
+                                           tta_params=tta_params,
+                                           img_ids=img_ids,
+                                           agg_method=self.agg_method)
+        unique_img_ids = set(img_ids)
+        threads = min(self.nthreads, len(unique_img_ids))
+        with mp.pool.ThreadPool(threads) as executor:
+            averages_images = executor.map(_aggregate_augmentations, unique_img_ids)
+
         return {'aggregated_prediction': averages_images}
+
+
+def aggregate_augmentations(img_id, images, tta_params, img_ids, agg_method):
+    tta_predictions_for_id = []
+    for image, tta_param, ids in zip(images, tta_params, img_ids):
+        if ids == img_id:
+            tta_prediction = test_time_augmentation_inverse_transform(image, tta_param)
+            tta_predictions_for_id.append(tta_prediction)
+        else:
+            continue
+    tta_averaged = agg_method(np.stack(tta_predictions_for_id, axis=-1))
+    return tta_averaged
 
 
 def test_time_augmentation_transform(image, tta_parameters):

@@ -86,13 +86,13 @@ def unet_padded(config):
     return output
 
 
-def unet_padded_tta(config):
+def unet_tta(config):
     save_output = False
 
     if config.execution.stream_mode:
         raise NotImplementedError('TTA not available in the stream mode')
 
-    loader, tta_generator = preprocessing_generator_padded_tta(config)
+    loader, tta_generator = preprocessing_generator_tta(config)
     unet = Step(name='unet',
                 transformer=PyTorchUNet(**config.unet),
                 input_steps=[loader],
@@ -100,7 +100,7 @@ def unet_padded_tta(config):
                 save_output=save_output)
 
     tta_aggregator = Step(name='tta_aggregator',
-                          transformer=loaders.TestTimeAugmentationAggregator(),
+                          transformer=loaders.TestTimeAugmentationAggregator(**config.tta_aggregator),
                           input_steps=[unet, tta_generator],
                           adapter={'images': ([(unet.name, 'multichannel_map_prediction')]),
                                    'tta_params': ([(tta_generator.name, 'tta_params')]),
@@ -109,20 +109,34 @@ def unet_padded_tta(config):
                           cache_dirpath=config.env.cache_dirpath,
                           save_output=save_output)
 
-    prediction_crop = Step(name='prediction_crop',
-                           transformer=post.PredictionCrop(**config.postprocessor.prediction_crop),
-                           input_steps=[tta_aggregator],
-                           adapter={'images': ([(tta_aggregator.name, 'aggregated_prediction')]), },
-                           cache_dirpath=config.env.cache_dirpath,
-                           save_output=save_output)
+    if config.execution.loader_mode == 'crop_and_pad':
 
-    prediction_renamed = Step(name='prediction_renamed',
-                              transformer=Dummy(),
-                              input_steps=[prediction_crop],
-                              adapter={
-                                  'multichannel_map_prediction': ([(prediction_crop.name, 'cropped_images')]), },
-                              cache_dirpath=config.env.cache_dirpath,
-                              save_output=save_output)
+        prediction_crop = Step(name='prediction_crop',
+                               transformer=post.PredictionCrop(**config.postprocessor.prediction_crop),
+                               input_steps=[tta_aggregator],
+                               adapter={'images': ([(tta_aggregator.name, 'aggregated_prediction')]), },
+                               cache_dirpath=config.env.cache_dirpath,
+                               save_output=save_output)
+
+        prediction_renamed = Step(name='prediction_renamed',
+                                  transformer=Dummy(),
+                                  input_steps=[prediction_crop],
+                                  adapter={
+                                      'multichannel_map_prediction': ([(prediction_crop.name, 'cropped_images')]), },
+                                  cache_dirpath=config.env.cache_dirpath,
+                                  save_output=save_output)
+
+    elif config.execution.loader_mode == 'resize':
+        prediction_renamed = Step(name='prediction_renamed',
+                                  transformer=Dummy(),
+                                  input_steps=[tta_aggregator],
+                                  adapter={
+                                      'multichannel_map_prediction': ([(tta_aggregator.name, 'aggregated_prediction')]), },
+                                  cache_dirpath=config.env.cache_dirpath,
+                                  save_output=save_output)
+    else:
+        raise NotImplementedError('only crop_and_pad and resize options available')
+
     mask_postprocessed = mask_postprocessing(loader, prediction_renamed, config, save_output=save_output)
 
     output = Step(name='output',
@@ -203,7 +217,14 @@ def preprocessing_generator(config, is_train):
     return loader
 
 
-def preprocessing_generator_padded_tta(config):
+def preprocessing_generator_tta(config):
+    if config.execution.loader_mode == 'crop_and_pad':
+        Loader = loaders.ImageSegmentationLoaderInferencePaddingTTA
+    elif config.execution.loader_mode == 'resize':
+        Loader = loaders.ImageSegmentationLoaderResizeTTA
+    else:
+        raise NotImplementedError('only crop_and_pad and resize options available')
+
     xy_inference = Step(name='xy_inference',
                         transformer=XYSplit(**config.xy_splitter),
                         input_data=['input', 'specs'],
@@ -220,7 +241,7 @@ def preprocessing_generator_padded_tta(config):
                          cache_dirpath=config.env.cache_dirpath)
 
     loader = Step(name='loader',
-                  transformer=loaders.ImageSegmentationLoaderInferencePaddingTTA(**config.loader),
+                  transformer=Loader(**config.loader),
                   input_steps=[xy_inference, tta_generator],
                   adapter={'X': ([(tta_generator.name, 'X_tta')], squeeze_inputs),
                            'tta_params': ([(tta_generator.name, 'tta_params')], squeeze_inputs),
@@ -308,9 +329,9 @@ PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
              'unet_weighted': {'train': partial(unet_weighted, train_mode=True),
                                'inference': partial(unet_weighted, train_mode=False),
                                },
+             'unet_tta': {'inference': unet_tta,
+                          },
              'unet_padded': {'inference': unet_padded,
                              },
-             'unet_padded_tta': {'inference': unet_padded_tta,
-                                 },
 
              }
