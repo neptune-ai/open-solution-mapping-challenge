@@ -102,14 +102,5 @@ parameters:
   w_pad: 10
   pad_method: 'replicate'
 
-# CRF
-  apply_crf: 0
-  nr_iter: 5
-  compat_gaussian: 3
-  sxy_gaussian: 1
-  compat_bilateral: 10
-  sxy_bilateral: 1
-  srgb: 50
-
 #Neptune monitor
   unet_outputs_to_plot: '["multichannel_map",]'

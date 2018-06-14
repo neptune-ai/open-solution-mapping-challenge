@@ -42,13 +42,6 @@ PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
 
 
 class BasePyTorchUNet(Model):
-    """Base class for PyTorch U-net models.
-
-    Args:
-        architecture_config (dict):
-        training_config:
-        callbacks_config:
-    """
     def __init__(self, architecture_config, training_config, callbacks_config):
         """
         """
@@ -118,12 +111,6 @@ class PyTorchUNetWeighted(BasePyTorchUNet):
                        cross_entropy_loss=weighted_loss,
                        **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
-
-    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
-        outputs = self._transform(datagen, validation_datagen)
-        for name, prediction in outputs.items():
-            outputs[name] = softmax(prediction, axis=1)
-        return outputs
 
 
 def weight_regularization_unet(model, regularize, weight_decay_conv2d):

@@ -413,7 +413,7 @@ def add_dropped_objects(original, processed):
 def make_apply_transformer(func, output_name='output', apply_on=None):
     class StaticApplyTransformer(BaseTransformer):
         def transform(self, *args, **kwargs):
-            iterator_length = self.check_input(*args, **kwargs)
+            self.check_input(*args, **kwargs)
 
             if not apply_on:
                 iterator = zip(*args, *kwargs.values())
@@ -421,7 +421,7 @@ def make_apply_transformer(func, output_name='output', apply_on=None):
                 iterator = zip(*args, *[kwargs[key] for key in apply_on])
 
             output = []
-            for func_args in tqdm(iterator, total=iterator_length):
+            for func_args in tqdm(iterator, total=self.get_arg_length(*args, **kwargs)):
                 output.append(func(*func_args))
             return {output_name: output}
 
@@ -434,11 +434,27 @@ def make_apply_transformer(func, output_name='output', apply_on=None):
             for arg in chain(args, kwargs.values()):
                 if not isinstance(arg, Iterable):
                     raise Exception('All inputs must be iterable')
-                if not arg_length:
+                arg_length_loc = None
+                try:
+                    arg_length_loc = len(arg)
+                except:
+                    pass
+                if arg_length_loc is not None:
+                    if arg_length is None:
+                        arg_length = arg_length_loc
+                    elif arg_length_loc != arg_length:
+                        raise Exception('All inputs must be the same length')
+
+        @staticmethod
+        def get_arg_length(*args, **kwargs):
+            arg_length = None
+            for arg in chain(args, kwargs.values()):
+                if arg_length is None:
                     try:
                         arg_length = len(arg)
                     except:
                         pass
-            return arg_length
+                if arg_length is not None:
+                    return arg_length
 
     return StaticApplyTransformer()
