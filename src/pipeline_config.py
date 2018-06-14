@@ -24,7 +24,6 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'img_H-W': (params.image_h, params.image_w),
                  'batch_size_train': params.batch_size_train,
                  'batch_size_inference': params.batch_size_inference,
-                 'stream_mode': params.stream_mode,
                  'loader_mode': params.loader_mode
                  }
 

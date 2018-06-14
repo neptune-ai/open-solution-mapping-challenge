@@ -4,8 +4,8 @@ import math
 import os
 import random
 import sys
-from itertools import product
-from collections import defaultdict
+from itertools import product, chain
+from collections import defaultdict, Iterable
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,7 @@ from tqdm import tqdm
 from scipy import ndimage as ndi
 from scipy.ndimage.morphology import distance_transform_edt
 from .cocoeval import COCOeval
+from .steps.base import BaseTransformer
 
 
 def read_yaml(filepath):
@@ -345,10 +346,6 @@ def generate_data_frame_chunks(meta, chunk_size):
         yield meta_chunk
 
 
-def categorize_image(image, channel_axis=0):
-    return np.argmax(image, axis=channel_axis)
-
-
 def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, small_annotations_size):
     coco = COCO(gt_filepath)
     coco_results = coco.loadRes(prediction_filepath)
@@ -411,3 +408,53 @@ def add_dropped_objects(original, processed):
         if not np.any(np.where((labeled == i) & processed)):
             reconstructed += (labeled == i)
     return reconstructed.astype('uint8')
+
+
+def make_apply_transformer(func, output_name='output', apply_on=None):
+    class StaticApplyTransformer(BaseTransformer):
+        def transform(self, *args, **kwargs):
+            self.check_input(*args, **kwargs)
+
+            if not apply_on:
+                iterator = zip(*args, *kwargs.values())
+            else:
+                iterator = zip(*args, *[kwargs[key] for key in apply_on])
+
+            output = []
+            for func_args in tqdm(iterator, total=self.get_arg_length(*args, **kwargs)):
+                output.append(func(*func_args))
+            return {output_name: output}
+
+        @staticmethod
+        def check_input(*args, **kwargs):
+            if len(args) and len(kwargs) == 0:
+                raise Exception('Input must not be empty')
+
+            arg_length = None
+            for arg in chain(args, kwargs.values()):
+                if not isinstance(arg, Iterable):
+                    raise Exception('All inputs must be iterable')
+                arg_length_loc = None
+                try:
+                    arg_length_loc = len(arg)
+                except:
+                    pass
+                if arg_length_loc is not None:
+                    if arg_length is None:
+                        arg_length = arg_length_loc
+                    elif arg_length_loc != arg_length:
+                        raise Exception('All inputs must be the same length')
+
+        @staticmethod
+        def get_arg_length(*args, **kwargs):
+            arg_length = None
+            for arg in chain(args, kwargs.values()):
+                if arg_length is None:
+                    try:
+                        arg_length = len(arg)
+                    except:
+                        pass
+                if arg_length is not None:
+                    return arg_length
+
+    return StaticApplyTransformer()
