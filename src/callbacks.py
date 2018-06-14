@@ -8,12 +8,12 @@ from deepsense import neptune
 from torch.autograd import Variable
 from tempfile import TemporaryDirectory
 
-from src import postprocessing as post
-from steps.base import Step, Dummy
-from steps.utils import get_logger
-from steps.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
-from utils import softmax, categorize_image, coco_evaluation, create_annotations
-from pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING
+from . import postprocessing as post
+from .steps.base import Step, Dummy
+from .steps.utils import get_logger
+from .steps.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
+from .utils import softmax, categorize_image, coco_evaluation, create_annotations
+from .pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING
 
 logger = get_logger()
 
