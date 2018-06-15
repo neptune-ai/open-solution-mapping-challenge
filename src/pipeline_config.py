@@ -16,8 +16,6 @@ CATEGORY_IDS = [None, 100]
 SEED = 1234
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
-# MEAN = [0.0, 0.0, 0.0]
-# STD = [1.0, 1.0, 1.0]
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
@@ -119,7 +117,11 @@ SOLUTION_CONFIG = AttrDict({
     },
     'tta_generator': {'flip_ud': True,
                       'flip_lr': True,
-                      'rotation': True},
+                      'rotation': True,
+                      'color_shift_runs': False},
+    'tta_aggregator': {'method': params.tta_aggregation_method,
+                       'nthreads': params.num_threads
+                       },
     'dropper': {'min_size': params.min_nuclei_size},
     'postprocessor': {'mask_dilation': {'dilate_selem_size': params.dilate_selem_size
                                         },

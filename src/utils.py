@@ -4,6 +4,7 @@ import math
 import os
 import random
 import sys
+import time
 from itertools import product, chain
 from collections import defaultdict, Iterable
 
@@ -11,6 +12,7 @@ import numpy as np
 import pandas as pd
 import torch
 import yaml
+import imgaug as ia
 from PIL import Image
 from attrdict import AttrDict
 from pycocotools import mask as cocomask
@@ -374,3 +376,16 @@ def make_apply_transformer(func, output_name='output', apply_on=None):
                     return arg_length
 
     return StaticApplyTransformer()
+
+
+def get_seed():
+    seed = int(time.time()) + int(os.getpid())
+    return seed
+
+
+def reseed(augmenter_sequence, deterministic=True):
+    for aug in augmenter_sequence:
+        aug.random_state = ia.new_random_state(get_seed())
+        if deterministic:
+            aug.deterministic = True
+    return augmenter_sequence
