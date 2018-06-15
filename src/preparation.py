@@ -8,7 +8,6 @@ from imageio import imwrite
 from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
 from skimage.transform import resize
-from tqdm import tqdm
 from skimage.morphology import binary_erosion, rectangle, binary_dilation
 from scipy.ndimage.morphology import distance_transform_edt
 from sklearn.externals import joblib
@@ -165,51 +164,6 @@ def clean_distances(distances):
     second_nearest_distances = distances[:, :, 1]
     distances_clean = np.sum(distances, axis=2)
     return distances_clean.astype(np.float16), second_nearest_distances
-
-
-def preprocess_image(img, target_size=(128, 128)):
-    img = resize(img, target_size, mode='constant')
-    x = np.expand_dims(img, axis=0)
-    x = x.transpose(0, 3, 1, 2)
-    x = torch.FloatTensor(x)
-    if torch.cuda.is_available():
-        x = torch.autograd.Variable(x, volatile=True).cuda()
-    else:
-        x = torch.autograd.Variable(x, volatile=True)
-    return x
-
-
-def get_selem_size(mask, percent):
-    mask_area = np.sum(mask)
-    radius = np.sqrt(mask_area)
-    result = max(2, int(radius * percent / 200))
-    return result
-
-
-def get_eroded_mask(mask, percent):
-    if np.sum(mask) == 0:
-        return mask
-    diff = 100
-    new_percent = percent
-    iterations = 0
-    while abs(diff) > 5 and iterations < 4:
-        selem_size = get_selem_size(mask, new_percent)
-        selem = rectangle(selem_size, selem_size)
-        mask_eroded = binary_erosion(mask, selem=selem)
-        mask_area = np.sum(mask)
-        mask_eroded_area = np.sum(mask_eroded)
-        percent_obtained = 100 * (1 - mask_eroded_area / mask_area)
-        diff = percent - percent_obtained
-        new_percent += diff
-        iterations += 1
-    if iterations > 3 and abs(diff) > 5:
-        if diff < 0 and selem_size > 2:
-            selem_size -= 1
-        elif diff > 0:
-            selem_size += 1
-        selem = rectangle(selem_size, selem_size)
-        mask_eroded = binary_erosion(mask, selem)
-    return mask_eroded
 
 
 def get_simple_eroded_mask(mask, selem_size, small_annotations_size):

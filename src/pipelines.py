@@ -1,5 +1,4 @@
 from functools import partial
-import os
 
 from . import loaders
 from .steps.base import Step, Dummy
