@@ -150,5 +150,6 @@ SOLUTION_CONFIG = AttrDict({
                                    'train_size': params.lgbm__train_size,
                                    'target': params.lgbm__target
                                    },
+                      'nms': {'iou_threshold': params.iou_threshold},
                       }
 })

@@ -5,6 +5,7 @@ import click
 import pandas as pd
 from deepsense import neptune
 import crowdai
+from pycocotools.coco import COCO
 
 from pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, CATEGORY_LAYERS
 from pipelines import PIPELINES
@@ -88,12 +89,26 @@ def _train(pipeline_name, dev_mode):
     meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
 
     if dev_mode:
-        meta_train = meta_train.sample(20, random_state=seed)
+        meta_train = meta_train.sample(10000, random_state=seed)
         meta_valid = meta_valid.sample(10, random_state=seed)
+
+    if 'lgbm' in pipeline_name:
+        annotations = []
+        annotation_file_path = os.path.join(params.data_dir, 'train', "annotation.json")
+        coco = COCO(annotation_file_path)
+        for image_id in meta['ImageId'].values:
+            image_annotations = {}
+            for category_id in CATEGORY_IDS:
+                annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=category_id)
+                category_annotations = coco.loadAnns(annotation_ids)
+                image_annotations[category_id] = category_annotations
+            annotations.append(image_annotations)
+    else:
+        annotations = None
 
     data = {'input': {'meta': meta_train,
                       'target_sizes': [(300, 300)] * len(meta_train),
-                      'annotation_file_path': os.path.join(params.data_dir, 'train', "annotation.json")},
+                      'annotations': annotations},
             'specs': {'train_mode': True},
             'callback_input': {'meta_valid': meta_valid}
             }

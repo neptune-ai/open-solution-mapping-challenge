@@ -24,7 +24,7 @@ def unet(config, train_mode):
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
 
-    mask_postprocessed = mask_postprocessing(loader, unet, config, save_output=save_output, train_mode=train_mode)
+    mask_postprocessed = mask_postprocessing(loader, unet, config, save_output=save_output)
 
     output = Step(name='output',
                   transformer=Dummy(),
@@ -230,7 +230,7 @@ def preprocessing_generator_padded_tta(config):
     return loader, tta_generator
 
 
-def mask_postprocessing(loader, model, config, save_output=False, train_mode=False):
+def mask_postprocessing(loader, model, config, save_output=False):
     if config.postprocessor.crf.apply_crf:
         dense_crf = Step(name='dense_crf',
                          transformer=post.DenseCRFStream(**config.postprocessor.crf) if config.execution.stream_mode \
@@ -259,8 +259,7 @@ def mask_postprocessing(loader, model, config, save_output=False, train_mode=Fal
                            adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
                                     'target_sizes': ([('input', 'target_sizes')]),
                                     },
-                           cache_dirpath=config.env.cache_dirpath,
-                           cache_output=True)
+                           cache_dirpath=config.env.cache_dirpath)
 
     category_mapper = Step(name='category_mapper',
                            transformer=post.CategoryMapperStream() if config.execution.stream_mode else post.CategoryMapper(),
@@ -289,67 +288,112 @@ def mask_postprocessing(loader, model, config, save_output=False, train_mode=Fal
                          input_steps=[detached],
                          adapter={'images': ([(detached.name, 'labeled_images')]),
                                   },
-                         cache_dirpath=config.env.cache_dirpath, cache_output=True)
+                         cache_dirpath=config.env.cache_dirpath)
 
-    simple_score = False
-    if simple_score:
-        score_builder = Step(name='score_builder',
-                             transformer=post.ScoreBuilder(),
+    score_builder = Step(name='score_builder',
+                         transformer=post.ScoreBuilder(),
+                         input_steps=[mask_dilation, mask_resize],
+                         adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
+                                  'probabilities': ([(mask_resize.name, 'resized_images')]),
+                                  },
+                         cache_dirpath=config.env.cache_dirpath,
+                         save_output=save_output)
+
+    return score_builder
+
+
+def lgbm_train(config):
+
+    save_output = False
+    unet_type = 'weighted'
+
+    if unet_type=='standard':
+        unet_pipeline = unet(config, train_mode=False)
+    elif unet_type=='weighted':
+        unet_pipeline = unet_weighted(config, train_mode=False)
+    else:
+        raise NotImplementedError
+
+    mask_dilation = unet_pipeline.get_step('mask_dilation')
+    mask_resize = unet_pipeline.get_step('mask_resize')
+
+    mask_dilation.transformer = post.LabeledMaskDilatorStream(**config.postprocessor.mask_dilation)
+    mask_resize.transformer = post.ResizerStream()
+    if config.postprocessor.crf.apply_crf:
+        unet_pipeline.get_step('dense_crf').transformer = post.DenseCRFStream(**config.postprocessor.crf)
+    unet_pipeline.get_step('category_mapper').transformer = post.CategoryMapperStream()
+    unet_pipeline.get_step('mask_erosion').transformer = post.MaskEroderStream(**config.postprocessor.mask_erosion)
+    unet_pipeline.get_step('labeler').transformer = post.MulticlassLabelerStream()
+
+    feature_extractor = Step(name='feature_extractor',
+                             transformer=post.FeatureExtractor(),
                              input_steps=[mask_dilation, mask_resize],
+                             input_data=['input'],
                              adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
                                       'probabilities': ([(mask_resize.name, 'resized_images')]),
+                                      'annotations': ([('input', 'annotations')]),
                                       },
                              cache_dirpath=config.env.cache_dirpath,
                              save_output=save_output)
-    else:
 
-        if train_mode:
-            annotation_loader = Step(name='annotation_loader',
-                                     transformer=post.AnnotationLoader(),
-                                     input_data=['input'],
-                                     adapter={'annotation_file_path': ([('input', 'annotation_file_path')]),
-                                              'meta': ([('input', 'meta')])
-                                              },
-                                     cache_dirpath=config.env.cache_dirpath,
-                                     save_output=True, load_saved_output=True)
+    scoring_model = Step(name='scoring_model',
+                         transformer=ScoringLightGBM(**config['postprocessor']['lightGBM']),
+                         input_steps=[feature_extractor],
+                         cache_dirpath=config.env.cache_dirpath,
+                         save_output=save_output,
+                         force_fitting=True#test
+                         )
 
-            feature_extractor = Step(name='feature_extractor',
-                                     transformer=post.FeatureExtractor(),
-                                     input_steps=[annotation_loader, mask_dilation, mask_resize],
-                                     input_data=['specs'],
-                                     adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
-                                              'probabilities': ([(mask_resize.name, 'resized_images')]),
-                                              'annotations': ([(annotation_loader.name, 'annotations')]),
-                                              'train_mode': ([('specs', 'train_mode')]),
-                                              },
-                                     cache_dirpath=config.env.cache_dirpath,
-                                     save_output=save_output)
-        else:
-            feature_extractor = Step(name='feature_extractor',
-                                     transformer=post.FeatureExtractor(),
-                                     input_steps=[mask_dilation, mask_resize],
-                                     input_data=['specs'],
-                                     adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
-                                              'probabilities': ([(mask_resize.name, 'resized_images')]),
-                                              'train_mode': ([('specs', 'train_mode')]),
-                                              },
-                                     cache_dirpath=config.env.cache_dirpath)
+    return scoring_model
 
-        scoring_model = Step(name='scoring_model',
-                             transformer=ScoringLightGBM(**config['postprocessor']['lightGBM']),
-                             input_steps=[feature_extractor],
-                             cache_dirpath=config.env.cache_dirpath,
-                             save_output=save_output)
 
-        score_builder = Step(name='score_builder',
-                             transformer=post.ScoreImageJoiner(),
-                             input_steps=[scoring_model, mask_dilation],
+def lgbm_inference(config, input_pipeline):
+
+    save_output=False
+
+    mask_dilation = input_pipeline.get_step('mask_dilation')
+    mask_resize = input_pipeline.get_step('mask_resize')
+
+    feature_extractor = Step(name='feature_extractor',
+                             transformer=post.FeatureExtractor(),
+                             input_steps=[mask_dilation, mask_resize],
+                             input_data=['input'],
                              adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
-                                      'scores': ([(scoring_model.name, 'scores')])},
+                                      'probabilities': ([(mask_resize.name, 'resized_images')]),
+                                      'annotations': ([('input', 'annotations')]),
+                                      },
                              cache_dirpath=config.env.cache_dirpath,
                              save_output=save_output)
 
-    return score_builder
+    scoring_model = Step(name='scoring_model',
+                         transformer=ScoringLightGBM(**config['postprocessor']['lightGBM']),
+                         input_steps=[feature_extractor],
+                         cache_dirpath=config.env.cache_dirpath,
+                         save_output=save_output)
+
+    score_builder = Step(name='score_builder',
+                         transformer=post.ScoreImageJoiner(),
+                         input_steps=[scoring_model, mask_dilation],
+                         adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
+                                  'scores': ([(scoring_model.name, 'scores')])},
+                         cache_dirpath=config.env.cache_dirpath,
+                         save_output=save_output)
+
+    nms = Step(name='nms',
+               transformer=post.NonMaximumSupression(**config['postprocessor']['nms']),
+               input_steps=[score_builder],
+               cache_dirpath=config.env.cache_dirpath,
+               save_output=save_output)
+
+    output = Step(name='output',
+                  transformer=Dummy(),
+                  input_steps=[nms],
+                  adapter={'y_pred': ([(nms.name, 'images_with_scores')]),
+                           },
+                  cache_dirpath=config.env.cache_dirpath,
+                  save_output=save_output,
+                  load_saved_output=False)
+    return output
 
 
 PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
@@ -362,5 +406,9 @@ PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
                              },
              'unet_padded_tta': {'inference': unet_padded_tta,
                                  },
+             'lgbm': {'train': lgbm_train},
+             'unet_lgbm': {'inference': partial(lgbm_inference, input_pipeline=partial(unet, train_mode=False))},
+             'unet_padded_lgbm': {'inference': partial(lgbm_inference, input_pipeline=unet_padded)},
+             'unet_padded_tta_lgbm': {'inference': partial(lgbm_inference, input_pipeline=unet_padded_tta)},
 
              }

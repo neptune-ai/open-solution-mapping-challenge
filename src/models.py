@@ -46,6 +46,7 @@ PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
 
 logger = get_logger()  # test
 
+
 class BasePyTorchUNet(Model):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
@@ -216,27 +217,29 @@ class ScoringLightGBM(LightGBM):
 
     def fit(self, features, **kwargs):
         logger.info("fitting")
-        df_features = pd.DataFrame()
+        df_features = []
         for image_features in features:
             for layer_features in image_features[1:]:
-                df_features = df_features.append(layer_features)
-        logger.info("data frame created")#test
-        import pdb#test
+                df_features.append(layer_features)
+        import pdb  # test I want to check the distribution of target variable 'iou'
         pdb.set_trace()
-        joblib.dump(df_features, "/mnt/ml-team/minerva/open-solutions/mapping-challenge/andrzej/input_to_lgbm")#test
+        df_features = pd.concat(df_features)
+        logger.info("data frame created")  # test
+        joblib.dump(df_features, "/mnt/ml-team/minerva/open-solutions/mapping-challenge/andrzej/input_to_lgbm")  # test
         train_data, val_data = train_test_split(df_features, train_size=self.train_size)
-        logger.info("train test split done")#test
+        logger.info("train test split done")  # test
         self.feature_names = list(df_features.columns.drop(self.target))
-        logger.info("fitting started")#test
-        return super().fit(X=train_data[self.feature_names],
-                           y=train_data[self.target],
-                           X_valid=val_data[self.feature_names],
-                           y_valid=val_data[self.target],
-                           feature_names=self.feature_names,
-                           categorical_features=[])
+        logger.info("fitting started")  # test
+        super().fit(X=train_data[self.feature_names],
+                    y=train_data[self.target],
+                    X_valid=val_data[self.feature_names],
+                    y_valid=val_data[self.target],
+                    feature_names=self.feature_names,
+                    categorical_features=[])
+        return self
 
     def transform(self, features, **kwargs):
-        logger.info("transforming")#test
+        logger.info("transforming")  # test
         scores = []
         for image_features in features:
             image_scores = []

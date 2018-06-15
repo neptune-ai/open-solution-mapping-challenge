@@ -5,12 +5,11 @@ from tqdm import tqdm
 from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
 from pycocotools import mask as cocomask
-from pycocotools.coco import COCO
 import pandas as pd
 import cv2
 
 from steps.base import BaseTransformer
-from utils import denormalize_img, add_dropped_objects, label, rle_from_binary
+from utils import denormalize_img, add_dropped_objects, label, rle_from_binary, generate_data_frame_chunks
 from pipeline_config import MEAN, STD, CATEGORY_LAYERS, CATEGORY_IDS
 
 
@@ -134,27 +133,13 @@ class ScoreBuilder(BaseTransformer):
 
 
 class FeatureExtractor(BaseTransformer):
-    def transform(self, images, probabilities, train_mode, annotations=None):
+    def transform(self, images, probabilities, annotations=None):
         all_features = []
         if annotations is None:
             annotations = [{}] * len(images)
         for image, image_probabilities, image_annotations in tqdm(zip(images, probabilities, annotations)):
             all_features.append(get_features_for_image(image, image_probabilities, image_annotations))
         return {'features': all_features}
-
-
-class AnnotationLoader(BaseTransformer):
-    def transform(self, annotation_file_path, meta):
-        annotations = []
-        coco = COCO(annotation_file_path)
-        for image_id in meta['ImageId'].values:
-            image_annotations = {}
-            for category_id in CATEGORY_IDS:
-                annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=category_id)
-                category_annotations = coco.loadAnns(annotation_ids)
-                image_annotations[category_id] = category_annotations
-            annotations.append(image_annotations)
-        return {'annotations': annotations}
 
 
 class ScoreImageJoiner(BaseTransformer):
@@ -173,7 +158,7 @@ class NonMaximumSupression(BaseTransformer):
         cleaned_images_with_scores = []
         for image, scores in images_with_scores:
             cleaned_images_with_scores.append(remove_overlapping_masks(image, scores, self.iou_threshold))
-        return cleaned_images_with_scores
+        return {'images_with_scores': cleaned_images_with_scores}
 
 
 class MulticlassLabelerStream(BaseTransformer):
@@ -480,9 +465,7 @@ def get_contour_length(mask):
     return np.count_nonzero(get_contour(mask))
 
 
-def remove_overlapping_masks(image, scores, iou_thrshold):
-    import pdb
-    pdb.set_trace()  # test, I want to check if score is from [0,1], not binary
+def remove_overlapping_masks(image, scores, iou_threshold):
     scores_with_labels = []
     for layer_nr, layer_scores in enumerate(scores):
         scores_with_labels.extend([(score, layer_nr, label_nr + 1) for label_nr, score in enumerate(layer_scores)])
@@ -492,7 +475,7 @@ def remove_overlapping_masks(image, scores, iou_thrshold):
         for score_j, layer_nr_j, label_nr_j in scores_with_labels[i+1:]:
             mask_to_check = image[label_nr_j] == label_nr_j
             iou = get_iou_for_mask_pair(base_mask, mask_to_check)
-            if iou > iou_thrshold:
+            if iou > iou_threshold:
                 scores_with_labels.remove((score_j, layer_nr_j, label_nr_j))
                 scores[label_nr_j][label_nr_j - 1] = 0
     return image, scores
