@@ -518,13 +518,6 @@ def per_channel_rotation(x, angle):
     return x_
 
 
-def binarize(x):
-    x_ = x.convert('L')  # convert image to monochrome
-    x_ = np.array(x_)
-    x_ = (x_ > 125).astype(np.float32)
-    return x_
-
-
 def to_monochrome(x):
     x_ = x.convert('L')
     x_ = np.array(x_).astype(np.float32)  # convert image to monochrome

@@ -19,7 +19,6 @@ from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
 from tqdm import tqdm
 from scipy import ndimage as ndi
-from scipy.ndimage.morphology import distance_transform_edt
 from .cocoeval import COCOeval
 from .steps.base import BaseTransformer
 
@@ -28,25 +27,6 @@ def read_yaml(filepath):
     with open(filepath) as f:
         config = yaml.load(f)
     return AttrDict(config)
-
-
-def read_masks(image_ids, data_dir, dataset):
-    masks = []
-    annotation_file_name = "annotation.json"
-    annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
-    coco = COCO(annotation_file_path)
-    for image_id in tqdm(image_ids):
-        mask_set = []
-        image = coco.loadImgs(image_id)[0]
-        image_size = [image["height"], image["width"]]
-        annotation_ids = coco.getAnnIds(imgIds=image_id)
-        annotations = coco.loadAnns(annotation_ids)
-        for ann in annotations:
-            rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
-            m = cocomask.decode(rle)
-            mask_set.append(m)
-        masks.append(mask_set)
-    return masks
 
 
 def init_logger():
@@ -282,36 +262,6 @@ def softmax(X, theta=1.0, axis=None):
     return p
 
 
-def relabel(img):
-    h, w = img.shape
-
-    relabel_dict = {}
-
-    for i, k in enumerate(np.unique(img)):
-        if k == 0:
-            relabel_dict[k] = 0
-        else:
-            relabel_dict[k] = i
-    for i, j in product(range(h), range(w)):
-        img[i, j] = relabel_dict[img[i, j]]
-    return img
-
-
-def relabel_random_colors(img, max_colours=1000):
-    keys = list(range(1, max_colours, 1))
-    np.random.shuffle(keys)
-    values = list(range(1, max_colours, 1))
-    np.random.shuffle(values)
-    funky_dict = {k: v for k, v in zip(keys, values)}
-    funky_dict[0] = 0
-
-    h, w = img.shape
-
-    for i, j in product(range(h), range(w)):
-        img[i, j] = funky_dict[img[i, j]]
-    return img
-
-
 def from_pil(*images):
     images = [np.array(image) for image in images]
     if len(images) == 1:
@@ -326,10 +276,6 @@ def to_pil(*images):
         return images[0]
     else:
         return images
-
-
-def clip(lo, x, hi):
-    return lo if x <= lo else hi if x >= hi else x
 
 
 def set_seed(seed):
@@ -362,36 +308,6 @@ def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, s
     cocoEval.summarize()
 
     return cocoEval.stats[0], cocoEval.stats[3]
-
-
-def label(mask):
-    labeled, nr_true = ndi.label(mask)
-    return labeled
-
-
-def get_weight_matrix(mask):
-    labeled = label(mask)
-    image_size = mask.shape
-    distances = np.zeros(image_size)
-    for label_nr in range(1, labeled.max() + 1):
-        object = labeled == label_nr
-        if distances.sum() == 0:
-            distances = distance_transform_edt(1 - object)
-        else:
-            distances = np.dstack([distances, distance_transform_edt(1 - object)])
-    if np.sum(distances) != 0:
-        if len(distances.shape) > 2:
-            distances.sort(axis=2)
-            weights = get_weights(distances[:, :, 0], distances[:, :, 1], 1, 10, 5)
-        else:
-            weights = get_weights(0, distances, 1, 10, 5)
-    else:
-        weights = np.ones(image_size)
-    return weights
-
-
-def get_weights(d1, d2, w1, w0, sigma):
-    return w1 + w0 * np.exp(-((d1 + d2) ** 2) / (sigma ** 2))
 
 
 def denormalize_img(image, mean, std):
