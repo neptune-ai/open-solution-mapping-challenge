@@ -141,8 +141,7 @@ class FeatureExtractor(BaseTransformer):
     def transform(self, images, probabilities, annotations=None):
         if annotations is None:
             annotations = [{}] * len(images)
-        process_nr = min(self.n_threads, len(images))
-        with mp.pool.ThreadPool(process_nr) as executor:
+        with mp.pool.ThreadPool(self.n_threads) as executor:
             all_features = executor.map(lambda p: get_features_for_image(*p), zip(images, probabilities, annotations))
         return {'features': all_features}
 
@@ -161,8 +160,7 @@ class NonMaximumSupression(BaseTransformer):
         self.n_threads = n_threads
 
     def transform(self, images_with_scores):
-        process_nr = min(self.n_threads, len(images_with_scores))
-        with mp.pool.ThreadPool(process_nr) as executor:
+        with mp.pool.ThreadPool(self.n_threads) as executor:
             cleaned_images_with_scores = executor.map(lambda p: remove_overlapping_masks(*p), images_with_scores)
         return {'images_with_scores': cleaned_images_with_scores}
 
