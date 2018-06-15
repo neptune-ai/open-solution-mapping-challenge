@@ -121,7 +121,6 @@ SOLUTION_CONFIG = AttrDict({
     'tta_generator': {'flip_ud': True,
                       'flip_lr': True,
                       'rotation': True},
-    'dropper': {'min_size': params.min_nuclei_size},
     'postprocessor': {'mask_dilation': {'dilate_selem_size': params.dilate_selem_size
                                         },
                       'mask_erosion': {'erode_selem_size': params.erode_selem_size

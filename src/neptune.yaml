@@ -91,8 +91,6 @@ parameters:
 
 # Postprocessing
   threshold: 0.5
-  min_nuclei_size: 20
-  erosion_percentages: '[10,20,30]'
   erode_selem_size: 0
   dilate_selem_size: 0
   iou_threshold: 0.5
