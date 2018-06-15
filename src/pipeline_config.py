@@ -26,7 +26,6 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'img_H-W': (params.image_h, params.image_w),
                  'batch_size_train': params.batch_size_train,
                  'batch_size_inference': params.batch_size_inference,
-                 'stream_mode': params.stream_mode,
                  'loader_mode': params.loader_mode
                  }
 
@@ -115,7 +114,7 @@ SOLUTION_CONFIG = AttrDict({
                                 'image_resize': 0.2,
                                 'outputs_to_plot': params.unet_outputs_to_plot},
             'early_stopping': {'patience': params.patience,
-                'minimize': not params.validate_with_map},
+                               'minimize': not params.validate_with_map},
         },
     },
     'tta_generator': {'flip_ud': True,

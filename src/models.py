@@ -43,6 +43,8 @@ PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
 
 class BasePyTorchUNet(Model):
     def __init__(self, architecture_config, training_config, callbacks_config):
+        """
+        """
         super().__init__(architecture_config, training_config, callbacks_config)
         self.set_model()
         self.weight_regularization = weight_regularization_unet
@@ -99,45 +101,6 @@ class PyTorchUNet(BasePyTorchUNet):
         self.loss_function = [('multichannel_map', multiclass_segmentation_loss, 1.0)]
 
 
-class PyTorchUNetStream(BasePyTorchUNet):
-    def __init__(self, architecture_config, training_config, callbacks_config):
-        super().__init__(architecture_config, training_config, callbacks_config)
-        self.loss_function = [('multichannel_map', multiclass_segmentation_loss, 1.0)]
-
-    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
-        if len(self.output_names) == 1:
-            output_generator = self._transform(datagen, validation_datagen)
-            output = {'{}_prediction'.format(self.output_names[0]): output_generator}
-            return output
-        else:
-            raise NotImplementedError
-
-    def _transform(self, datagen, validation_datagen=None):
-        self.model.eval()
-        batch_gen, steps = datagen
-        for batch_id, data in enumerate(batch_gen):
-            if isinstance(data, list):
-                X = data[0]
-            else:
-                X = data
-
-            if torch.cuda.is_available():
-                X = Variable(X, volatile=True).cuda()
-            else:
-                X = Variable(X, volatile=True)
-
-            outputs_batch = self.model(X)
-            outputs_batch = outputs_batch.data.cpu().numpy()
-
-            for output in outputs_batch:
-                output = softmax(output, axis=0)
-                yield output
-
-            if batch_id == steps:
-                break
-        self.model.train()
-
-
 class PyTorchUNetWeighted(BasePyTorchUNet):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
@@ -148,57 +111,6 @@ class PyTorchUNetWeighted(BasePyTorchUNet):
                        cross_entropy_loss=weighted_loss,
                        **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
-
-    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
-        outputs = self._transform(datagen, validation_datagen)
-        for name, prediction in outputs.items():
-            outputs[name] = softmax(prediction, axis=1)
-        return outputs
-
-
-class PyTorchUNetWeightedStream(BasePyTorchUNet):
-    def __init__(self, architecture_config, training_config, callbacks_config):
-        super().__init__(architecture_config, training_config, callbacks_config)
-        weighted_loss = partial(multiclass_weighted_cross_entropy,
-                                **get_loss_variables(**architecture_config['weighted_cross_entropy']))
-        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
-                       cross_entropy_weight=architecture_config['loss_weights']['bce_mask'],
-                       cross_entropy_loss=weighted_loss,
-                       **architecture_config['dice'])
-        self.loss_function = [('multichannel_map', loss, 1.0)]
-
-    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
-        if len(self.output_names) == 1:
-            output_generator = self._transform(datagen, validation_datagen)
-            output = {'{}_prediction'.format(self.output_names[0]): output_generator}
-            return output
-        else:
-            raise NotImplementedError
-
-    def _transform(self, datagen, validation_datagen=None):
-        self.model.eval()
-        batch_gen, steps = datagen
-        for batch_id, data in enumerate(batch_gen):
-            if isinstance(data, list):
-                X = data[0]
-            else:
-                X = data
-
-            if torch.cuda.is_available():
-                X = Variable(X, volatile=True).cuda()
-            else:
-                X = Variable(X, volatile=True)
-
-            outputs_batch = self.model(X)
-            outputs_batch = outputs_batch.data.cpu().numpy()
-
-            for output in outputs_batch:
-                output = softmax(output, axis=0)
-                yield output
-
-            if batch_id == steps:
-                break
-        self.model.train()
 
 
 def weight_regularization_unet(model, regularize, weight_decay_conv2d):
