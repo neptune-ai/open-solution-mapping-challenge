@@ -135,16 +135,15 @@ class ScoreBuilder(BaseTransformer):
 
 
 class FeatureExtractor(BaseTransformer):
-    def transform(self, images, probabilities, annotations=None, n_threads=1):
-        all_features = []
+    def __init__(self, n_threads=1):
+        self.n_threads = n_threads
+
+    def transform(self, images, probabilities, annotations=None):
         if annotations is None:
             annotations = [{}] * len(images)
-        #for image, image_probabilities, image_annotations in tqdm(zip(images, probabilities, annotations)):
-        #    all_features.append(get_features_for_image(image, image_probabilities, image_annotations))
-
-        process_nr = min(n_threads, len(images))
+        process_nr = min(self.n_threads, len(images))
         with mp.pool.ThreadPool(process_nr) as executor:
-            all_features = executor.map(get_features_for_image, images, probabilities, annotations)
+            all_features = executor.map(lambda p: get_features_for_image(*p), zip(images, probabilities, annotations))
         return {'features': all_features}
 
 
@@ -157,13 +156,14 @@ class ScoreImageJoiner(BaseTransformer):
 
 
 class NonMaximumSupression(BaseTransformer):
-    def __init__(self, iou_threshold):
+    def __init__(self, iou_threshold, n_threads=1):
         self.iou_threshold = iou_threshold
+        self.n_threads = n_threads
 
     def transform(self, images_with_scores):
-        cleaned_images_with_scores = []
-        for image, scores in images_with_scores:
-            cleaned_images_with_scores.append(remove_overlapping_masks(image, scores, self.iou_threshold))
+        process_nr = min(self.n_threads, len(images_with_scores))
+        with mp.pool.ThreadPool(process_nr) as executor:
+            cleaned_images_with_scores = executor.map(lambda p: remove_overlapping_masks(*p), images_with_scores)
         return {'images_with_scores': cleaned_images_with_scores}
 
 
