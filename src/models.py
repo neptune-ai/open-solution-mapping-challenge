@@ -12,13 +12,14 @@ from .steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpo
 from .steps.pytorch.models import Model
 from .steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
 from .utils import softmax
-from .unet_models import AlbuNet, UNet11, UNet16, UNetResNet
+from .unet_models import AlbuNet, UNet11, UNetVGG16, UNetResNet
 
 PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
                                  'model_config': {'num_classes': 2, 'pretrained': True},
                                  'init_weights': False},
-                       'VGG16': {'model': UNet16,
-                                 'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
+                       'VGG16': {'model': UNetVGG16,
+                                 'model_config': {'num_classes': 2, 'pretrained': True,
+                                                  'dropout_2d': 0.0, 'is_deconv': True},
                                  'init_weights': False},
                        'AlbuNet': {'model': AlbuNet,
                                    'model_config': {'num_classes': 2, 'pretrained': True, 'is_deconv': True},
@@ -104,9 +105,12 @@ class PyTorchUNet(BasePyTorchUNet):
 class PyTorchUNetWeighted(BasePyTorchUNet):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        weighted_loss = partial(multiclass_weighted_cross_entropy,
-                                **get_loss_variables(**architecture_config['weighted_cross_entropy']))
-        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
+        weights_function = partial(get_weights, **architecture_config['weighted_cross_entropy'])
+        weighted_loss = partial(multiclass_weighted_cross_entropy, weights_function=weights_function)
+        dice_loss = partial(multiclass_dice_loss, excluded_classes=[0])
+        loss = partial(mixed_dice_cross_entropy_loss,
+                       dice_loss=dice_loss,
+                       dice_weight=architecture_config['loss_weights']['dice_mask'],
                        cross_entropy_weight=architecture_config['loss_weights']['bce_mask'],
                        cross_entropy_loss=weighted_loss,
                        **architecture_config['dice'])
@@ -136,13 +140,42 @@ def callbacks_unet(callbacks_config):
                    ])
 
 
-def multiclass_weighted_cross_entropy(output, target, w0, sigma, C):
-    '''
-    w1 is temporarily torch.ones - it should handle class imbalance for thw hole dataset
-    '''
-    distances = target[:, 1, :, :]
-    sizes = target[:, 2, :, :]
+def multiclass_weighted_cross_entropy(output, target, weights_function=None):
+    """Calculate weighted Cross Entropy loss for multiple classes.
+
+    This function calculates torch.nn.CrossEntropyLoss(), but each pixel loss is weighted.
+    Target for weights is defined as a part of target, in target[:, 1:, :, :].
+    If weights_function is not None weights are calculated by applying this function on target[:, 1:, :, :].
+    If weights_function is None weights are taken from target[:, 1, :, :].
+
+    Args:
+        output (torch.Tensor): Model output of shape (N x C x H x W).
+        target (torch.Tensor): Target of shape (N x (1 + K) x H x W). Where K is number of different weights.
+        weights_function (function, optional): Function applied on target for weights.
+
+    Returns:
+        torch.Tensor: Loss value.
+
+    """
     target = target[:, 0, :, :].long()
+    if weights_function is None:
+        weights = target[:, 1, :, :]
+    else:
+        weights = weights_function(target[:, 1:, :, :])
+
+    loss_per_pixel = torch.nn.CrossEntropyLoss(reduce=False)(output, target)
+
+    loss = torch.mean(loss_per_pixel * weights)
+    return loss
+
+
+def get_weights(target, w0, sigma, imsize):
+    '''
+    w1 is temporarily torch.ones - it should handle class imbalance for the whole dataset
+    '''
+    w0, sigma, C = _get_loss_variables(w0, sigma, imsize)
+    distances = target[:, 0, :, :]
+    sizes = target[:, 1, :, :]
 
     w1 = Variable(torch.ones(distances.size()), requires_grad=False)  # TODO: fix it to handle class imbalance
     if torch.cuda.is_available():
@@ -152,10 +185,8 @@ def multiclass_weighted_cross_entropy(output, target, w0, sigma, C):
     distance_weights = _get_distance_weights(distances, w1, w0, sigma)
 
     weights = distance_weights * size_weights
-    loss_per_pixel = torch.nn.CrossEntropyLoss(reduce=False)(output, target)
 
-    loss = torch.mean(loss_per_pixel * weights)
-    return loss
+    return weights
 
 
 def _get_distance_weights(d, w1, w0, sigma):
@@ -172,7 +203,7 @@ def _get_size_weights(sizes, C):
     return size_weights
 
 
-def get_loss_variables(w0, sigma, imsize):
+def _get_loss_variables(w0, sigma, imsize):
     w0 = Variable(torch.Tensor([w0]), requires_grad=False)
     sigma = Variable(torch.Tensor([sigma]), requires_grad=False)
     C = Variable(torch.sqrt(torch.Tensor([imsize[0] * imsize[1]])) / 2, requires_grad=False)
@@ -180,22 +211,63 @@ def get_loss_variables(w0, sigma, imsize):
         w0 = w0.cuda()
         sigma = sigma.cuda()
         C = C.cuda()
-    return {'w0': w0, 'sigma': sigma, 'C': C}
+    return w0, sigma, C
 
 
-def mixed_dice_cross_entropy_loss(output, target, dice_weight, cross_entropy_weight, cross_entropy_loss=None, smooth=0,
+def mixed_dice_cross_entropy_loss(output, target, dice_weight=0.5, dice_loss=None,
+                                  cross_entropy_weight=0.5, cross_entropy_loss=None, smooth=0,
                                   dice_activation='softmax'):
+    """Calculate mixed Dice and Cross Entropy Loss.
+
+    Args:
+        output (torch.Tensor): Model output of shape (N x C x H x W).
+        target (torch.Tensor):
+            Target of shape (N x (1 + K) x H x W).
+            Where K is number of different weights for Cross Entropy.
+        dice_weight (float, optional): Weight of Dice loss. Defaults to 0.5.
+        dice_loss (function, optional): Dice loss function. If None multiclass_dice_loss() is being used.
+        cross_entropy_weight (float, optional): Weight of Cross Entropy loss. Defaults to 0.5.
+        cross_entropy_loss (function, optional):
+            Cross Entropy loss function.
+            If None torch.nn.CrossEntropyLoss() is being used.
+        smooth (float, optional): Smoothing factor for Dice loss. Defaults to 0.
+        dice_activation (string, optional):
+            Name of the activation function for Dice loss, softmax or sigmoid.
+            Defaults to 'softmax'.
+
+    Returns:
+        torch.Tensor: Loss value.
+
+    """
     dice_target = target[:, 0, :, :].long()
     cross_entropy_target = target
     if cross_entropy_loss is None:
         cross_entropy_loss = torch.nn.CrossEntropyLoss()
         cross_entropy_target = dice_target
+    if dice_loss is None:
+        dice_loss = multiclass_dice_loss
     return dice_weight * dice_loss(output, dice_target, smooth,
                                    dice_activation) + cross_entropy_weight * cross_entropy_loss(output,
                                                                                                 cross_entropy_target)
 
 
-def dice_loss(output, target, smooth=0, activation='softmax'):
+def multiclass_dice_loss(output, target, smooth=0, activation='softmax', excluded_classes=[]):
+    """Calculate Dice Loss for multiple class output.
+
+    Args:
+        output (torch.Tensor): Model output of shape (N x C x H x W).
+        target (torch.Tensor): Target of shape (N x H x W).
+        smooth (float, optional): Smoothing factor. Defaults to 0.
+        activation (string, optional): Name of the activation function, softmax or sigmoid. Defaults to 'softmax'.
+        excluded_classes (list, optional):
+            List of excluded classes numbers. Dice Loss won't be calculated
+            against these classes. Often used on background when it has separate output class.
+            Defaults to [].
+
+    Returns:
+        torch.Tensor: Loss value.
+
+    """
     if activation == 'softmax':
         activation_nn = torch.nn.Softmax2d()
     elif activation == 'sigmoid':
@@ -206,7 +278,9 @@ def dice_loss(output, target, smooth=0, activation='softmax'):
     loss = 0
     dice = DiceLoss(smooth=smooth)
     output = activation_nn(output)
-    for class_nr in range(1, int(target.max()) + 1):
+    for class_nr in range(output.size(1)):
+        if class_nr in excluded_classes:
+            continue
         class_target = (target == class_nr)
         class_target.data = class_target.data.float()
         loss += dice(output[:, class_nr, :, :], class_target)

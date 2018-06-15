@@ -12,11 +12,11 @@ def resize_image(image, target_size):
     """Resize image to target size
 
     Args:
-        image (numpy.ndarray): image of shape (C x H x W)
-        target_size (tuple): target size (H, W)
+        image (numpy.ndarray): Image of shape (C x H x W).
+        target_size (tuple): Target size (H, W).
 
     Returns:
-        numpy.ndarray: resized image of shape (C x H x W)
+        numpy.ndarray: Resized image of shape (C x H x W).
 
     """
     n_channels = image.shape[0]
@@ -28,10 +28,10 @@ def categorize_image(image):
     """Maps probability map to categories. Each pixel is assigned with a category with highest probability.
 
     Args:
-        image (numpy.ndarray): probability map of shape (C x H x W)
+        image (numpy.ndarray): Probability map of shape (C x H x W).
 
     Returns:
-        numpy.ndarray: categorized image of shape (H x W)
+        numpy.ndarray: Categorized image of shape (H x W).
 
     """
     return np.argmax(image, axis=0)
@@ -64,10 +64,10 @@ def label_multiclass_image(mask):
             [0, 0, 2, 0]]]
 
     Args:
-        mask (numpy.ndarray): mask of shape (H x W). Each cell contains contains cell's class number.
+        mask (numpy.ndarray): Mask of shape (H x W). Each cell contains contains cell's class number.
 
     Returns:
-        numpy.ndarray: labeled mask of shape (C x H x W)
+        numpy.ndarray: Labeled mask of shape (C x H x W).
 
     """
     labeled_channels = []
@@ -81,11 +81,11 @@ def erode_image(mask, erode_selem_size):
     """Erode mask.
 
     Args:
-        mask (numpy.ndarray): mask of shape (H x W) or set of masks of shape (C x H x W)
-        erode_selem_size (int): size of rectangle structuring element used for erosion
+        mask (numpy.ndarray): Mask of shape (H x W) or multiple masks of shape (C x H x W).
+        erode_selem_size (int): Size of rectangle structuring element used for erosion.
 
     Returns:
-        numpy.ndarray: eroded mask of shape (H x W) or set of masks of shape (C x H x W)
+        numpy.ndarray: Eroded mask of shape (H x W) or multiple masks of shape (C x H x W).
 
     """
     if not erode_selem_size > 0:
@@ -105,11 +105,11 @@ def dilate_image(mask, dilate_selem_size):
     """Dilate mask.
 
     Args:
-        mask (numpy.ndarray): mask of shape (H x W) or set of masks of shape (C x H x W)
-        dilate_selem_size (int): size of rectangle structuring element used for dilation
+        mask (numpy.ndarray): Mask of shape (H x W) or multiple masks of shape (C x H x W).
+        dilate_selem_size (int): Size of rectangle structuring element used for dilation.
 
     Returns:
-        numpy.ndarray: dilated mask of shape (H x W) or set of masks of shape (C x H x W)
+        numpy.ndarray: dilated Mask of shape (H x W) or multiple masks of shape (C x H x W).
 
     """
     if not dilate_selem_size > 0:
@@ -137,17 +137,17 @@ def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1,
         https://arxiv.org/abs/1210.5644
 
     Args:
-        img (numpy.ndarray): RGB image of shape (3 x H x W)
-        output_probs (numpy.ndarray): probability map of shape (C x H x W).
-        compat_gaussian: compat value for Gaussian case
-        sxy_gaussian: x/y standard-deviation, theta_gamma from the paper
-        compat_bilateral: compat value for RGB case
-        sxy_bilateral: x/y standard-deviation, theta_alpha from the paper
-        srgb: rgb standard-deviation, theta_beta from the paper
-        iterations: number of iterations
+        img (numpy.ndarray): RGB image of shape (3 x H x W).
+        output_probs (numpy.ndarray): Probability map of shape (C x H x W).
+        compat_gaussian: Compat value for Gaussian case.
+        sxy_gaussian: x/y standard-deviation, theta_gamma from the CRF paper.
+        compat_bilateral: Compat value for RGB case.
+        sxy_bilateral: x/y standard-deviation, theta_alpha from the CRF paper.
+        srgb: RGB standard-deviation, theta_beta from the CRF paper.
+        iterations: Number of CRF iterations.
 
     Returns:
-        numpy.ndarray: probability map of shape (C x H x W) after applying CRF
+        numpy.ndarray: Probability map of shape (C x H x W) after applying CRF.
 
     """
     height = output_probs.shape[1]
@@ -185,12 +185,12 @@ def crop_image_center_per_class(image, h_crop, w_crop):
     """Crop image center.
 
     Args:
-        image (numpy.ndarray): image of shape (C x H x W)
-        h_crop: height of a cropped image
-        w_crop: width of a cropped image
+        image (numpy.ndarray): Image of shape (C x H x W).
+        h_crop: Height of a cropped image.
+        w_crop: Width of a cropped image.
 
     Returns:
-        numpy.ndarray: cropped image of shape (C x H x W)
+        numpy.ndarray: Cropped image of shape (C x H x W).
 
     """
     cropped_per_class_prediction = []
