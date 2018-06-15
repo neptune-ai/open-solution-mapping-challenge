@@ -2,8 +2,8 @@ import lightgbm as lgb
 from attrdict import AttrDict
 from sklearn.externals import joblib
 
-from steps.base import BaseTransformer
-from steps.utils import get_logger
+from .base import BaseTransformer
+from .utils import get_logger
 
 logger = get_logger()
 

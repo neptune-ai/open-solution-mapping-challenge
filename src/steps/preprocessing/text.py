@@ -10,7 +10,7 @@ from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.tokenize import TweetTokenizer
 from sklearn.externals import joblib
 
-from steps.base import BaseTransformer
+from ..base import BaseTransformer
 
 lem = WordNetLemmatizer()
 tokenizer = TweetTokenizer()

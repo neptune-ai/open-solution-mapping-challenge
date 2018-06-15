@@ -1,12 +1,11 @@
 from functools import partial
-import os
 
-import loaders
-from steps.base import Step, Dummy
-from steps.preprocessing.misc import XYSplit
-from utils import squeeze_inputs
-from models import PyTorchUNet, PyTorchUNetStream, PyTorchUNetWeighted, PyTorchUNetWeightedStream
-import postprocessing as post
+from . import loaders
+from .steps.base import Step, Dummy
+from .steps.preprocessing.misc import XYSplit
+from .utils import squeeze_inputs, make_apply_transformer_stream
+from .models import PyTorchUNet, PyTorchUNetWeighted, PyTorchUNetStream, PyTorchUNetWeightedStream
+from . import postprocessing as post
 
 
 def unet(config, train_mode):
@@ -15,15 +14,14 @@ def unet(config, train_mode):
 
     loader = preprocessing_generator(config, is_train=train_mode)
     unet = Step(name='unet',
-                transformer=PyTorchUNetStream(**config.unet)
-                if config.execution.stream_mode
+                transformer=PyTorchUNetStream(**config.unet) if config.execution.stream_mode
                 else PyTorchUNet(**config.unet),
                 input_data=['callback_input'],
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
 
-    mask_postprocessed = mask_postprocessing(loader, unet, config, save_output=save_output)
+    mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
 
     output = Step(name='output',
                   transformer=Dummy(),
@@ -31,8 +29,7 @@ def unet(config, train_mode):
                   adapter={'y_pred': ([(mask_postprocessed.name, 'images_with_scores')]),
                            },
                   cache_dirpath=config.env.cache_dirpath,
-                  save_output=save_output,
-                  load_saved_output=False)
+                  save_output=save_output, load_saved_output=load_saved_output)
     return output
 
 
@@ -59,9 +56,10 @@ def unet_padded(config):
     loader.transformer = loaders.ImageSegmentationLoaderInferencePadding(**config.loader)
 
     prediction_crop = Step(name='prediction_crop',
-                           transformer=post.PredictionCropStream(
-                               **config.postprocessor.prediction_crop) if config.execution.stream_mode \
-                               else post.PredictionCrop(**config.postprocessor.prediction_crop),
+                           transformer=make_apply_transformer_stream(partial(post.crop_image_center_per_class,
+                                                                             **config.postprocessor.prediction_crop),
+                                                                     output_name='cropped_images',
+                                                                     stream_mode=config.execution.stream_mode),
                            input_steps=[unet_pipeline],
                            adapter={'images': ([(unet_pipeline.name, 'multichannel_map_prediction')]), },
                            cache_dirpath=config.env.cache_dirpath,
@@ -74,7 +72,7 @@ def unet_padded(config):
                                   'multichannel_map_prediction': ([(prediction_crop.name, 'cropped_images')]), },
                               cache_dirpath=config.env.cache_dirpath,
                               save_output=save_output)
-    mask_postprocessed = mask_postprocessing(loader, prediction_renamed, config, save_output=save_output)
+    mask_postprocessed = mask_postprocessing(prediction_renamed, config, save_output=save_output)
 
     output = Step(name='output',
                   transformer=Dummy(),
@@ -86,13 +84,12 @@ def unet_padded(config):
     return output
 
 
-def unet_padded_tta(config):
+def unet_tta(config):
+    if config.execution.stream_mode:
+        raise Exception('TTA not available in stream mode')
     save_output = False
 
-    if config.execution.stream_mode:
-        raise NotImplementedError('TTA not available in the stream mode')
-
-    loader, tta_generator = preprocessing_generator_padded_tta(config)
+    loader, tta_generator = preprocessing_generator_tta(config)
     unet = Step(name='unet',
                 transformer=PyTorchUNet(**config.unet),
                 input_steps=[loader],
@@ -109,40 +106,55 @@ def unet_padded_tta(config):
                           cache_dirpath=config.env.cache_dirpath,
                           save_output=save_output)
 
-    prediction_crop = Step(name='prediction_crop',
-                           transformer=post.PredictionCrop(**config.postprocessor.prediction_crop),
-                           input_steps=[tta_aggregator],
-                           adapter={'images': ([(tta_aggregator.name, 'aggregated_prediction')]), },
-                           cache_dirpath=config.env.cache_dirpath,
-                           save_output=save_output)
+    if config.execution.loader_mode == 'crop_and_pad':
+        prediction_crop = Step(name='prediction_crop',
+                               transformer=make_apply_transformer(partial(post.crop_image_center_per_class,
+                                                                          **config.postprocessor.prediction_crop),
+                                                                  output_name='cropped_images'),
+                               input_steps=[tta_aggregator],
+                               adapter={'images': ([(tta_aggregator.name, 'aggregated_prediction')]), },
+                               cache_dirpath=config.env.cache_dirpath,
+                               save_output=save_output)
 
-    prediction_renamed = Step(name='prediction_renamed',
-                              transformer=Dummy(),
-                              input_steps=[prediction_crop],
-                              adapter={
-                                  'multichannel_map_prediction': ([(prediction_crop.name, 'cropped_images')]), },
-                              cache_dirpath=config.env.cache_dirpath,
-                              save_output=save_output)
-    mask_postprocessed = mask_postprocessing(loader, prediction_renamed, config, save_output=save_output)
+        prediction_renamed = Step(name='prediction_renamed',
+                                  transformer=Dummy(),
+                                  input_steps=[prediction_crop],
+                                  adapter={
+                                      'multichannel_map_prediction': ([(prediction_crop.name, 'cropped_images')]), },
+                                  cache_dirpath=config.env.cache_dirpath,
+                                  save_output=save_output)
+    elif config.execution.loader_mode == 'resize':
+        prediction_renamed = Step(name='prediction_renamed',
+                                  transformer=Dummy(),
+                                  input_steps=[tta_aggregator],
+                                  adapter={
+                                      'multichannel_map_prediction': (
+                                          [(tta_aggregator.name, 'aggregated_prediction')]), },
+                                  cache_dirpath=config.env.cache_dirpath,
+                                  save_output=save_output)
+    else:
+        raise NotImplementedError('only crop_and_pad and resize options available')
+
+    mask_postprocessed = mask_postprocessing(prediction_renamed, config, save_output=save_output)
 
     output = Step(name='output',
                   transformer=Dummy(),
                   input_steps=[mask_postprocessed],
                   adapter={'y_pred': ([(mask_postprocessed.name, 'images_with_scores')]),
                            },
-                  cache_dirpath=config.env.cache_dirpath,
-                  save_output=save_output)
+                  cache_dirpath=config.env.cache_dirpath, save_output=save_output)
     return output
 
 
-def multiclass_object_labeler(postprocessed_mask, config, save_output=False):
+def multiclass_object_labeler(postprocessed_mask, config, **kwargs):
     labeler = Step(name='labeler',
-                   transformer=post.MulticlassLabelerStream() if config.execution.stream_mode else post.MulticlassLabeler(),
+                   transformer=make_apply_transformer_stream(post.label_multiclass_image,
+                                                             output_name='labeled_images',
+                                                             stream_mode=config.execution.stream_mode),
                    input_steps=[postprocessed_mask],
                    adapter={'images': ([(postprocessed_mask.name, 'eroded_images')]),
                             },
-                   cache_dirpath=config.env.cache_dirpath,
-                   save_output=save_output)
+                   cache_dirpath=config.env.cache_dirpath, **kwargs)
     return labeler
 
 
@@ -203,7 +215,14 @@ def preprocessing_generator(config, is_train):
     return loader
 
 
-def preprocessing_generator_padded_tta(config):
+def preprocessing_generator_tta(config):
+    if config.execution.loader_mode == 'crop_and_pad':
+        Loader = loaders.ImageSegmentationLoaderInferencePaddingTTA
+    elif config.execution.loader_mode == 'resize':
+        Loader = loaders.ImageSegmentationLoaderResizeTTA
+    else:
+        raise NotImplementedError('only crop_and_pad and resize options available')
+
     xy_inference = Step(name='xy_inference',
                         transformer=XYSplit(**config.xy_splitter),
                         input_data=['input', 'specs'],
@@ -220,7 +239,7 @@ def preprocessing_generator_padded_tta(config):
                          cache_dirpath=config.env.cache_dirpath)
 
     loader = Step(name='loader',
-                  transformer=loaders.ImageSegmentationLoaderInferencePaddingTTA(**config.loader),
+                  transformer=Loader(**config.loader),
                   input_steps=[xy_inference, tta_generator],
                   adapter={'X': ([(tta_generator.name, 'X_tta')], squeeze_inputs),
                            'tta_params': ([(tta_generator.name, 'tta_params')], squeeze_inputs),
@@ -229,75 +248,61 @@ def preprocessing_generator_padded_tta(config):
     return loader, tta_generator
 
 
-def mask_postprocessing(loader, model, config, save_output=False):
-    if config.postprocessor.crf.apply_crf:
-        dense_crf = Step(name='dense_crf',
-                         transformer=post.DenseCRFStream(**config.postprocessor.crf) if config.execution.stream_mode \
-                             else post.DenseCRF(**config.postprocessor.crf),
-                         input_steps=[loader, model],
-                         adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
-                                  'raw_images_generator': ([(loader.name, 'datagen')]),
-                                  },
-                         cache_dirpath=config.env.cache_dirpath,
-                         save_output=save_output)
-
-        mask_resize = Step(name='mask_resize',
-                           transformer=post.ResizerStream() if config.execution.stream_mode else post.Resizer(),
-                           input_data=['input'],
-                           input_steps=[dense_crf],
-                           adapter={'images': ([('dense_crf', 'crf_images')]),
-                                    'target_sizes': ([('input', 'target_sizes')]),
-                                    },
-                           cache_dirpath=config.env.cache_dirpath,
-                           save_output=save_output)
-    else:
-        mask_resize = Step(name='mask_resize',
-                           transformer=post.ResizerStream() if config.execution.stream_mode else post.Resizer(),
-                           input_data=['input'],
-                           input_steps=[model],
-                           adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
-                                    'target_sizes': ([('input', 'target_sizes')]),
-                                    },
-                           cache_dirpath=config.env.cache_dirpath,
-                           save_output=save_output)
+def mask_postprocessing(model, config, **kwargs):
+    mask_resize = Step(name='mask_resize',
+                       transformer=make_apply_transformer_stream(post.resize_image,
+                                                                 output_name='resized_images',
+                                                                 apply_on=['images', 'target_sizes'],
+                                                                 stream_mode=config.execution.stream_mode),
+                       input_data=['input'],
+                       input_steps=[model],
+                       adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
+                                'target_sizes': ([('input', 'target_sizes')]),
+                                },
+                       cache_dirpath=config.env.cache_dirpath,
+                       cache_output=not config.execution.stream_mode, **kwargs)
 
     category_mapper = Step(name='category_mapper',
-                           transformer=post.CategoryMapperStream() if config.execution.stream_mode else post.CategoryMapper(),
+                           transformer=make_apply_transformer_stream(post.categorize_image,
+                                                                     output_name='categorized_images',
+                                                                     stream_mode=config.execution.stream_mode),
                            input_steps=[mask_resize],
                            adapter={'images': ([('mask_resize', 'resized_images')]),
                                     },
-                           cache_dirpath=config.env.cache_dirpath,
-                           save_output=save_output)
+                           cache_dirpath=config.env.cache_dirpath, **kwargs)
 
     mask_erosion = Step(name='mask_erosion',
-                        transformer=post.MaskEroderStream(
-                            **config.postprocessor.mask_erosion) if config.execution.stream_mode
-                        else post.MaskEroder(**config.postprocessor.mask_erosion),
+                        transformer=make_apply_transformer_stream(partial(post.erode_image,
+                                                                          **config.postprocessor.mask_erosion),
+                                                                  output_name='eroded_images',
+                                                                  stream_mode=config.execution.stream_mode),
                         input_steps=[category_mapper],
                         adapter={'images': ([(category_mapper.name, 'categorized_images')]),
                                  },
-                        cache_dirpath=config.env.cache_dirpath,
-                        save_output=save_output)
+                        cache_dirpath=config.env.cache_dirpath, **kwargs)
 
-    detached = multiclass_object_labeler(mask_erosion, config, save_output=save_output)
+    detached = multiclass_object_labeler(mask_erosion, config, **kwargs)
 
     mask_dilation = Step(name='mask_dilation',
-                         transformer=post.LabeledMaskDilatorStream(
-                             **config.postprocessor.mask_dilation) if config.execution.stream_mode
-                         else post.LabeledMaskDilator(**config.postprocessor.mask_dilation),
+                         transformer=make_apply_transformer_stream(partial(post.dilate_image,
+                                                                           **config.postprocessor.mask_dilation),
+                                                                   output_name='dilated_images',
+                                                                   stream_mode=config.execution.stream_mode),
                          input_steps=[detached],
                          adapter={'images': ([(detached.name, 'labeled_images')]),
                                   },
-                         cache_dirpath=config.env.cache_dirpath, save_output=save_output)
+                         cache_dirpath=config.env.cache_dirpath, **kwargs)
 
     score_builder = Step(name='score_builder',
-                         transformer=post.ScoreBuilder(),
+                         transformer=make_apply_transformer_stream(post.build_score,
+                                                                   output_name='images_with_scores',
+                                                                   apply_on=['images', 'probabilities'],
+                                                                   stream_mode=config.execution.stream_mode),
                          input_steps=[mask_dilation, mask_resize],
                          adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
                                   'probabilities': ([(mask_resize.name, 'resized_images')]),
                                   },
-                         cache_dirpath=config.env.cache_dirpath,
-                         save_output=save_output)
+                         cache_dirpath=config.env.cache_dirpath, **kwargs)
 
     return score_builder
 
@@ -308,9 +313,9 @@ PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
              'unet_weighted': {'train': partial(unet_weighted, train_mode=True),
                                'inference': partial(unet_weighted, train_mode=False),
                                },
+             'unet_tta': {'inference': unet_tta,
+                          },
              'unet_padded': {'inference': unet_padded,
                              },
-             'unet_padded_tta': {'inference': unet_padded_tta,
-                                 },
 
              }
