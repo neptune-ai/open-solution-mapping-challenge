@@ -45,6 +45,7 @@ parameters:
   border_width: 0
   small_annotations_size: 14
   loader_mode: resize
+  stream_mode: 0
 
 # General parameters
   image_h: 256
