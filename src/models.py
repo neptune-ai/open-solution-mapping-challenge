@@ -154,7 +154,7 @@ def multiclass_weighted_cross_entropy(output, target, weights_function=None):
         weights_function (function, optional): Function applied on target for weights.
 
     Returns:
-        float: Loss value.
+        torch.Tensor: Loss value.
 
     """
     target = target[:, 0, :, :].long()
@@ -236,7 +236,7 @@ def mixed_dice_cross_entropy_loss(output, target, dice_weight=0.5, dice_loss=Non
             Defaults to 'softmax'.
 
     Returns:
-        float: Loss value.
+        torch.Tensor: Loss value.
 
     """
     dice_target = target[:, 0, :, :].long()
@@ -261,10 +261,11 @@ def multiclass_dice_loss(output, target, smooth=0, activation='softmax', exclude
         activation (string, optional): Name of the activation function, softmax or sigmoid. Defaults to 'softmax'.
         excluded_classes (list, optional):
             List of excluded classes numbers. Dice Loss won't be calculated
-            against these classes. Defaults to [].
+            against these classes. Often used on background when it has separate output class.
+            Defaults to [].
 
     Returns:
-        float: Loss value.
+        torch.Tensor: Loss value.
 
     """
     if activation == 'softmax':

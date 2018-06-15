@@ -81,11 +81,11 @@ def erode_image(mask, erode_selem_size):
     """Erode mask.
 
     Args:
-        mask (numpy.ndarray): Mask of shape (H x W) or set of masks of shape (C x H x W).
+        mask (numpy.ndarray): Mask of shape (H x W) or multiple masks of shape (C x H x W).
         erode_selem_size (int): Size of rectangle structuring element used for erosion.
 
     Returns:
-        numpy.ndarray: Eroded mask of shape (H x W) or set of masks of shape (C x H x W).
+        numpy.ndarray: Eroded mask of shape (H x W) or multiple masks of shape (C x H x W).
 
     """
     if not erode_selem_size > 0:
@@ -105,11 +105,11 @@ def dilate_image(mask, dilate_selem_size):
     """Dilate mask.
 
     Args:
-        mask (numpy.ndarray): Mask of shape (H x W) or set of masks of shape (C x H x W).
+        mask (numpy.ndarray): Mask of shape (H x W) or multiple masks of shape (C x H x W).
         dilate_selem_size (int): Size of rectangle structuring element used for dilation.
 
     Returns:
-        numpy.ndarray: dilated Mask of shape (H x W) or set of masks of shape (C x H x W).
+        numpy.ndarray: dilated Mask of shape (H x W) or multiple masks of shape (C x H x W).
 
     """
     if not dilate_selem_size > 0:
