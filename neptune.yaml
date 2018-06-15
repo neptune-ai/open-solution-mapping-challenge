@@ -44,7 +44,7 @@ parameters:
   evaluation_data_sample: 1000
   border_width: 0
   small_annotations_size: 14
-  loader_mode: crop_and_pad
+  loader_mode: resize
 
 # General parameters
   image_h: 256
@@ -59,7 +59,7 @@ parameters:
   pool_kernel: 3
   pool_stride: 2
   repeat_blocks: 4
-  encoder: AlbuNet
+  encoder: ResNet101
 
 # U-Net loss weights (multi-output)
   bce_mask: 1.0
@@ -93,7 +93,8 @@ parameters:
   min_nuclei_size: 20
   erosion_percentages: '[10,20,30]'
   erode_selem_size: 0
-  dilate_selem_size: 0
+  dilate_selem_size: 2
+  tta_aggregation_method: gmean
 
 # Inference padding
   crop_image_h: 300
