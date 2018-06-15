@@ -77,7 +77,10 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
             if len(outputs_batch) == len(self.output_names):
                 for name, output, target in zip(self.output_names, outputs_batch, targets_tensors):
                     if name in self.outputs_to_plot:
-                        prediction = post.categorize_image(softmax(output.data.cpu().numpy()), channel_axis=1)
+                        prediction = []
+                        for image in softmax(output.data.cpu().numpy()):
+                            prediction.append(post.categorize_image(image))
+                        prediction = np.stack(prediction)
                         ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
                         n_channels = output.data.cpu().numpy().shape[1]
                         for channel_nr in range(n_channels):
@@ -89,7 +92,10 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
             else:
                 for name, target in zip(self.output_names, targets_tensors):
                     if name in self.outputs_to_plot:
-                        prediction = post.categorize_image(softmax(outputs_batch.data.cpu().numpy()), channel_axis=1)
+                        prediction = []
+                        for image in softmax(outputs_batch.data.cpu().numpy()):
+                            prediction.append(post.categorize_image(image))
+                        prediction = np.stack(prediction)
                         ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
                         n_channels = outputs_batch.data.cpu().numpy().shape[1]
                         for channel_nr in range(n_channels):
