@@ -378,7 +378,7 @@ def make_apply_transformer(func, output_name='output', apply_on=None):
     return StaticApplyTransformer()
 
 
-def make_apply_transformer_stream(func, output_name='output', apply_on=None, stream_mode=False):
+def make_apply_transformer_stream(func, output_name='output', apply_on=None):
     class StaticApplyTransformerStream(BaseTransformer):
         def transform(self, *args, **kwargs):
             self.check_input(*args, **kwargs)
@@ -399,7 +399,7 @@ def make_apply_transformer_stream(func, output_name='output', apply_on=None, str
                 if not isinstance(arg, Iterable):
                     raise Exception('All inputs must be iterable')
 
-    return StaticApplyTransformerStream() if stream_mode else make_apply_transformer(func, output_name, apply_on)
+    return StaticApplyTransformerStream()
 
 
 def get_seed():

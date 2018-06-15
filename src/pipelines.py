@@ -3,7 +3,7 @@ from functools import partial
 from . import loaders
 from .steps.base import Step, Dummy
 from .steps.preprocessing.misc import XYSplit
-from .utils import squeeze_inputs, make_apply_transformer_stream
+from .utils import squeeze_inputs, make_apply_transformer, make_apply_transformer_stream
 from .models import PyTorchUNet, PyTorchUNetWeighted, PyTorchUNetStream, PyTorchUNetWeightedStream
 from . import postprocessing as post
 
@@ -11,6 +11,8 @@ from . import postprocessing as post
 def unet(config, train_mode):
     save_output = False
     load_saved_output = False
+
+    make_apply_transformer_ = make_apply_transformer_stream if config.execution.stream_mode else make_apply_transformer
 
     loader = preprocessing_generator(config, is_train=train_mode)
     unet = Step(name='unet',
@@ -21,7 +23,7 @@ def unet(config, train_mode):
                 cache_dirpath=config.env.cache_dirpath,
                 save_output=save_output, load_saved_output=load_saved_output)
 
-    mask_postprocessed = mask_postprocessing(unet, config, save_output=save_output)
+    mask_postprocessed = mask_postprocessing(unet, config, make_apply_transformer_, save_output=save_output)
 
     output = Step(name='output',
                   transformer=Dummy(),
@@ -50,16 +52,17 @@ def unet_weighted(config, train_mode):
 def unet_padded(config):
     save_output = False
 
+    make_apply_transformer_ = make_apply_transformer_stream if config.execution.stream_mode else make_apply_transformer
+
     unet_pipeline = unet(config, train_mode=False).get_step('unet')
 
     loader = unet_pipeline.get_step("loader")
     loader.transformer = loaders.ImageSegmentationLoaderInferencePadding(**config.loader)
 
     prediction_crop = Step(name='prediction_crop',
-                           transformer=make_apply_transformer_stream(partial(post.crop_image_center_per_class,
-                                                                             **config.postprocessor.prediction_crop),
-                                                                     output_name='cropped_images',
-                                                                     stream_mode=config.execution.stream_mode),
+                           transformer=make_apply_transformer_(partial(post.crop_image_center_per_class,
+                                                                       **config.postprocessor.prediction_crop),
+                                                               output_name='cropped_images'),
                            input_steps=[unet_pipeline],
                            adapter={'images': ([(unet_pipeline.name, 'multichannel_map_prediction')]), },
                            cache_dirpath=config.env.cache_dirpath,
@@ -144,18 +147,6 @@ def unet_tta(config):
                            },
                   cache_dirpath=config.env.cache_dirpath, save_output=save_output)
     return output
-
-
-def multiclass_object_labeler(postprocessed_mask, config, **kwargs):
-    labeler = Step(name='labeler',
-                   transformer=make_apply_transformer_stream(post.label_multiclass_image,
-                                                             output_name='labeled_images',
-                                                             stream_mode=config.execution.stream_mode),
-                   input_steps=[postprocessed_mask],
-                   adapter={'images': ([(postprocessed_mask.name, 'eroded_images')]),
-                            },
-                   cache_dirpath=config.env.cache_dirpath, **kwargs)
-    return labeler
 
 
 def preprocessing_generator(config, is_train):
@@ -248,12 +239,11 @@ def preprocessing_generator_tta(config):
     return loader, tta_generator
 
 
-def mask_postprocessing(model, config, **kwargs):
+def mask_postprocessing(model, config, make_transformer, **kwargs):
     mask_resize = Step(name='mask_resize',
-                       transformer=make_apply_transformer_stream(post.resize_image,
-                                                                 output_name='resized_images',
-                                                                 apply_on=['images', 'target_sizes'],
-                                                                 stream_mode=config.execution.stream_mode),
+                       transformer=make_transformer(post.resize_image,
+                                                    output_name='resized_images',
+                                                    apply_on=['images', 'target_sizes']),
                        input_data=['input'],
                        input_steps=[model],
                        adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
@@ -263,41 +253,41 @@ def mask_postprocessing(model, config, **kwargs):
                        cache_output=not config.execution.stream_mode, **kwargs)
 
     category_mapper = Step(name='category_mapper',
-                           transformer=make_apply_transformer_stream(post.categorize_image,
-                                                                     output_name='categorized_images',
-                                                                     stream_mode=config.execution.stream_mode),
+                           transformer=make_transformer(post.categorize_image,
+                                                        output_name='categorized_images'),
                            input_steps=[mask_resize],
                            adapter={'images': ([('mask_resize', 'resized_images')]),
                                     },
                            cache_dirpath=config.env.cache_dirpath, **kwargs)
 
     mask_erosion = Step(name='mask_erosion',
-                        transformer=make_apply_transformer_stream(partial(post.erode_image,
-                                                                          **config.postprocessor.mask_erosion),
-                                                                  output_name='eroded_images',
-                                                                  stream_mode=config.execution.stream_mode),
+                        transformer=make_transformer(partial(post.erode_image, **config.postprocessor.mask_erosion),
+                                                     output_name='eroded_images'),
                         input_steps=[category_mapper],
                         adapter={'images': ([(category_mapper.name, 'categorized_images')]),
                                  },
                         cache_dirpath=config.env.cache_dirpath, **kwargs)
 
-    detached = multiclass_object_labeler(mask_erosion, config, **kwargs)
+    labeler = Step(name='labeler',
+                   transformer=make_transformer(post.label_multiclass_image,
+                                                output_name='labeled_images'),
+                   input_steps=[mask_erosion],
+                   adapter={'images': ([(mask_erosion.name, 'eroded_images')]),
+                            },
+                   cache_dirpath=config.env.cache_dirpath, **kwargs)
 
     mask_dilation = Step(name='mask_dilation',
-                         transformer=make_apply_transformer_stream(partial(post.dilate_image,
-                                                                           **config.postprocessor.mask_dilation),
-                                                                   output_name='dilated_images',
-                                                                   stream_mode=config.execution.stream_mode),
-                         input_steps=[detached],
-                         adapter={'images': ([(detached.name, 'labeled_images')]),
+                         transformer=make_transformer(partial(post.dilate_image, **config.postprocessor.mask_dilation),
+                                                      output_name='dilated_images'),
+                         input_steps=[labeler],
+                         adapter={'images': ([(labeler.name, 'labeled_images')]),
                                   },
                          cache_dirpath=config.env.cache_dirpath, **kwargs)
 
     score_builder = Step(name='score_builder',
-                         transformer=make_apply_transformer_stream(post.build_score,
-                                                                   output_name='images_with_scores',
-                                                                   apply_on=['images', 'probabilities'],
-                                                                   stream_mode=config.execution.stream_mode),
+                         transformer=make_transformer(post.build_score,
+                                                      output_name='images_with_scores',
+                                                      apply_on=['images', 'probabilities']),
                          input_steps=[mask_dilation, mask_resize],
                          adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
                                   'probabilities': ([(mask_resize.name, 'resized_images')]),

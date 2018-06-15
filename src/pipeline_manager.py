@@ -31,7 +31,7 @@ class PipelineManager():
         train(pipeline_name, dev_mode, self.logger, self.params, self.seed)
 
     def evaluate(self, pipeline_name, dev_mode, chunk_size):
-        evaluate(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed)
+        evaluate(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed, self.ctx)
 
     def predict(self, pipeline_name, dev_mode, submit_predictions, chunk_size):
         predict(pipeline_name, dev_mode, submit_predictions, chunk_size, self.logger, self.params, self.seed)
@@ -104,7 +104,7 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     pipeline.clean_cache()
 
 
-def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed):
+def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed, ctx):
     logger.info('evaluating')
     meta = pd.read_csv(os.path.join(params.meta_dir,
                                     'stage{}_metadata.csv'.format(params.competition_stage)))
@@ -132,6 +132,8 @@ def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed):
                                                         small_annotations_size=params.small_annotations_size)
     logger.info('Mean precision on validation is {}'.format(average_precision))
     logger.info('Mean recall on validation is {}'.format(average_recall))
+    ctx.channel_send('Precision', 0, average_precision)
+    ctx.channel_send('Recall', 0, average_recall)
 
 
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, params, seed):
