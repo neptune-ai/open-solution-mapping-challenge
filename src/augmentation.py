@@ -9,6 +9,27 @@ fast_seq = iaa.SomeOf((1, 2),
                                   translate_percent=(-0.1, 0.1)),
                        ], random_order=True)
 
+color_seq = iaa.Sequential([
+    # Color
+    iaa.OneOf([
+        iaa.Sequential([
+            iaa.ChangeColorspace(from_colorspace="RGB", to_colorspace="HSV"),
+            iaa.WithChannels(0, iaa.Add((0, 100))),
+            iaa.ChangeColorspace(from_colorspace="HSV", to_colorspace="RGB")]),
+        iaa.Sequential([
+            iaa.ChangeColorspace(from_colorspace="RGB", to_colorspace="HSV"),
+            iaa.WithChannels(1, iaa.Add((0, 100))),
+            iaa.ChangeColorspace(from_colorspace="HSV", to_colorspace="RGB")]),
+        iaa.Sequential([
+            iaa.ChangeColorspace(from_colorspace="RGB", to_colorspace="HSV"),
+            iaa.WithChannels(2, iaa.Add((0, 100))),
+            iaa.ChangeColorspace(from_colorspace="HSV", to_colorspace="RGB")]),
+        iaa.WithChannels(0, iaa.Add((0, 100))),
+        iaa.WithChannels(1, iaa.Add((0, 100))),
+        iaa.WithChannels(2, iaa.Add((0, 100)))
+    ])
+], random_order=True)
+
 
 def crop_seq(crop_size):
     seq = iaa.Sequential([fast_seq,
