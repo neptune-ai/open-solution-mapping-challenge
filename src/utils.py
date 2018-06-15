@@ -378,6 +378,30 @@ def make_apply_transformer(func, output_name='output', apply_on=None):
     return StaticApplyTransformer()
 
 
+def make_apply_transformer_stream(func, output_name='output', apply_on=None, stream_mode=False):
+    class StaticApplyTransformerStream(BaseTransformer):
+        def transform(self, *args, **kwargs):
+            self.check_input(*args, **kwargs)
+            return {output_name: self._transform(*args, **kwargs)}
+
+        def _transform(self, *args, **kwargs):
+            if not apply_on:
+                iterator = zip(*args, *kwargs.values())
+            else:
+                iterator = zip(*args, *[kwargs[key] for key in apply_on])
+
+            for func_args in tqdm(iterator):
+                yield func(*func_args)
+
+        @staticmethod
+        def check_input(*args, **kwargs):
+            for arg in chain(args, kwargs.values()):
+                if not isinstance(arg, Iterable):
+                    raise Exception('All inputs must be iterable')
+
+    return StaticApplyTransformerStream() if stream_mode else make_apply_transformer(func, output_name, apply_on)
+
+
 def get_seed():
     seed = int(time.time()) + int(os.getpid())
     return seed
