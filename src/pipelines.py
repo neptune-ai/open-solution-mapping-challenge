@@ -47,7 +47,6 @@ def unet_weighted(config, train_mode):
 
 def unet_padded(config):
     save_output = False
-    cache_output = False
 
     unet_pipeline = unet(config, train_mode=False).get_step('unet')
 
@@ -61,7 +60,7 @@ def unet_padded(config):
                            input_steps=[unet_pipeline],
                            adapter={'images': ([(unet_pipeline.name, 'multichannel_map_prediction')]), },
                            cache_dirpath=config.env.cache_dirpath,
-                           cache_output=cache_output, save_output=save_output)
+                           save_output=save_output)
 
     prediction_renamed = Step(name='prediction_renamed',
                               transformer=Dummy(),
@@ -69,9 +68,8 @@ def unet_padded(config):
                               adapter={
                                   'multichannel_map_prediction': ([(prediction_crop.name, 'cropped_images')]), },
                               cache_dirpath=config.env.cache_dirpath,
-                              cache_output=cache_output, save_output=save_output)
-    mask_postprocessed = mask_postprocessing(prediction_renamed, config,
-                                             cache_output=cache_output, save_output=save_output)
+                              save_output=save_output)
+    mask_postprocessed = mask_postprocessing(prediction_renamed, config, save_output=save_output)
 
     output = Step(name='output',
                   transformer=Dummy(),
@@ -79,20 +77,19 @@ def unet_padded(config):
                   adapter={'y_pred': ([(mask_postprocessed.name, 'images_with_scores')]),
                            },
                   cache_dirpath=config.env.cache_dirpath,
-                  cache_output=cache_output, save_output=save_output)
+                  save_output=save_output)
     return output
 
 
 def unet_tta(config):
     save_output = False
-    cache_output = True
 
     loader, tta_generator = preprocessing_generator_tta(config)
     unet = Step(name='unet',
                 transformer=PyTorchUNet(**config.unet),
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
-                cache_output=cache_output, save_output=save_output)
+                save_output=save_output)
 
     tta_aggregator = Step(name='tta_aggregator',
                           transformer=loaders.TestTimeAugmentationAggregator(**config.tta_aggregator),
@@ -102,7 +99,7 @@ def unet_tta(config):
                                    'img_ids': ([(tta_generator.name, 'img_ids')]),
                                    },
                           cache_dirpath=config.env.cache_dirpath,
-                          cache_output=cache_output, save_output=save_output)
+                          save_output=save_output)
 
     if config.execution.loader_mode == 'crop_and_pad':
         prediction_crop = Step(name='prediction_crop',
@@ -112,7 +109,7 @@ def unet_tta(config):
                                input_steps=[tta_aggregator],
                                adapter={'images': ([(tta_aggregator.name, 'aggregated_prediction')]), },
                                cache_dirpath=config.env.cache_dirpath,
-                               cache_output=cache_output, save_output=save_output)
+                               save_output=save_output)
 
         prediction_renamed = Step(name='prediction_renamed',
                                   transformer=Dummy(),
@@ -120,29 +117,27 @@ def unet_tta(config):
                                   adapter={
                                       'multichannel_map_prediction': ([(prediction_crop.name, 'cropped_images')]), },
                                   cache_dirpath=config.env.cache_dirpath,
-                                  cache_output=cache_output, save_output=save_output)
+                                  save_output=save_output)
     elif config.execution.loader_mode == 'resize':
         prediction_renamed = Step(name='prediction_renamed',
                                   transformer=Dummy(),
                                   input_steps=[tta_aggregator],
                                   adapter={
                                       'multichannel_map_prediction': (
-                                      [(tta_aggregator.name, 'aggregated_prediction')]), },
+                                          [(tta_aggregator.name, 'aggregated_prediction')]), },
                                   cache_dirpath=config.env.cache_dirpath,
-                                  cache_output=cache_output, save_output=save_output)
+                                  save_output=save_output)
     else:
         raise NotImplementedError('only crop_and_pad and resize options available')
 
-    mask_postprocessed = mask_postprocessing(prediction_renamed, config,
-                                             cache_output=cache_output, save_output=save_output)
+    mask_postprocessed = mask_postprocessing(prediction_renamed, config, save_output=save_output)
 
     output = Step(name='output',
                   transformer=Dummy(),
                   input_steps=[mask_postprocessed],
                   adapter={'y_pred': ([(mask_postprocessed.name, 'images_with_scores')]),
                            },
-                  cache_dirpath=config.env.cache_dirpath,
-                  cache_output=cache_output, save_output=save_output)
+                  cache_dirpath=config.env.cache_dirpath, save_output=save_output)
     return output
 
 
@@ -257,7 +252,8 @@ def mask_postprocessing(model, config, **kwargs):
                        adapter={'images': ([(model.name, 'multichannel_map_prediction')]),
                                 'target_sizes': ([('input', 'target_sizes')]),
                                 },
-                       cache_dirpath=config.env.cache_dirpath, **kwargs)
+                       cache_dirpath=config.env.cache_dirpath,
+                       cache_output=True, **kwargs)
 
     category_mapper = Step(name='category_mapper',
                            transformer=make_apply_transformer(post.categorize_image,
