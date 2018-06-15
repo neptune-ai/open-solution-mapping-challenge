@@ -1,3 +1,5 @@
+import multiprocessing as mp
+
 import numpy as np
 from skimage.transform import resize
 from skimage.morphology import binary_dilation, binary_erosion, dilation, rectangle
@@ -133,12 +135,16 @@ class ScoreBuilder(BaseTransformer):
 
 
 class FeatureExtractor(BaseTransformer):
-    def transform(self, images, probabilities, annotations=None):
+    def transform(self, images, probabilities, annotations=None, n_threads=1):
         all_features = []
         if annotations is None:
             annotations = [{}] * len(images)
-        for image, image_probabilities, image_annotations in tqdm(zip(images, probabilities, annotations)):
-            all_features.append(get_features_for_image(image, image_probabilities, image_annotations))
+        #for image, image_probabilities, image_annotations in tqdm(zip(images, probabilities, annotations)):
+        #    all_features.append(get_features_for_image(image, image_probabilities, image_annotations))
+
+        process_nr = min(n_threads, len(images))
+        with mp.pool.ThreadPool(process_nr) as executor:
+            all_features = executor.map(get_features_for_image, images, probabilities, annotations)
         return {'features': all_features}
 
 

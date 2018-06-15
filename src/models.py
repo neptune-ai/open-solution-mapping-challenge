@@ -216,20 +216,13 @@ class ScoringLightGBM(LightGBM):
         super().__init__(model_params, training_params)
 
     def fit(self, features, **kwargs):
-        logger.info("fitting")
         df_features = []
         for image_features in features:
             for layer_features in image_features[1:]:
                 df_features.append(layer_features)
-        import pdb  # test I want to check the distribution of target variable 'iou'
-        pdb.set_trace()
         df_features = pd.concat(df_features)
-        logger.info("data frame created")  # test
-        joblib.dump(df_features, "/mnt/ml-team/minerva/open-solutions/mapping-challenge/andrzej/input_to_lgbm")  # test
         train_data, val_data = train_test_split(df_features, train_size=self.train_size)
-        logger.info("train test split done")  # test
         self.feature_names = list(df_features.columns.drop(self.target))
-        logger.info("fitting started")  # test
         super().fit(X=train_data[self.feature_names],
                     y=train_data[self.target],
                     X_valid=val_data[self.feature_names],
@@ -239,7 +232,6 @@ class ScoringLightGBM(LightGBM):
         return self
 
     def transform(self, features, **kwargs):
-        logger.info("transforming")  # test
         scores = []
         for image_features in features:
             image_scores = []

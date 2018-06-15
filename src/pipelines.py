@@ -328,13 +328,15 @@ def lgbm_train(config):
     feature_extractor = Step(name='feature_extractor',
                              transformer=post.FeatureExtractor(),
                              input_steps=[mask_dilation, mask_resize],
-                             input_data=['input'],
+                             input_data=['input', 'specs'],
                              adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
                                       'probabilities': ([(mask_resize.name, 'resized_images')]),
                                       'annotations': ([('input', 'annotations')]),
+                                      'n_threads': ([('specs', 'n_threads')]),
                                       },
                              cache_dirpath=config.env.cache_dirpath,
-                             save_output=save_output)
+                             save_output=True,
+                             load_saved_output=True)
 
     scoring_model = Step(name='scoring_model',
                          transformer=ScoringLightGBM(**config['postprocessor']['lightGBM']),

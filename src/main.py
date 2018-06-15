@@ -109,7 +109,8 @@ def _train(pipeline_name, dev_mode):
     data = {'input': {'meta': meta_train,
                       'target_sizes': [(300, 300)] * len(meta_train),
                       'annotations': annotations},
-            'specs': {'train_mode': True},
+            'specs': {'train_mode': True,
+                      'n_threads': params.num_threads},
             'callback_input': {'meta_valid': meta_valid}
             }
 
