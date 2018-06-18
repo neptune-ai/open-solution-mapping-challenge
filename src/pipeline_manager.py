@@ -168,7 +168,7 @@ def make_submission(submission_filepath, logger, params):
     challenge.submit(submission_filepath)
 
 
-def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size, n_threads):
+def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size, n_threads=1):
     if chunk_size is not None:
         return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size, n_threads)
     else:

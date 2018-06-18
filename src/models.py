@@ -12,18 +12,11 @@ from .callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
 from .steps.pytorch.architectures.unet import UNet
 from .steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
-<<<<<<< HEAD:src/models.py
-from .steps.pytorch.models import Model
-from .steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
-from .utils import softmax
-from .unet_models import AlbuNet, UNet11, UNetVGG16, UNetResNet
-=======
 from steps.pytorch.models import Model
 from steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
 from steps.sklearn.models import LightGBM
 from utils import softmax, get_logger
-from unet_models import AlbuNet, UNet11, UNet16, UNetResNet
->>>>>>> dev-recall:src/models.py
+from unet_models import AlbuNet, UNet11, UNetVGG16, UNetResNet
 
 PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
                                  'model_config': {'num_classes': 2, 'pretrained': True},
@@ -51,8 +44,6 @@ PRETRAINED_NETWORKS = {'VGG11': {'model': UNet11,
                                                       'pretrained': True, 'is_deconv': True, },
                                      'init_weights': False}
                        }
-
-logger = get_logger()  # test
 
 
 class BasePyTorchUNet(Model):

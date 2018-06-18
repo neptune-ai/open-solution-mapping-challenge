@@ -126,8 +126,6 @@ SOLUTION_CONFIG = AttrDict({
     'tta_aggregator': {'method': params.tta_aggregation_method,
                        'nthreads': params.num_threads
                        },
-    'dropper': {'min_size': params.min_nuclei_size,
-                      'rotation': True},
     'postprocessor': {'mask_dilation': {'dilate_selem_size': params.dilate_selem_size
                                         },
                       'mask_erosion': {'erode_selem_size': params.erode_selem_size
