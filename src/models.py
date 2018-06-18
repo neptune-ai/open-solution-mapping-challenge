@@ -7,6 +7,7 @@ from torch import optim
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.externals import joblib
+from sklearn.ensemble import RandomForestRegressor
 
 from .callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
 from .steps.pytorch.architectures.unet import UNet
@@ -14,7 +15,7 @@ from .steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpo
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
 from .steps.pytorch.models import Model
 from .steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
-from .steps.sklearn.models import LightGBM
+from .steps.sklearn.models import LightGBM, make_transformer, SklearnRegressor
 from .utils import softmax
 from .unet_models import AlbuNet, UNet11, UNetVGG16, UNetResNet
 
@@ -233,6 +234,46 @@ class ScoringLightGBM(LightGBM):
                     y_valid=val_data[self.target],
                     feature_names=self.feature_names,
                     categorical_features=[])
+        return self
+
+    def transform(self, features, **kwargs):
+        scores = []
+        for image_features in features:
+            image_scores = []
+            for layer_features in image_features:
+                if len(layer_features) > 0:
+                    layer_scores = super().transform(layer_features[self.feature_names])
+                    image_scores.append(list(layer_scores['prediction']))
+                else:
+                    image_scores.append([])
+            scores.append(image_scores)
+        return {'scores': scores}
+
+    def save(self, filepath):
+        joblib.dump((self.estimator, self.feature_names), filepath)
+
+    def load(self, filepath):
+        self.estimator, self.feature_names = joblib.load(filepath)
+
+
+class ScoringRandomForest(SklearnRegressor):
+    def __init__(self, estimator, train_size, target, **kwargs):
+        self.train_size = train_size
+        self.target = target
+        self.feature_names = []
+        self.estimator = None
+        super().__init__(estimator)
+
+    def fit(self, features, **kwargs):
+        df_features = []
+        for image_features in features:
+            for layer_features in image_features[1:]:
+                df_features.append(layer_features)
+        df_features = pd.concat(df_features)
+        train_data, val_data = train_test_split(df_features, train_size=self.train_size)
+        self.feature_names = list(df_features.columns.drop(self.target))
+        super().fit(X=train_data[self.feature_names],
+                    y=train_data[self.target])
         return self
 
     def transform(self, features, **kwargs):

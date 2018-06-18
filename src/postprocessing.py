@@ -41,8 +41,11 @@ class NonMaximumSupression(BaseTransformer):
         self.n_threads = n_threads
 
     def transform(self, images_with_scores):
+        import pdb
+        pdb.set_trace()#test
         with mp.pool.ThreadPool(self.n_threads) as executor:
-            cleaned_images_with_scores = executor.map(lambda p: remove_overlapping_masks(*p), images_with_scores)
+            cleaned_images_with_scores = executor.map(
+                lambda p: remove_overlapping_masks(*p, iou_threshold=self.iou_threshold), images_with_scores)
         return {'images_with_scores': cleaned_images_with_scores}
 
 
@@ -73,6 +76,16 @@ def categorize_image(image):
 
     """
     return np.argmax(image, axis=0)
+
+
+def categorize_multilayer_image(image):
+    categorized_image = []
+    for category_id, category_output in enumerate(image):
+        thrs_step = 1. / (CATEGORY_LAYERS[category_id] + 1)
+        thresholds = np.arange(thrs_step, 1, thrs_step)
+        for thrs in thresholds:
+            categorized_image.append(category_output > thrs)
+    return np.stack(categorized_image)
 
 
 def label_multiclass_image(mask):
@@ -111,6 +124,14 @@ def label_multiclass_image(mask):
     labeled_channels = []
     for label_nr in range(0, mask.max() + 1):
         labeled_channels.append(label(mask == label_nr))
+    labeled_image = np.stack(labeled_channels)
+    return labeled_image
+
+
+def label_multilayer_image(mask):
+    labeled_channels = []
+    for channel in mask:
+        labeled_channels.append(label(channel))
     labeled_image = np.stack(labeled_channels)
     return labeled_image
 
@@ -334,15 +355,15 @@ def get_contour_length(mask):
     return np.count_nonzero(get_contour(mask))
 
 
-def remove_overlapping_masks(image, scores, iou_threshold):
+def remove_overlapping_masks(image, scores, iou_threshold=0.5):
     scores_with_labels = []
     for layer_nr, layer_scores in enumerate(scores):
         scores_with_labels.extend([(score, layer_nr, label_nr + 1) for label_nr, score in enumerate(layer_scores)])
     scores_with_labels.sort(key=lambda x: x[0], reverse=True)
     for i, (score_i, layer_nr_i, label_nr_i) in enumerate(scores_with_labels):
-        base_mask = image[label_nr_i] == label_nr_i
-        for score_j, layer_nr_j, label_nr_j in scores_with_labels[i+1:]:
-            mask_to_check = image[label_nr_j] == label_nr_j
+        base_mask = image[layer_nr_i] == label_nr_i
+        for score_j, layer_nr_j, label_nr_j in scores_with_labels[i + 1:]:
+            mask_to_check = image[layer_nr_j] == label_nr_j
             iou = get_iou_for_mask_pair(base_mask, mask_to_check)
             if iou > iou_threshold:
                 scores_with_labels.remove((score_j, layer_nr_j, label_nr_j))
@@ -353,4 +374,4 @@ def remove_overlapping_masks(image, scores, iou_threshold):
 def get_iou_for_mask_pair(mask1, mask2):
     intersection = np.count_nonzero(mask1 * mask2)
     union = np.count_nonzero(mask1 + mask2)
-    return intersection/union
+    return intersection / union
