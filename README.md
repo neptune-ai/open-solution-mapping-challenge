@@ -14,13 +14,101 @@ Some examples (no cherry-picking I promise):
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/0f88863b18904b23d4301611ddf2b532aff8de96/example_output.png"></img>
 
+I have to say that the results exceded my expectations. The output from the network is so good that not a lot of morphological is needed. Happy days:)
+
 ## Solution write-up
 
 We implemented the following pipeline:
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/e1bf6300fa119db2fec6622a603c63655ff5d770/unet_pipeline.png"></img>
 
+#### Preprocessing
 
+##### What Worked 
+
+* Distances to the 2 closest objects are calculated creating the distance map that is used for weighing
+* Dropped small masks on the edges
+* We load training and validation data in batches:
+using `torch.utils.data.Dataset` and `torch.utils.data.DataLoader` makes it easy and clean (see loaders.py )
+only some basic augmentations (due to speed constraints) from the imgaug package are be applied to images (see augmentations.py )
+* Image is resized before feeding it to the network. Surprisingly this worked better than cropping
+
+##### What didn't Work
+
+* Ground truth masks are prepared by first eroding them per mask creating non overlapping masks and only after that the distances are calculated
+* Dilated small objectcs to increase the signal (no experimental results yet)
+* Network is fed with random crops
+
+##### What could work but we didnt' try it
+
+* Ground truth masks for overlapping contours (DSB-2018 winners approach)
+
+#### Network
+
+##### What Worked 
+
+* Unet with Resnet101 as encoder. The approach is explained https://arxiv.org/abs/1806.00844 
+
+##### What didn't Work
+
+* Unet build from scracth with Resnet34 and Resnet152 as encoder. Worked to a certain degree but failed to produce the very best results.
+* Network architecture based on dilated convolutions described here https://arxiv.org/pdf/1709.00179.pdf
+
+##### What could work but we didnt' try it
+* Unet with contextual blocks explained here https://openreview.net/pdf?id=S1F-dpjjM
+
+
+#### Loss
+
+##### What Worked 
+
+* distance weighted cross entropy explained here https://arxiv.org/pdf/1505.04597.pdf
+* using linear combination of soft dice and distance weighted cross entropy
+* adding size weighted component to the weighted cross entropy that would penalize misclassification on pixels belonging to small objects
+
+##### What didn't Work
+
+##### What could work but we didnt' try it
+
+
+#### Training
+
+##### What Worked 
+* multistage training
+* multigpu training
+
+
+##### What didn't Work
+
+##### We could work but we didnt' try it
+
+
+#### Posprocessing
+
+##### What Worked 
+
+##### What didn't Work
+
+##### We could work but we didnt' try it
+
+We train a unet architecture with the encoder taken from resnet34 for the multiclass problem.
+
+The implementation can be explored in unet_models proposed and implemented by Alexander Buslaev https://www.linkedin.com/in/al-buslaev/
+
+We implemented loss weighing, where the closer the pixel is to the object the higher the weight is. It is based on the following paper https://arxiv.org/pdf/1505.04597.pdf
+
+The parameters are specified in neptune.yaml
+We added deeper resnet-based encoders( 34,101,152 flavours) (no experimental results yet)
+We added loss weighing by object size to the cross entropy loss (no experimental results yet)
+We added Dice loss to weigh it with size and distance weighted cross entropy to clean up masks (no experimental results yet)
+We run inference on padded crops with replication of the last pixel (reflection pad didn't work to well)
+Following postprocessing is applied to the output:
+
+images are cropped to 300x300
+CRF on masks and original images is performed to smoothen up the results. Because this approach is very slow we haven't used it in our current predictions. We will experiment later, having all other ideas in place.
+instances of the same class are labeled
+for each instance the dilation is performed with the same selem that was used for eroding the target masks in the first place
+for each building area the mean probability is calculated
 
 ## Usage: Fast Track
 1. clone this repository: `git clone https://github.com/neptune-ml/open-solution-mapping-challenge.git`
