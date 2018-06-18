@@ -48,11 +48,14 @@ class NonMaximumSupression(BaseTransformer):
 
 def resize_image(image, target_size):
     """Resize image to target size
+
     Args:
         image (numpy.ndarray): Image of shape (C x H x W).
         target_size (tuple): Target size (H, W).
+
     Returns:
         numpy.ndarray: Resized image of shape (C x H x W).
+
     """
     n_channels = image.shape[0]
     resized_image = resize(image, (n_channels,) + target_size, mode='constant')
@@ -61,39 +64,49 @@ def resize_image(image, target_size):
 
 def categorize_image(image):
     """Maps probability map to categories. Each pixel is assigned with a category with highest probability.
+
     Args:
         image (numpy.ndarray): Probability map of shape (C x H x W).
+
     Returns:
         numpy.ndarray: Categorized image of shape (H x W).
+
     """
     return np.argmax(image, axis=0)
 
 
 def label_multiclass_image(mask):
     """Label separate class instances on a mask.
+
     Input mask is a 2D numpy.ndarray, cell (h, w) contains class number of that cell.
     Class number has to be an integer from 0 to C - 1, where C is a number of classes.
     This function splits input mask into C masks. Each mask contains separate instances of this class
     labeled starting from 1 and 0 as background.
+
     Example:
         Input mask (C = 2):
             [[0, 0, 1, 1],
             [1, 0, 0, 0],
             [1, 1, 1, 0],
             [0, 0, 1, 0]]
+
         Output:
             [[[1, 1, 0, 0],
             [0, 1, 1, 1],
             [0, 0, 0, 1],
             [2, 2, 0, 1]],
+
             [[0, 0, 1, 1],
             [2, 0, 0, 0],
             [2, 2, 2, 0],
             [0, 0, 2, 0]]]
+
     Args:
         mask (numpy.ndarray): Mask of shape (H x W). Each cell contains contains cell's class number.
+
     Returns:
         numpy.ndarray: Labeled mask of shape (C x H x W).
+
     """
     labeled_channels = []
     for label_nr in range(0, mask.max() + 1):
@@ -104,11 +117,14 @@ def label_multiclass_image(mask):
 
 def erode_image(mask, erode_selem_size):
     """Erode mask.
+
     Args:
         mask (numpy.ndarray): Mask of shape (H x W) or multiple masks of shape (C x H x W).
         erode_selem_size (int): Size of rectangle structuring element used for erosion.
+
     Returns:
         numpy.ndarray: Eroded mask of shape (H x W) or multiple masks of shape (C x H x W).
+
     """
     if not erode_selem_size > 0:
         return mask
@@ -125,11 +141,14 @@ def erode_image(mask, erode_selem_size):
 
 def dilate_image(mask, dilate_selem_size):
     """Dilate mask.
+
     Args:
         mask (numpy.ndarray): Mask of shape (H x W) or multiple masks of shape (C x H x W).
         dilate_selem_size (int): Size of rectangle structuring element used for dilation.
+
     Returns:
         numpy.ndarray: dilated Mask of shape (H x W) or multiple masks of shape (C x H x W).
+
     """
     if not dilate_selem_size > 0:
         return mask
@@ -147,11 +166,14 @@ def dilate_image(mask, dilate_selem_size):
 def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1,
               compat_bilateral=10, sxy_bilateral=1, srgb=50, iterations=5):
     """Perform fully connected CRF.
+
     This function performs CRF method described in the following paper:
+
         Efficient Inference in Fully Connected CRFs with Gaussian Edge Potentials
         Philipp Krähenbühl and Vladlen Koltun
         NIPS 2011
         https://arxiv.org/abs/1210.5644
+
     Args:
         img (numpy.ndarray): RGB image of shape (3 x H x W).
         output_probs (numpy.ndarray): Probability map of shape (C x H x W).
@@ -161,8 +183,10 @@ def dense_crf(img, output_probs, compat_gaussian=3, sxy_gaussian=1,
         sxy_bilateral: x/y standard-deviation, theta_alpha from the CRF paper.
         srgb: RGB standard-deviation, theta_beta from the CRF paper.
         iterations: Number of CRF iterations.
+
     Returns:
         numpy.ndarray: Probability map of shape (C x H x W) after applying CRF.
+
     """
     height = output_probs.shape[1]
     width = output_probs.shape[2]
@@ -197,12 +221,15 @@ def build_score(image, probabilities):
 
 def crop_image_center_per_class(image, h_crop, w_crop):
     """Crop image center.
+
     Args:
         image (numpy.ndarray): Image of shape (C x H x W).
         h_crop: Height of a cropped image.
         w_crop: Width of a cropped image.
+
     Returns:
         numpy.ndarray: Cropped image of shape (C x H x W).
+
     """
     cropped_per_class_prediction = []
     for class_prediction in image:

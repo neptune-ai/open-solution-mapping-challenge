@@ -17,8 +17,6 @@ SEED = 1234
 CATEGORY_LAYERS = [1, 19]
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
-# MEAN = [0.0, 0.0, 0.0]
-# STD = [1.0, 1.0, 1.0]
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
@@ -27,8 +25,8 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'img_H-W': (params.image_h, params.image_w),
                  'batch_size_train': params.batch_size_train,
                  'batch_size_inference': params.batch_size_inference,
-                 'stream_mode': params.stream_mode,
-                 'loader_mode': params.loader_mode
+                 'loader_mode': params.loader_mode,
+                 'stream_mode': params.stream_mode
                  }
 
 SOLUTION_CONFIG = AttrDict({
