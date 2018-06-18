@@ -7,6 +7,10 @@ Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challen
 ## Goal
 Deliver open source, ready-to-use and extendable solution to this competition. This solution should - by itself - establish solid benchmark, as well as provide good base for your custom ideas and experiments.
 
+## Results
+
+<img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/0f88863b18904b23d4301611ddf2b532aff8de96/example_output.png"></img>
+
 ## Usage: Fast Track
 1. clone this repository: `git clone https://github.com/neptune-ml/open-solution-mapping-challenge.git`
 2. install requirements
