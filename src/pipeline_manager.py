@@ -94,7 +94,8 @@ def train(pipeline_name, dev_mode, logger, params, seed):
 
     data = {'input': {'meta': meta_train,
                       'target_sizes': [(300, 300)] * len(meta_train)},
-            'specs': {'train_mode': True},
+            'specs': {'train_mode': True,
+                      'n_threads': params.num_threads},
             'callback_input': {'meta_valid': meta_valid}
             }
 
@@ -116,7 +117,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed, ctx):
         meta_valid = meta_valid.sample(30, random_state=seed)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    prediction = generate_prediction(meta_valid, pipeline, logger, CATEGORY_IDS, chunk_size)
+    prediction = generate_prediction(meta_valid, pipeline, logger, CATEGORY_IDS, chunk_size, params.num_threads)
 
     prediction_filepath = os.path.join(params.experiment_dir, 'prediction.json')
     with open(prediction_filepath, "w") as fp:
@@ -146,7 +147,7 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, par
         meta_test = meta_test.sample(2, random_state=seed)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, chunk_size)
+    prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, chunk_size, params.num_threads)
 
     submission = prediction
     submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
@@ -159,7 +160,7 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, par
         make_submission(submission_filepath)
 
 
-def make_submission( submission_filepath, logger, params):
+def make_submission(submission_filepath, logger, params):
     api_key = params.api_key
 
     challenge = crowdai.Challenge("crowdAIMappingChallenge", api_key)
@@ -167,18 +168,19 @@ def make_submission( submission_filepath, logger, params):
     challenge.submit(submission_filepath)
 
 
-def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size):
+def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size, n_threads):
     if chunk_size is not None:
-        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size)
+        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size, n_threads)
     else:
-        return _generate_prediction(meta_data, pipeline, logger, category_ids)
+        return _generate_prediction(meta_data, pipeline, logger, category_ids, n_threads)
 
 
-def _generate_prediction(meta_data, pipeline, logger, category_ids):
+def _generate_prediction(meta_data, pipeline, logger, category_ids, n_threads=1):
     data = {'input': {'meta': meta_data,
                       'target_sizes': [(300, 300)] * len(meta_data),
                       },
-            'specs': {'train_mode': False},
+            'specs': {'train_mode': False,
+                      'n_threads': n_threads},
             'callback_input': {'meta_valid': None}
             }
 
@@ -191,13 +193,14 @@ def _generate_prediction(meta_data, pipeline, logger, category_ids):
     return prediction
 
 
-def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size):
+def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size, n_threads=1):
     prediction = []
     for meta_chunk in generate_data_frame_chunks(meta_data, chunk_size):
         data = {'input': {'meta': meta_chunk,
                           'target_sizes': [(300, 300)] * len(meta_chunk)
                           },
-                'specs': {'train_mode': False},
+                'specs': {'train_mode': False,
+                          'n_threads': n_threads},
                 'callback_input': {'meta_valid': None}
                 }
 

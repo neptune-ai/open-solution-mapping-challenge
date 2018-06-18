@@ -1,7 +1,7 @@
 project: MC
 
 name: mapping_challenge_open_solution
-tags: [solution_1]
+tags: [solution_5]
 
 metric:
   channel: 'Final Validation Score'
@@ -92,13 +92,9 @@ parameters:
 # Postprocessing
   threshold: 0.5
   erode_selem_size: 0
-<<<<<<< HEAD:neptune.yaml
   dilate_selem_size: 2
   tta_aggregation_method: gmean
-=======
-  dilate_selem_size: 0
   iou_threshold: 0.5
->>>>>>> dev-recall:src/neptune.yaml
 
 # Inference padding
   crop_image_h: 300
