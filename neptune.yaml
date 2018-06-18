@@ -91,11 +91,14 @@ parameters:
 
 # Postprocessing
   threshold: 0.5
-  min_nuclei_size: 20
-  erosion_percentages: '[10,20,30]'
   erode_selem_size: 0
+<<<<<<< HEAD:neptune.yaml
   dilate_selem_size: 2
   tta_aggregation_method: gmean
+=======
+  dilate_selem_size: 0
+  iou_threshold: 0.5
+>>>>>>> dev-recall:src/neptune.yaml
 
 # Inference padding
   crop_image_h: 300
@@ -106,3 +109,13 @@ parameters:
 
 #Neptune monitor
   unet_outputs_to_plot: '["multichannel_map",]'
+
+#LightGBM
+  lgbm__learning_rate: 0.001
+  lgbm__num_leaves: 10
+  lgbm__min_data: 50
+  lgbm__max_depth: 10
+  lgbm__number_of_trees: 100
+  lgbm__early_stopping: 5
+  lgbm__train_size: 0.7
+  lgbm__target: 'iou'

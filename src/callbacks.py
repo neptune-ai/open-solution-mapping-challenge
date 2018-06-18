@@ -8,12 +8,21 @@ from deepsense import neptune
 from torch.autograd import Variable
 from tempfile import TemporaryDirectory
 
+<<<<<<< HEAD:src/callbacks.py
 from . import postprocessing as post
 from .steps.base import Step, Dummy
 from .steps.utils import get_logger
 from .steps.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
 from .utils import softmax, coco_evaluation, create_annotations, make_apply_transformer
 from .pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING
+=======
+import postprocessing as post
+from steps.base import Step, Dummy
+from steps.utils import get_logger
+from steps.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
+from utils import softmax, categorize_image, coco_evaluation, create_annotations
+from pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING, CATEGORY_LAYERS
+>>>>>>> dev-recall:src/callbacks.py
 
 logger = get_logger()
 
@@ -27,7 +36,7 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
 
     def on_epoch_end(self, *args, **kwargs):
         self._send_numeric_channels()
-        self._send_image_channels()
+        #self._send_image_channels()
         self.epoch_id += 1
 
     def _send_image_channels(self):
@@ -200,7 +209,7 @@ class ValidationMonitorSegmentation(ValidationMonitor):
         output = pipeline.transform(data)
         y_pred = output['y_pred']
 
-        prediction = create_annotations(self.meta_valid, y_pred, logger, CATEGORY_IDS)
+        prediction = create_annotations(self.meta_valid, y_pred, logger, CATEGORY_IDS, CATEGORY_LAYERS)
         return prediction
 
 
