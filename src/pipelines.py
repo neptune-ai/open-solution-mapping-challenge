@@ -347,8 +347,8 @@ def lgbm_inference(config, input_pipeline):
 
     save_output=False
 
-    mask_dilation = input_pipeline.get_step('mask_dilation')
-    mask_resize = input_pipeline.get_step('mask_resize')
+    mask_dilation = input_pipeline(config, train_mode=False).get_step('mask_dilation')
+    mask_resize = input_pipeline(config, train_mode=False).get_step('mask_resize')
 
     feature_extractor = Step(name='feature_extractor',
                              transformer=post.FeatureExtractor(),
