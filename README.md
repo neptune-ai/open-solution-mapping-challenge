@@ -74,73 +74,42 @@ only some basic augmentations (due to speed constraints) from the imgaug package
 #### Training
 
 ##### What Worked 
-* multistage training
+* use pretrained models
+* use multistage training
+1. train on a 50000 subset of the dataset with `lr=0.0001` and `dice_weight=0.5`
+2. train on a full dataset with `lr=0.0001` and `dice_weight=0.5`
+3. train with smaller `lr=0.00001` and `dice_weight=0.5`
+4. increase dice weight to `dice_weight=5.0` to make results smoother
 * multigpu training
-
+* use very simple augmentations
 
 ##### What didn't Work
 
 ##### We could work but we didnt' try it
+* set different learning rates to different layers
+* use cyclic optimizers
+* use warm start optimizers
 
-
-#### Posprocessing
+#### Postprocessing
 
 ##### What Worked 
 
+* test time augmentations rotations + flips and geometric mean
+* simple morphological operations. In the beginning we used erosion followed by labeling and per label dilation with structure elements chosed by CV but as the models got better erosion was removed and very small dilation was the only one showing improvements
+* scoring objects. In the beginning we simply used score `1.0` for every object which was a huge mistake. 
+Changing that to average probability over the object region improved results. What improved scores even more was weighing those probabilities with the object size. 
+* second level model
+
 ##### What didn't Work
+* test time augmentations colors 
+* inference on reflection-padded images was not a way to go. What worked better (but not for the very best models) was replication padding where border pixel value was replicated for all the padded regions.
+* Conditional Random Fields. To be honest it was so slow that we didn't check it for the best models
 
 ##### We could work but we didnt' try it
+* Ensembling
+* Recurrent Neural networks for cleanup
 
-We train a unet architecture with the encoder taken from resnet34 for the multiclass problem.
-
-The implementation can be explored in unet_models proposed and implemented by Alexander Buslaev https://www.linkedin.com/in/al-buslaev/
-
-We implemented loss weighing, where the closer the pixel is to the object the higher the weight is. It is based on the following paper https://arxiv.org/pdf/1505.04597.pdf
-
-The parameters are specified in neptune.yaml
-We added deeper resnet-based encoders( 34,101,152 flavours) (no experimental results yet)
-We added loss weighing by object size to the cross entropy loss (no experimental results yet)
-We added Dice loss to weigh it with size and distance weighted cross entropy to clean up masks (no experimental results yet)
-We run inference on padded crops with replication of the last pixel (reflection pad didn't work to well)
-Following postprocessing is applied to the output:
-
-images are cropped to 300x300
-CRF on masks and original images is performed to smoothen up the results. Because this approach is very slow we haven't used it in our current predictions. We will experiment later, having all other ideas in place.
-instances of the same class are labeled
-for each instance the dilation is performed with the same selem that was used for eroding the target masks in the first place
-for each building area the mean probability is calculated
-
-## Usage: Fast Track
-1. clone this repository: `git clone https://github.com/neptune-ml/open-solution-mapping-challenge.git`
-2. install requirements
-3. register to [Neptune](https://neptune.ml/ 'machine learning lab') *(if you wish to use it)* login via:
-
-```bash
-$ neptune login
-```
-
-4. download/upload competition data and change data-related paths in the configuration file `neptune.yaml`
-5. Prepare the target masks and data:
-
-```bash
-$ neptune experiment run main.py prepare_masks
-$ neptune experiment run main.py prepare_metadata \
---train_data \
---valid_data \
---test_data
-```
-
-6. Put your competition API key in the configuration file
-7. run experiment (for example via neptune):
-
-```bash
-$ neptune experiment run \
-main.py train_evaluate_predict --pipeline_name unet --chunk_size 5000 --submit
-```
-
-7. check your leaderboard score!
-
-## Usage: Detailed
+## Installation
 1. clone this repository: `git clone https://github.com/minerva-ml/open-solution-talking-data.git`
 2. install [PyTorch](http://pytorch.org/) and `torchvision`
 3. install requirements: `pip3 install -r requirements.txt`
