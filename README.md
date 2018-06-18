@@ -9,7 +9,18 @@ Deliver open source, ready-to-use and extendable solution to this competition. T
 
 ## Results
 
+Our approach got `0.943` Average Precision and `0.954` Average Recall on stage 1 data.
+Some examples (no cherry-picking I promise):
+
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/0f88863b18904b23d4301611ddf2b532aff8de96/example_output.png"></img>
+
+## Solution write-up
+
+We implemented the following pipeline:
+
+<img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/e1bf6300fa119db2fec6622a603c63655ff5d770/unet_pipeline.png"></img>
+
+
 
 ## Usage: Fast Track
 1. clone this repository: `git clone https://github.com/neptune-ml/open-solution-mapping-challenge.git`
