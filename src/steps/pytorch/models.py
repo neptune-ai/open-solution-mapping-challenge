@@ -114,6 +114,7 @@ class Model(BaseTransformer):
 
     def _transform(self, datagen, validation_datagen=None):
         self.model.eval()
+
         batch_gen, steps = datagen
         outputs = {}
         for batch_id, data in enumerate(batch_gen):

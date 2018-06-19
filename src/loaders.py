@@ -459,7 +459,6 @@ class TestTimeAugmentationAggregator(BaseTransformer):
         threads = min(self.nthreads, len(unique_img_ids))
         with mp.pool.ThreadPool(threads) as executor:
             averages_images = executor.map(_aggregate_augmentations, unique_img_ids)
-
         return {'aggregated_prediction': averages_images}
 
 

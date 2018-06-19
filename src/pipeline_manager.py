@@ -118,7 +118,6 @@ def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed, ctx):
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(meta_valid, pipeline, logger, CATEGORY_IDS, chunk_size)
-
     prediction_filepath = os.path.join(params.experiment_dir, 'prediction.json')
     with open(prediction_filepath, "w") as fp:
         fp.write(json.dumps(prediction))
