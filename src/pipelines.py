@@ -21,6 +21,7 @@ def unet(config, train_mode):
                 input_data=['callback_input'],
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
+                is_trainable=True,
                 save_output=save_output, load_saved_output=load_saved_output)
 
     mask_postprocessed = mask_postprocessing(unet, config, make_apply_transformer_, save_output=save_output)
@@ -98,6 +99,7 @@ def unet_tta(config):
                 transformer=PyTorchUNet(**config.unet),
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
+                is_trainable=True,
                 save_output=save_output)
 
     tta_aggregator = Step(name='tta_aggregator',
