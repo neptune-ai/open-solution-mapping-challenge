@@ -143,8 +143,7 @@ $ neptune data upload YOUR/DATA/FOLDER
    ```yaml
 	  data_dir:                   /path/to/data
 	  meta_dir:                   /path/to/data
-	  masks_overlayed_dir:        /path/to/masks_overlayed
-	  masks_overlayed_eroded_dir: /path/to/masks_overlayed_eroded
+      masks_overlayed_prefix: masks_overlayed
 	  experiment_dir:             /path/to/work/dir
    ```
 
@@ -152,7 +151,7 @@ $ neptune data upload YOUR/DATA/FOLDER
    Suggested setup is:
 
    ```yaml
-        border_width: 0
+    border_width: 0
 	small_annotations_size: 14
 	erode_selem_size: 0
 	dilate_selem_size: 0
@@ -204,7 +203,7 @@ $ neptune data upload YOUR/DATA/FOLDER
     * local pure python
 
     ```bash
-    $ python main.py train --pipeline_name unet_weighted
+    $ python main.py -- train --pipeline_name unet_weighted
     ```
 
 7. evaluate model and predict on test data:
@@ -238,7 +237,7 @@ $ neptune data upload YOUR/DATA/FOLDER
     * local pure python
 
     ```bash
-    $ python main.py evaluate_predict --pipeline_name unet_tta --chunk_size 1000
+    $ python main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
     ```
 
 ## User support
