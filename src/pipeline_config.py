@@ -139,6 +139,7 @@ SOLUTION_CONFIG = AttrDict({
                       'prediction_crop': {'h_crop': params.crop_image_h,
                                           'w_crop': params.crop_image_w
                                           },
+                      'scoring_model': {'model': params.scoring_model},
                       'lightGBM': {'model_params': {'learning_rate': params.lgbm__learning_rate,
                                                     'boosting_type': 'gbdt',
                                                     'objective': 'regression',
@@ -152,6 +153,8 @@ SOLUTION_CONFIG = AttrDict({
                                    'train_size': params.lgbm__train_size,
                                    'target': params.lgbm__target
                                    },
+                      'random_forest': {'train_size': params.lgbm__train_size,
+                                        'target': params.lgbm__target},
                       'nms': {'iou_threshold': params.iou_threshold,
                               'n_threads': params.num_threads},
                       'feature_extractor': {'n_threads': params.num_threads}

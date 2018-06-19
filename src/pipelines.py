@@ -1,11 +1,11 @@
 from functools import partial
-from sklearn.ensemble import RandomForestRegressor
 
 from . import loaders
 from .steps.base import Step, Dummy
 from .steps.preprocessing.misc import XYSplit
 from .utils import squeeze_inputs, make_apply_transformer, make_apply_transformer_stream
-from .models import PyTorchUNet, PyTorchUNetWeighted, PyTorchUNetStream, PyTorchUNetWeightedStream, ScoringLightGBM, ScoringRandomForest
+from .models import PyTorchUNet, PyTorchUNetWeighted, PyTorchUNetStream, PyTorchUNetWeightedStream, ScoringLightGBM, \
+    ScoringRandomForest
 from . import postprocessing as post
 
 
@@ -320,8 +320,9 @@ def lgbm_train(config):
     mask_resize.transformer = make_apply_transformer_stream(post.resize_image,
                                                             output_name='resized_images',
                                                             apply_on=['images', 'target_sizes'])
-    unet_pipeline.get_step('category_mapper').transformer = make_apply_transformer_stream(post.categorize_multilayer_image,
-                                                                                          output_name='categorized_images')
+    unet_pipeline.get_step('category_mapper').transformer = make_apply_transformer_stream(
+        post.categorize_multilayer_image,
+        output_name='categorized_images')
     unet_pipeline.get_step('mask_erosion').transformer = make_apply_transformer_stream(
         partial(post.erode_image, **config.postprocessor.mask_erosion),
         output_name='eroded_images')
@@ -338,11 +339,12 @@ def lgbm_train(config):
                                       },
                              cache_dirpath=config.env.cache_dirpath,
                              save_output=True,
-                             load_saved_output=True)
+                             load_saved_output=False)
 
     scoring_model = Step(name='scoring_model',
-                         transformer=ScoringLightGBM(**config['postprocessor']['lightGBM']),
-                         #transformer=ScoringRandomForest(RandomForestRegressor(), **config['postprocessor']['lightGBM']),
+                         transformer=ScoringLightGBM(**config['postprocessor']['lightGBM'])
+                         if config['postprocessor']['scoring_model'] == 'lgbm' else
+                         ScoringRandomForest(**config['postprocessor']['random_forest']),
                          input_steps=[feature_extractor],
                          cache_dirpath=config.env.cache_dirpath,
                          save_output=save_output,
@@ -369,8 +371,9 @@ def lgbm_inference(config, input_pipeline):
                              save_output=save_output)
 
     scoring_model = Step(name='scoring_model',
-                         transformer=ScoringLightGBM(**config['postprocessor']['lightGBM']),
-                         #transformer=ScoringRandomForest(RandomForestRegressor(), **config['postprocessor']['lightGBM']),
+                         transformer=ScoringLightGBM(**config['postprocessor']['lightGBM'])
+                         if config['postprocessor']['scoring_model'] == 'lgbm' else
+                         ScoringRandomForest(**config['postprocessor']['random_forest']),
                          input_steps=[feature_extractor],
                          cache_dirpath=config.env.cache_dirpath,
                          save_output=save_output)

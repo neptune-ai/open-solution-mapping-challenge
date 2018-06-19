@@ -41,8 +41,6 @@ class NonMaximumSupression(BaseTransformer):
         self.n_threads = n_threads
 
     def transform(self, images_with_scores):
-        import pdb
-        pdb.set_trace()#test
         with mp.pool.ThreadPool(self.n_threads) as executor:
             cleaned_images_with_scores = executor.map(
                 lambda p: remove_overlapping_masks(*p, iou_threshold=self.iou_threshold), images_with_scores)
@@ -289,7 +287,7 @@ def get_features_for_image(image, probabilities, annotations):
             dist_to_boarder = get_distance_to_boarder(bbox, mask.shape)
             contour_length = get_contour_length(mask)
             mask_features = {'iou': iou, 'threshold': threshold, 'area': area, 'mean_prob': mean_prob,
-                             'max_prob': max_prob, 'label_nr': label_nr, 'bbox_ar': bbox_aspect_ratio,
+                             'max_prob': max_prob, 'bbox_ar': bbox_aspect_ratio,
                              'bbox_area': bbox_area, 'bbox_fill': bbox_fill, 'dist_to_boarder': dist_to_boarder,
                              'contour_length': contour_length}
             layer_features.append(mask_features)
@@ -367,7 +365,7 @@ def remove_overlapping_masks(image, scores, iou_threshold=0.5):
             iou = get_iou_for_mask_pair(base_mask, mask_to_check)
             if iou > iou_threshold:
                 scores_with_labels.remove((score_j, layer_nr_j, label_nr_j))
-                scores[label_nr_j][label_nr_j - 1] = 0
+                scores[layer_nr_j][label_nr_j - 1] = 0
     return image, scores
 
 

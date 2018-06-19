@@ -106,6 +106,9 @@ parameters:
 #Neptune monitor
   unet_outputs_to_plot: '["multichannel_map",]'
 
+#Scoring model
+  scoring_model: 'rf'
+
 #LightGBM
   lgbm__learning_rate: 0.001
   lgbm__num_leaves: 10
@@ -115,3 +118,12 @@ parameters:
   lgbm__early_stopping: 5
   lgbm__train_size: 0.7
   lgbm__target: 'iou'
+
+  #CRF
+  apply_crf: 0
+  nr_iter: 5
+  compat_gaussian: 3
+  sxy_gaussian: 1
+  compat_bilateral: 10
+  sxy_bilateral: 1
+  srgb: 50

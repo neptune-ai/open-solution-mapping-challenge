@@ -7,7 +7,7 @@ import crowdai
 import json
 from pycocotools.coco import COCO
 
-from .pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, SEED
+from .pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, SEED, CATEGORY_LAYERS
 from .pipelines import PIPELINES
 from .preparation import overlay_masks
 from .utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
@@ -90,7 +90,7 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
 
     if dev_mode:
-        meta_train = meta_train.sample(20, random_state=seed)
+        meta_train = meta_train.sample(10000, random_state=seed)
         meta_valid = meta_valid.sample(10, random_state=seed)
 
     if 'lgbm' in pipeline_name:
@@ -205,7 +205,7 @@ def _generate_prediction(meta_data, pipeline, logger, category_ids, n_threads=1)
     pipeline.clean_cache()
     y_pred = output['y_pred']
 
-    prediction = create_annotations(meta_data, y_pred, logger, category_ids)
+    prediction = create_annotations(meta_data, y_pred, logger, category_ids, CATEGORY_LAYERS)
     return prediction
 
 
@@ -225,7 +225,7 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
         pipeline.clean_cache()
         y_pred = output['y_pred']
 
-        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids)
+        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids, CATEGORY_LAYERS)
         prediction.extend(prediction_chunk)
 
     return prediction
