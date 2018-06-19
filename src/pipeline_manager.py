@@ -21,11 +21,11 @@ class PipelineManager():
         self.ctx = neptune.Context()
         self.params = read_params(self.ctx, fallback_file='neptune.yaml')
 
-    def prepare_metadata(self, train_data, valid_data, test_data, public_paths):
-        prepare_metadata(train_data, valid_data, test_data, public_paths, self.logger, self.params)
-
     def prepare_masks(self, dev_mode):
         prepare_masks(dev_mode, self.logger, self.params)
+
+    def prepare_metadata(self, train_data, valid_data, test_data, public_paths):
+        prepare_metadata(train_data, valid_data, test_data, public_paths, self.logger, self.params)
 
     def train(self, pipeline_name, dev_mode):
         train(pipeline_name, dev_mode, self.logger, self.params, self.seed)
@@ -40,28 +40,12 @@ class PipelineManager():
         make_submission(submission_filepath, self.logger, self.params)
 
 
-def prepare_metadata(train_data, valid_data, test_data, public_paths, logger, params):
-    logger.info('creating metadata')
-    meta = generate_metadata(data_dir=params.data_dir,
-                             meta_dir=params.meta_dir,
-                             masks_overlayed_dir=params.masks_overlayed_dir,
-                             competition_stage=params.competition_stage,
-                             process_train_data=train_data,
-                             process_validation_data=valid_data,
-                             process_test_data=test_data,
-                             public_paths=public_paths)
-
-    metadata_filepath = os.path.join(params.meta_dir,
-                                     'stage{}_metadata.csv').format(params.competition_stage)
-    logger.info('saving metadata to {}'.format(metadata_filepath))
-    meta.to_csv(metadata_filepath, index=None)
-
-
 def prepare_masks(dev_mode, logger, params):
     for dataset in ["train", "val"]:
         logger.info('Overlaying masks, dataset: {}'.format(dataset))
-        target_dir = "{}_eroded_{}_dilated_{}".format(params.masks_overlayed_dir[:-1],
-                                                      params.erode_selem_size, params.dilate_selem_size)
+
+        mask_dirname = "masks_overlayed_eroded_{}_dilated_{}".format(params.erode_selem_size, params.dilate_selem_size)
+        target_dir = os.path.join(params.meta_dir, mask_dirname)
         logger.info('Output directory: {}'.format(target_dir))
 
         overlay_masks(data_dir=params.data_dir,
@@ -74,6 +58,24 @@ def prepare_masks(dev_mode, logger, params):
                       nthreads=params.num_threads,
                       border_width=params.border_width,
                       small_annotations_size=params.small_annotations_size)
+
+
+def prepare_metadata(train_data, valid_data, test_data, public_paths, logger, params):
+    logger.info('creating metadata')
+
+    meta = generate_metadata(data_dir=params.data_dir,
+                             meta_dir=params.meta_dir,
+                             masks_overlayed_prefix=params.masks_overlayed_prefix,
+                             competition_stage=params.competition_stage,
+                             process_train_data=train_data,
+                             process_validation_data=valid_data,
+                             process_test_data=test_data,
+                             public_paths=public_paths)
+
+    # metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadata.csv').format(params.competition_stage)
+    metadata_filepath = os.path.join(params.meta_dir, 'DEBUG_TEST.csv').format(params.competition_stage)
+    logger.info('saving metadata to {}'.format(metadata_filepath))
+    meta.to_csv(metadata_filepath, index=None)
 
 
 def train(pipeline_name, dev_mode, logger, params, seed):
@@ -159,7 +161,7 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, par
         make_submission(submission_filepath)
 
 
-def make_submission( submission_filepath, logger, params):
+def make_submission(submission_filepath, logger, params):
     api_key = params.api_key
 
     challenge = crowdai.Challenge("crowdAIMappingChallenge", api_key)
