@@ -75,7 +75,8 @@ def unet_padded(config):
                                   'multichannel_map_prediction': ([(prediction_crop.name, 'cropped_images')]), },
                               cache_dirpath=config.env.cache_dirpath,
                               save_output=save_output)
-    mask_postprocessed = mask_postprocessing(prediction_renamed, config, make_apply_transformer_, save_output=save_output)
+    mask_postprocessed = mask_postprocessing(prediction_renamed, config, make_apply_transformer_,
+                                             save_output=save_output)
 
     output = Step(name='output',
                   transformer=Dummy(),
@@ -138,7 +139,8 @@ def unet_tta(config):
     else:
         raise NotImplementedError('only crop_and_pad and resize options available')
 
-    mask_postprocessed = mask_postprocessing(prediction_renamed, config, make_apply_transformer, save_output=save_output)
+    mask_postprocessed = mask_postprocessing(prediction_renamed, config, make_apply_transformer,
+                                             save_output=save_output)
 
     output = Step(name='output',
                   transformer=Dummy(),
