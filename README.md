@@ -9,7 +9,7 @@ Deliver open source, ready-to-use and extendable solution to this competition. T
 
 ## Results
 
-Our approach got `0.943` Average Precision and `0.954` Average Recall on stage 1 data.
+Our approach got `0.943` Average Precision and `0.954` Average Recall on stage 1 data. You can check our experiments [here](https://app.neptune.ml/neptune-ml/Mapping-Challange)
 Some examples (no cherry-picking I promise):
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/0f88863b18904b23d4301611ddf2b532aff8de96/example_output.png"></img>
@@ -120,38 +120,50 @@ Changing that to average probability over the object region improved results. Wh
 
 
 ## Installation
-1. clone this repository: `git clone https://github.com/minerva-ml/open-solution-talking-data.git`
-2. install [PyTorch](http://pytorch.org/) and `torchvision`
-3. install requirements: `pip3 install -r requirements.txt`
+1. clone this repository: `git clone https://github.com/minerva-ml/open-solution-mapping-challenge.git`
+2. install requirements: `pip3 install -r requirements.txt`
+3. download the data from the competition site [dataset files](https://www.crowdai.org/challenges/mapping-challenge/dataset_files)
 4. register to [Neptune](https://neptune.ml/ 'machine learning lab') *(if you wish to use it)* login via:
 
 ```bash
 $ neptune login
 ```
 
-5. open [Neptune](https://neptune.ml/ 'machine learning lab') and create new project called: `Mapping Challenge` with project key: `MC`
-6. download the data from the competition site
-7. upload the data to neptune (if you want to run computation in the cloud) via:
+open [Neptune](https://neptune.ml/ 'machine learning lab') and create new project called: `Mapping Challenge` with project key: `MC`*
+
+upload the data to neptune (if you want to run computation in the cloud) via:
 ```bash
 $ neptune data upload YOUR/DATA/FOLDER
 ```
 
-8. change paths in the `neptune.yaml` .
+5. prepare training data
 
-```yaml
-  data_dir:               /path/to/data
-  meta_dir:               /path/to/data
-  masks_overlayed_dir:    /path/to/masks_overlayed
-  experiment_dir:         /path/to/work/dir
-```
+   set paths in `neptune.yaml`
 
-9. run experiment:
+   ```yaml
+	  data_dir:                   /path/to/data
+	  meta_dir:                   /path/to/data
+	  masks_overlayed_dir:        /path/to/masks_overlayed
+	  masks_overlayed_eroded_dir: /path/to/masks_overlayed_eroded
+	  experiment_dir:             /path/to/work/dir
+   ```
+
+   change erosion/dilation setup if in `neptune.yaml` you want to:
+   Suggested setup is:
+
+   ```yaml
+        border_width: 0
+	small_annotations_size: 14
+	erode_selem_size: 0
+	dilate_selem_size: 0
+   ```
+
 
     * local machine with neptune
     ```bash
     $ neptune login
     $ neptune experiment run \
-    main.py -- train_evaluate_predict --pipeline_name unet --chunk_size 5000
+    main.py -- prepare_metadata --train_data --valid_data --test_data 
     ```
 
     * cloud via neptune
@@ -161,13 +173,72 @@ $ neptune data upload YOUR/DATA/FOLDER
     $ neptune experiment send --config neptune.yaml \
     --worker gcp-large \
     --environment pytorch-0.2.0-gpu-py3 \
-    main.py -- train_evaluate_predict --pipeline_name solution_1 --chunk_size 5000
+    main.py -- prepare_metadata --train_data --valid_data --test_data 
     ```
 
     * local pure python
 
     ```bash
-    $ python main.py train_evaluate_predict --pipeline_name unet --chunk_size 5000
+    $ python main.py -- prepare_metadata --train_data --valid_data --test_data 
+    ```
+
+6. train model:
+
+    * local machine with neptune
+    ```bash
+    $ neptune login
+    $ neptune experiment run \
+    main.py -- train --pipeline_name unet_weighted
+    ```
+
+    * cloud via neptune
+
+    ```bash
+    $ neptune login
+    $ neptune experiment send --config neptune.yaml \
+    --worker gcp-large \
+    --environment pytorch-0.2.0-gpu-py3 \
+    main.py -- train --pipeline_name unet_weighted
+    ```
+
+    * local pure python
+
+    ```bash
+    $ python main.py train --pipeline_name unet_weighted
+    ```
+
+7. evaluate model and predict on test data:
+   Change values in the configuration file `neptune.yaml`.
+   Suggested setup is:
+
+   ```yaml
+      tta_aggregation_method: gmean
+      loader_mode: resize
+      erode_selem_size: 0
+      dilate_selem_size: 2
+   ```
+
+    * local machine with neptune
+    ```bash
+    $ neptune login
+    $ neptune experiment run \
+    main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
+    ```
+
+    * cloud via neptune
+
+    ```bash
+    $ neptune login
+    $ neptune experiment send --config neptune.yaml \
+    --worker gcp-large \
+    --environment pytorch-0.2.0-gpu-py3 \
+    main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
+    ```
+
+    * local pure python
+
+    ```bash
+    $ python main.py evaluate_predict --pipeline_name unet_tta --chunk_size 1000
     ```
 
 ## User support
