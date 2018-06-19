@@ -203,7 +203,7 @@ $ neptune data upload YOUR/DATA/FOLDER
     * local pure python
 
     ```bash
-    $ python main.py train --pipeline_name unet_weighted
+    $ python main.py -- train --pipeline_name unet_weighted
     ```
 
 7. evaluate model and predict on test data:
@@ -237,7 +237,7 @@ $ neptune data upload YOUR/DATA/FOLDER
     * local pure python
 
     ```bash
-    $ python main.py evaluate_predict --pipeline_name unet_tta --chunk_size 1000
+    $ python main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
     ```
 
 ## User support
