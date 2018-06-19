@@ -90,14 +90,15 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
 
     if dev_mode:
-        meta_train = meta_train.sample(10000, random_state=seed)
+        meta_train = meta_train.sample(20, random_state=seed)
         meta_valid = meta_valid.sample(10, random_state=seed)
 
     if 'lgbm' in pipeline_name:
         annotations = []
         annotation_file_path = os.path.join(params.data_dir, 'train', "annotation.json")
         coco = COCO(annotation_file_path)
-        for image_id in meta['ImageId'].values:
+        meta_train = meta_train.sample(params.evaluation_data_sample, random_state=seed)
+        for image_id in meta_train['ImageId'].values:
             image_annotations = {}
             for category_id in CATEGORY_IDS:
                 annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=category_id)
