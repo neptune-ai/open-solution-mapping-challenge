@@ -9,7 +9,10 @@ Deliver open source, ready-to-use and extendable solution to this competition. T
 
 ## Results
 
-Our approach got `0.943` Average Precision and `0.954` Average Recall on stage 1 data. You can check our experiments [here](https://app.neptune.ml/neptune-ml/Mapping-Challange)
+Our approach got `0.943` Average Precision and `0.954` Average Recall on stage 1 data. 
+
+You can check our experiments [here](https://app.neptune.ml/neptune-ml/Mapping-Challange)
+
 Some examples (no cherry-picking I promise):
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/0f88863b18904b23d4301611ddf2b532aff8de96/example_output.png"></img>
