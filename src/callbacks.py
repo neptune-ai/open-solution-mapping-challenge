@@ -8,12 +8,12 @@ from deepsense import neptune
 from torch.autograd import Variable
 from tempfile import TemporaryDirectory
 
-import postprocessing as post
-from steps.base import Step, Dummy
-from steps.utils import get_logger
-from steps.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
-from utils import softmax, categorize_image, coco_evaluation, create_annotations
-from pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING
+from . import postprocessing as post
+from .steps.base import Step, Dummy
+from .steps.utils import get_logger
+from .steps.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
+from .utils import softmax, coco_evaluation, create_annotations, make_apply_transformer
+from .pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING
 
 logger = get_logger()
 
@@ -77,7 +77,10 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
             if len(outputs_batch) == len(self.output_names):
                 for name, output, target in zip(self.output_names, outputs_batch, targets_tensors):
                     if name in self.outputs_to_plot:
-                        prediction = categorize_image(softmax(output.data.cpu().numpy()), channel_axis=1)
+                        prediction = []
+                        for image in softmax(output.data.cpu().numpy()):
+                            prediction.append(post.categorize_image(image))
+                        prediction = np.stack(prediction)
                         ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
                         n_channels = output.data.cpu().numpy().shape[1]
                         for channel_nr in range(n_channels):
@@ -89,7 +92,10 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
             else:
                 for name, target in zip(self.output_names, targets_tensors):
                     if name in self.outputs_to_plot:
-                        prediction = categorize_image(softmax(outputs_batch.data.cpu().numpy()), channel_axis=1)
+                        prediction = []
+                        for image in softmax(outputs_batch.data.cpu().numpy()):
+                            prediction.append(post.categorize_image(image))
+                        prediction = np.stack(prediction)
                         ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
                         n_channels = outputs_batch.data.cpu().numpy().shape[1]
                         for channel_nr in range(n_channels):
@@ -200,7 +206,9 @@ class ValidationMonitorSegmentation(ValidationMonitor):
 
 def postprocessing__pipeline_simplified(cache_dirpath):
     mask_resize = Step(name='mask_resize',
-                       transformer=post.Resizer(),
+                       transformer=make_apply_transformer(post.resize_image,
+                                                          output_name='resized_images',
+                                                          apply_on=['images', 'target_sizes']),
                        input_data=['unet_output', 'callback_input'],
                        adapter={'images': ([('unet_output', 'multichannel_map_prediction')]),
                                 'target_sizes': ([('callback_input', 'target_sizes')]),
@@ -208,21 +216,25 @@ def postprocessing__pipeline_simplified(cache_dirpath):
                        cache_dirpath=cache_dirpath)
 
     category_mapper = Step(name='category_mapper',
-                           transformer=post.CategoryMapper(),
+                           transformer=make_apply_transformer(post.categorize_image,
+                                                              output_name='categorized_images'),
                            input_steps=[mask_resize],
                            adapter={'images': ([('mask_resize', 'resized_images')]),
                                     },
                            cache_dirpath=cache_dirpath)
 
     labeler = Step(name='labeler',
-                   transformer=post.MulticlassLabeler(),
+                   transformer=make_apply_transformer(post.label_multiclass_image,
+                                                      output_name='labeled_images'),
                    input_steps=[category_mapper],
                    adapter={'images': ([(category_mapper.name, 'categorized_images')]),
                             },
                    cache_dirpath=cache_dirpath)
 
     score_builder = Step(name='score_builder',
-                         transformer=post.ScoreBuilder(),
+                         transformer=make_apply_transformer(post.build_score,
+                                                            output_name='images_with_scores',
+                                                            apply_on=['images', 'probabilities']),
                          input_steps=[labeler, mask_resize],
                          adapter={'images': ([(labeler.name, 'labeled_images')]),
                                   'probabilities': ([(mask_resize.name, 'resized_images')]),

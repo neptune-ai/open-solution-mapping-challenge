@@ -1,4 +1,6 @@
+from functools import partial
 from itertools import product
+import multiprocessing as mp
 import os
 
 from attrdict import AttrDict
@@ -10,12 +12,13 @@ import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from sklearn.externals import joblib
 from skimage.transform import rotate
+from scipy.stats import gmean
 
-from augmentation import fast_seq, crop_seq, padding_seq
-from steps.base import BaseTransformer
-from steps.pytorch.utils import ImgAug
-from utils import from_pil, to_pil
-from pipeline_config import MEAN, STD
+from .augmentation import fast_seq, crop_seq, padding_seq, color_seq
+from .steps.base import BaseTransformer
+from .steps.pytorch.utils import ImgAug
+from .utils import from_pil, to_pil, reseed
+from .pipeline_config import MEAN, STD
 
 
 class MetadataImageSegmentationDataset(Dataset):
@@ -365,6 +368,36 @@ class ImageSegmentationLoaderInferencePaddingTTA(ImageSegmentationLoaderBasic):
         return datagen, steps
 
 
+class ImageSegmentationLoaderResizeTTA(ImageSegmentationLoaderBasic):
+    def __init__(self, loader_params, dataset_params):
+        super().__init__(loader_params, dataset_params)
+
+        self.image_transform = transforms.Compose([transforms.Resize((self.dataset_params.h,
+                                                                      self.dataset_params.w)),
+                                                   transforms.ToTensor(),
+                                                   transforms.Normalize(mean=MEAN, std=STD),
+                                                   ])
+        self.dataset = MetadataImageSegmentationTTA
+
+    def transform(self, X, tta_params, **kwargs):
+        flow, steps = self.get_datagen(X, tta_params, self.loader_params.inference)
+        valid_flow = None
+        valid_steps = None
+        return {'datagen': (flow, steps),
+                'validation_datagen': (valid_flow, valid_steps)}
+
+    def get_datagen(self, X, tta_params, loader_params):
+        dataset = self.dataset(X, tta_params,
+                               image_augment=None,
+                               image_augment_with_target=None,
+                               mask_transform=None,
+                               image_transform=self.image_transform)
+
+        datagen = DataLoader(dataset, **loader_params)
+        steps = len(datagen)
+        return datagen, steps
+
+
 class TestTimeAugmentationGenerator(BaseTransformer):
     def __init__(self, **kwargs):
         self.tta_transformations = AttrDict(kwargs)
@@ -380,18 +413,22 @@ class TestTimeAugmentationGenerator(BaseTransformer):
         return {'X_tta': X_tta, 'tta_params': tta_params, 'img_ids': img_ids}
 
     def _get_tta_data(self, i, row):
-        original_specs = {'ud_flip': False, 'lr_flip': False, 'rotation': 0}
+        original_specs = {'ud_flip': False, 'lr_flip': False, 'rotation': 0, 'color_shift': False}
         tta_specs = [original_specs]
 
         ud_options = [True, False] if self.tta_transformations.flip_ud else [False]
         lr_options = [True, False] if self.tta_transformations.flip_lr else [False]
         rot_options = [0, 90, 180, 270] if self.tta_transformations.rotation else [0]
+        if self.tta_transformations.color_shift_runs:
+            color_shift_options = list(range(1, self.tta_transformations.color_shift_runs + 1, 1))
+        else:
+            color_shift_options = [False]
 
-        for ud, lr, rot in product(ud_options, lr_options, rot_options):
-            if ud is False and lr is False and rot == 0:
+        for ud, lr, rot, color in product(ud_options, lr_options, rot_options, color_shift_options):
+            if ud is False and lr is False and rot == 0 and color is False:
                 continue
             else:
-                tta_specs.append({'ud_flip': ud, 'lr_flip': lr, 'rotation': rot})
+                tta_specs.append({'ud_flip': ud, 'lr_flip': lr, 'rotation': rot, 'color_shift': color})
 
         img_ids = [i] * len(tta_specs)
         X_rows = [row] * len(tta_specs)
@@ -399,19 +436,42 @@ class TestTimeAugmentationGenerator(BaseTransformer):
 
 
 class TestTimeAugmentationAggregator(BaseTransformer):
+    def __init__(self, method, nthreads):
+        self.method = method
+        self.nthreads = nthreads
+
+    @property
+    def agg_method(self):
+        methods = {'mean': np.mean,
+                   'max': np.max,
+                   'min': np.min,
+                   'gmean': gmean
+                   }
+        return partial(methods[self.method], axis=-1)
+
     def transform(self, images, tta_params, img_ids, **kwargs):
-        averages_images = []
-        for img_id in set(img_ids):
-            tta_predictions_for_id = []
-            for image, tta_param, ids in zip(images, tta_params, img_ids):
-                if ids == img_id:
-                    tta_prediction = test_time_augmentation_inverse_transform(image, tta_param)
-                    tta_predictions_for_id.append(tta_prediction)
-                else:
-                    continue
-            tta_averaged = np.mean(np.stack(tta_predictions_for_id, axis=-1), axis=-1)
-            averages_images.append(tta_averaged)
+        _aggregate_augmentations = partial(aggregate_augmentations,
+                                           images=images,
+                                           tta_params=tta_params,
+                                           img_ids=img_ids,
+                                           agg_method=self.agg_method)
+        unique_img_ids = set(img_ids)
+        threads = min(self.nthreads, len(unique_img_ids))
+        with mp.pool.ThreadPool(threads) as executor:
+            averages_images = executor.map(_aggregate_augmentations, unique_img_ids)
         return {'aggregated_prediction': averages_images}
+
+
+def aggregate_augmentations(img_id, images, tta_params, img_ids, agg_method):
+    tta_predictions_for_id = []
+    for image, tta_param, ids in zip(images, tta_params, img_ids):
+        if ids == img_id:
+            tta_prediction = test_time_augmentation_inverse_transform(image, tta_param)
+            tta_predictions_for_id.append(tta_prediction)
+        else:
+            continue
+    tta_averaged = agg_method(np.stack(tta_predictions_for_id, axis=-1))
+    return tta_averaged
 
 
 def test_time_augmentation_transform(image, tta_parameters):
@@ -419,6 +479,9 @@ def test_time_augmentation_transform(image, tta_parameters):
         image = np.flipud(image)
     elif tta_parameters['lr_flip']:
         image = np.fliplr(image)
+    elif tta_parameters['color_shift']:
+        random_color_shift = reseed(color_seq, deterministic=False)
+        image = random_color_shift.augment_image(image)
     image = rotate(image, tta_parameters['rotation'], preserve_range=True)
     return image
 
@@ -451,13 +514,6 @@ def per_channel_rotation(x, angle):
     x_ = x.copy()
     for i, channel in enumerate(x):
         x_[i, :, :] = rotate(channel, angle, preserve_range=True)
-    return x_
-
-
-def binarize(x):
-    x_ = x.convert('L')  # convert image to monochrome
-    x_ = np.array(x_)
-    x_ = (x_ > 125).astype(np.float32)
     return x_
 
 

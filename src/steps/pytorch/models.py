@@ -8,8 +8,8 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.nn import init
 
-from steps.base import BaseTransformer
-from steps.utils import get_logger
+from ..base import BaseTransformer
+from ..utils import get_logger
 from .utils import save_model
 
 logger = get_logger()
@@ -114,6 +114,7 @@ class Model(BaseTransformer):
 
     def _transform(self, datagen, validation_datagen=None):
         self.model.eval()
+
         batch_gen, steps = datagen
         outputs = {}
         for batch_id, data in enumerate(batch_gen):

@@ -2,48 +2,33 @@ import json
 import logging
 import math
 import os
+import ntpath
 import random
 import sys
-from itertools import product
-from collections import defaultdict
+import time
+from itertools import product, chain
+from collections import defaultdict, Iterable
 
+import glob
 import numpy as np
 import pandas as pd
 import torch
 import yaml
+import imgaug as ia
 from PIL import Image
 from attrdict import AttrDict
 from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
-from cocoeval import COCOeval
 from tqdm import tqdm
 from scipy import ndimage as ndi
-from scipy.ndimage.morphology import distance_transform_edt
+from .cocoeval import COCOeval
+from .steps.base import BaseTransformer
 
 
 def read_yaml(filepath):
     with open(filepath) as f:
         config = yaml.load(f)
     return AttrDict(config)
-
-
-def read_masks(image_ids, data_dir, dataset):
-    masks = []
-    annotation_file_name = "annotation.json"
-    annotation_file_path = os.path.join(data_dir, dataset, annotation_file_name)
-    coco = COCO(annotation_file_path)
-    for image_id in tqdm(image_ids):
-        mask_set = []
-        image = coco.loadImgs(image_id)[0]
-        image_size = [image["height"], image["width"]]
-        annotation_ids = coco.getAnnIds(imgIds=image_id)
-        annotations = coco.loadAnns(annotation_ids)
-        for ann in annotations:
-            rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
-            m = cocomask.decode(rle)
-            mask_set.append(m)
-        masks.append(mask_set)
-    return masks
 
 
 def init_logger():
@@ -127,9 +112,9 @@ def bounding_box_from_rle(rle):
     return list(cocomask.toBbox(rle))
 
 
-def read_params(ctx):
+def read_params(ctx, fallback_file):
     if ctx.params.__class__.__name__ == 'OfflineContextParams':
-        neptune_config = read_yaml('neptune.yaml')
+        neptune_config = read_yaml(fallback_file)
         params = neptune_config.parameters
     else:
         params = ctx.params
@@ -138,7 +123,7 @@ def read_params(ctx):
 
 def generate_metadata(data_dir,
                       meta_dir,
-                      masks_overlayed_dir,
+                      masks_overlayed_prefix,
                       process_train_data=True,
                       process_validation_data=True,
                       process_test_data=True,
@@ -155,28 +140,22 @@ def generate_metadata(data_dir,
             dataset = "test_images"
 
         images_path = os.path.join(data_dir, dataset)
-        public_path = "/public/mapping_challenge_data/"
 
         if dataset != "test_images":
             images_path = os.path.join(images_path, "images")
 
-        if public_paths: # TODO: implement public generating public path
-            raise NotImplementedError
+        if public_paths:
+            raise NotImplementedError('public neptune paths not implemented')
         else:
-            images_path_to_write = images_path
-            masks_overlayed_dir_ = masks_overlayed_dir[:-1]
-            masks_dir_prefix = os.path.split(masks_overlayed_dir_)[1]
-            masks_overlayed_sufix_to_write = []
-            for masks_dir in os.listdir(meta_dir):
-                masks_dir_name = os.path.split(masks_dir)[1]
-                if masks_dir_name.startswith(masks_dir_prefix):
-                    masks_overlayed_sufix_to_write.append(masks_dir_name[len(masks_dir_prefix):])
-
+            masks_overlayed_dirs, mask_overlayed_suffix = [], []
+            for file_path in glob.glob('{}/*'.format(meta_dir)):
+                if ntpath.basename(file_path).startswith(masks_overlayed_prefix):
+                    masks_overlayed_dirs.append(file_path)
+                    mask_overlayed_suffix.append(ntpath.basename(file_path).replace(masks_overlayed_prefix, ''))
         df_dict = defaultdict(lambda: [])
 
-        for image_file_name in tqdm(sorted(os.listdir(images_path))):
-            file_path_image = os.path.join(images_path_to_write, image_file_name)
-            image_id = image_file_name[:-4]
+        for image_file_path in tqdm(sorted(glob.glob('{}/*'.format(images_path)))):
+            image_id = ntpath.basename(image_file_path).split('.')[0]
 
             is_train = 0
             is_valid = 0
@@ -186,13 +165,13 @@ def generate_metadata(data_dir,
                 n_buildings = None
                 is_test = 1
                 df_dict['ImageId'].append(image_id)
-                df_dict['file_path_image'].append(file_path_image)
+                df_dict['file_path_image'].append(image_file_path)
                 df_dict['is_train'].append(is_train)
                 df_dict['is_valid'].append(is_valid)
                 df_dict['is_test'].append(is_test)
-                df_dict['n_buildings'].append( n_buildings)
-                for mask_dir_sufix in masks_overlayed_sufix_to_write:
-                    df_dict['file_path_mask' + mask_dir_sufix].append(None)
+                df_dict['n_buildings'].append(n_buildings)
+                for mask_dir_suffix in mask_overlayed_suffix:
+                    df_dict['file_path_mask' + mask_dir_suffix].append(None)
 
             else:
                 n_buildings = None
@@ -201,16 +180,15 @@ def generate_metadata(data_dir,
                 else:
                     is_train = 1
                 df_dict['ImageId'].append(image_id)
-                df_dict['file_path_image'].append(file_path_image)
+                df_dict['file_path_image'].append(image_file_path)
                 df_dict['is_train'].append(is_train)
                 df_dict['is_valid'].append(is_valid)
                 df_dict['is_test'].append(is_test)
                 df_dict['n_buildings'].append(n_buildings)
 
-                for mask_dir_sufix in masks_overlayed_sufix_to_write:
-                    file_path_mask = os.path.join(meta_dir, masks_dir_prefix + mask_dir_sufix, dataset, "masks",
-                                                  image_file_name[:-4] + ".png")
-                    df_dict['file_path_mask' + mask_dir_sufix].append(file_path_mask)
+                for mask_dir, mask_dir_suffix in zip(masks_overlayed_dirs, mask_overlayed_suffix):
+                    file_path_mask = os.path.join(mask_dir, dataset, "masks", '{}.png'.format(image_id))
+                    df_dict['file_path_mask' + mask_dir_suffix].append(file_path_mask)
 
         return pd.DataFrame.from_dict(df_dict)
 
@@ -279,36 +257,6 @@ def softmax(X, theta=1.0, axis=None):
     return p
 
 
-def relabel(img):
-    h, w = img.shape
-
-    relabel_dict = {}
-
-    for i, k in enumerate(np.unique(img)):
-        if k == 0:
-            relabel_dict[k] = 0
-        else:
-            relabel_dict[k] = i
-    for i, j in product(range(h), range(w)):
-        img[i, j] = relabel_dict[img[i, j]]
-    return img
-
-
-def relabel_random_colors(img, max_colours=1000):
-    keys = list(range(1, max_colours, 1))
-    np.random.shuffle(keys)
-    values = list(range(1, max_colours, 1))
-    np.random.shuffle(values)
-    funky_dict = {k: v for k, v in zip(keys, values)}
-    funky_dict[0] = 0
-
-    h, w = img.shape
-
-    for i, j in product(range(h), range(w)):
-        img[i, j] = funky_dict[img[i, j]]
-    return img
-
-
 def from_pil(*images):
     images = [np.array(image) for image in images]
     if len(images) == 1:
@@ -323,10 +271,6 @@ def to_pil(*images):
         return images[0]
     else:
         return images
-
-
-def clip(lo, x, hi):
-    return lo if x <= lo else hi if x >= hi else x
 
 
 def set_seed(seed):
@@ -345,10 +289,6 @@ def generate_data_frame_chunks(meta, chunk_size):
         yield meta_chunk
 
 
-def categorize_image(image, channel_axis=0):
-    return np.argmax(image, axis=channel_axis)
-
-
 def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, small_annotations_size):
     coco = COCO(gt_filepath)
     coco_results = coco.loadRes(prediction_filepath)
@@ -363,36 +303,6 @@ def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, s
     cocoEval.summarize()
 
     return cocoEval.stats[0], cocoEval.stats[3]
-
-
-def label(mask):
-    labeled, nr_true = ndi.label(mask)
-    return labeled
-
-
-def get_weight_matrix(mask):
-    labeled = label(mask)
-    image_size = mask.shape
-    distances = np.zeros(image_size)
-    for label_nr in range(1, labeled.max() + 1):
-        object = labeled == label_nr
-        if distances.sum() == 0:
-            distances = distance_transform_edt(1 - object)
-        else:
-            distances = np.dstack([distances, distance_transform_edt(1 - object)])
-    if np.sum(distances) != 0:
-        if len(distances.shape) > 2:
-            distances.sort(axis=2)
-            weights = get_weights(distances[:, :, 0], distances[:, :, 1], 1, 10, 5)
-        else:
-            weights = get_weights(0, distances, 1, 10, 5)
-    else:
-        weights = np.ones(image_size)
-    return weights
-
-
-def get_weights(d1, d2, w1, w0, sigma):
-    return w1 + w0 * np.exp(-((d1 + d2) ** 2) / (sigma ** 2))
 
 
 def denormalize_img(image, mean, std):
@@ -411,3 +321,90 @@ def add_dropped_objects(original, processed):
         if not np.any(np.where((labeled == i) & processed)):
             reconstructed += (labeled == i)
     return reconstructed.astype('uint8')
+
+
+def make_apply_transformer(func, output_name='output', apply_on=None):
+    class StaticApplyTransformer(BaseTransformer):
+        def transform(self, *args, **kwargs):
+            self.check_input(*args, **kwargs)
+
+            if not apply_on:
+                iterator = zip(*args, *kwargs.values())
+            else:
+                iterator = zip(*args, *[kwargs[key] for key in apply_on])
+
+            output = []
+            for func_args in tqdm(iterator, total=self.get_arg_length(*args, **kwargs)):
+                output.append(func(*func_args))
+            return {output_name: output}
+
+        @staticmethod
+        def check_input(*args, **kwargs):
+            if len(args) and len(kwargs) == 0:
+                raise Exception('Input must not be empty')
+
+            arg_length = None
+            for arg in chain(args, kwargs.values()):
+                if not isinstance(arg, Iterable):
+                    raise Exception('All inputs must be iterable')
+                arg_length_loc = None
+                try:
+                    arg_length_loc = len(arg)
+                except:
+                    pass
+                if arg_length_loc is not None:
+                    if arg_length is None:
+                        arg_length = arg_length_loc
+                    elif arg_length_loc != arg_length:
+                        raise Exception('All inputs must be the same length')
+
+        @staticmethod
+        def get_arg_length(*args, **kwargs):
+            arg_length = None
+            for arg in chain(args, kwargs.values()):
+                if arg_length is None:
+                    try:
+                        arg_length = len(arg)
+                    except:
+                        pass
+                if arg_length is not None:
+                    return arg_length
+
+    return StaticApplyTransformer()
+
+
+def make_apply_transformer_stream(func, output_name='output', apply_on=None):
+    class StaticApplyTransformerStream(BaseTransformer):
+        def transform(self, *args, **kwargs):
+            self.check_input(*args, **kwargs)
+            return {output_name: self._transform(*args, **kwargs)}
+
+        def _transform(self, *args, **kwargs):
+            if not apply_on:
+                iterator = zip(*args, *kwargs.values())
+            else:
+                iterator = zip(*args, *[kwargs[key] for key in apply_on])
+
+            for func_args in tqdm(iterator):
+                yield func(*func_args)
+
+        @staticmethod
+        def check_input(*args, **kwargs):
+            for arg in chain(args, kwargs.values()):
+                if not isinstance(arg, Iterable):
+                    raise Exception('All inputs must be iterable')
+
+    return StaticApplyTransformerStream()
+
+
+def get_seed():
+    seed = int(time.time()) + int(os.getpid())
+    return seed
+
+
+def reseed(augmenter_sequence, deterministic=True):
+    for aug in augmenter_sequence:
+        aug.random_state = ia.new_random_state(get_seed())
+        if deterministic:
+            aug.deterministic = True
+    return augmenter_sequence

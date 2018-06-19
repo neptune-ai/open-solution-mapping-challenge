@@ -221,20 +221,31 @@ class AlbuNet(nn.Module):
         return self.final(dec0)
 
 
-class UNet16(nn.Module):
-    def __init__(self, num_classes=1, num_filters=32, pretrained=False, is_deconv=False):
-        """
-        :param num_classes:
-        :param num_filters:
-        :param pretrained:
-            False - no pre-trained network used
-            True - encoder pre-trained with VGG16
-        :is_deconv:
-            False: bilinear interpolation is used in decoder
-            True: deconvolution is used in decoder
-        """
+class UNetVGG16(nn.Module):
+    """PyTorch U-Net model using VGG16 encoder.
+
+    UNet: https://arxiv.org/abs/1505.04597
+    VGG: https://arxiv.org/abs/1409.1556
+    Proposed by Vladimir Iglovikov and Alexey Shvets: https://github.com/ternaus/TernausNet
+
+    Args:
+            num_classes (int): Number of output classes.
+            num_filters (int, optional): Number of filters in the last layer of decoder. Defaults to 32.
+            dropout_2d (float, optional): Probability factor of dropout layer before output layer. Defaults to 0.2.
+            pretrained (bool, optional):
+                False - no pre-trained weights are being used.
+                True  - VGG encoder is pre-trained on ImageNet.
+                Defaults to False.
+            is_deconv (bool, optional):
+                False: bilinear interpolation is used in decoder.
+                True: deconvolution is used in decoder.
+                Defaults to False.
+
+    """
+    def __init__(self, num_classes=1, num_filters=32, dropout_2d=0.2, pretrained=False, is_deconv=False):
         super().__init__()
         self.num_classes = num_classes
+        self.dropout_2d = dropout_2d
 
         self.pool = nn.MaxPool2d(2, 2)
 
@@ -298,29 +309,34 @@ class UNet16(nn.Module):
         dec2 = self.dec2(torch.cat([dec3, conv2], 1))
         dec1 = self.dec1(torch.cat([dec2, conv1], 1))
 
-        return self.final(dec1)
+        return self.final(F.dropout2d(dec1, p=self.dropout_2d))
 
 
 class UNetResNet(nn.Module):
+    """PyTorch U-Net model using ResNet(34, 101 or 152) encoder.
+
+    UNet: https://arxiv.org/abs/1505.04597
+    ResNet: https://arxiv.org/abs/1512.03385
+    Proposed by Alexander Buslaev: https://www.linkedin.com/in/al-buslaev/
+
+    Args:
+            encoder_depth (int): Depth of a ResNet encoder (34, 101 or 152).
+            num_classes (int): Number of output classes.
+            num_filters (int, optional): Number of filters in the last layer of decoder. Defaults to 32.
+            dropout_2d (float, optional): Probability factor of dropout layer before output layer. Defaults to 0.2.
+            pretrained (bool, optional):
+                False - no pre-trained weights are being used.
+                True  - ResNet encoder is pre-trained on ImageNet.
+                Defaults to False.
+            is_deconv (bool, optional):
+                False: bilinear interpolation is used in decoder.
+                True: deconvolution is used in decoder.
+                Defaults to False.
+
     """
-        UNet (https://arxiv.org/abs/1505.04597) with Resnet34(https://arxiv.org/abs/1512.03385) encoder
 
-        Proposed by Alexander Buslaev: https://www.linkedin.com/in/al-buslaev/
-
-        """
-
-    def __init__(self, encoder_depth=34, num_classes=1, num_filters=32, dropout_2d=0.2,
+    def __init__(self, encoder_depth, num_classes, num_filters=32, dropout_2d=0.2,
                  pretrained=False, is_deconv=False):
-        """
-        :param num_classes:
-        :param num_filters:
-        :param pretrained:
-            False - no pre-trained network is used
-            True  - encoder is pre-trained with resnet34
-        :is_deconv:
-            False: bilinear interpolation is used in decoder
-            True: deconvolution is used in decoder
-        """
         super().__init__()
         self.num_classes = num_classes
         self.dropout_2d = dropout_2d
@@ -384,4 +400,4 @@ class UNetResNet(nn.Module):
         dec1 = self.dec1(dec2)
         dec0 = self.dec0(dec1)
 
-        return self.final(nn.functional.dropout2d(dec0, p=self.dropout_2d))
+        return self.final(F.dropout2d(dec0, p=self.dropout_2d))

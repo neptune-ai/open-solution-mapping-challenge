@@ -3,20 +3,19 @@ import os
 from attrdict import AttrDict
 from deepsense import neptune
 
-from utils import read_params
+from .utils import read_params
 
 ctx = neptune.Context()
-params = read_params(ctx)
+params = read_params(ctx, fallback_file='neptune.yaml')
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
 Y_COLUMNS = ['file_path_mask_eroded_0_dilated_0']
 Y_COLUMNS_SCORING = ['ImageId']
 CATEGORY_IDS = [None, 100]
+SEED = 1234
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
-# MEAN = [0.0, 0.0, 0.0]
-# STD = [1.0, 1.0, 1.0]
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
@@ -25,8 +24,8 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'img_H-W': (params.image_h, params.image_w),
                  'batch_size_train': params.batch_size_train,
                  'batch_size_inference': params.batch_size_inference,
-                 'stream_mode': params.stream_mode,
-                 'loader_mode': params.loader_mode
+                 'loader_mode': params.loader_mode,
+                 'stream_mode': params.stream_mode
                  }
 
 SOLUTION_CONFIG = AttrDict({
@@ -114,25 +113,21 @@ SOLUTION_CONFIG = AttrDict({
                                 'image_resize': 0.2,
                                 'outputs_to_plot': params.unet_outputs_to_plot},
             'early_stopping': {'patience': params.patience,
-                'minimize': not params.validate_with_map},
+                               'minimize': not params.validate_with_map},
         },
     },
     'tta_generator': {'flip_ud': True,
                       'flip_lr': True,
-                      'rotation': True},
+                      'rotation': True,
+                      'color_shift_runs': False},
+    'tta_aggregator': {'method': params.tta_aggregation_method,
+                       'nthreads': params.num_threads
+                       },
     'dropper': {'min_size': params.min_nuclei_size},
     'postprocessor': {'mask_dilation': {'dilate_selem_size': params.dilate_selem_size
                                         },
                       'mask_erosion': {'erode_selem_size': params.erode_selem_size
                                        },
-                      'crf': {'apply_crf': params.apply_crf,
-                              'nr_iter': params.nr_iter,
-                              'compat_gaussian': params.compat_gaussian,
-                              'sxy_gaussian': params.sxy_gaussian,
-                              'compat_bilateral': params.compat_bilateral,
-                              'sxy_bilateral': params.sxy_bilateral,
-                              'srgb': params.srgb
-                              },
                       'prediction_crop': {'h_crop': params.crop_image_h,
                                           'w_crop': params.crop_image_w
                                           },
