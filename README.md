@@ -143,8 +143,7 @@ $ neptune data upload YOUR/DATA/FOLDER
    ```yaml
 	  data_dir:                   /path/to/data
 	  meta_dir:                   /path/to/data
-	  masks_overlayed_dir:        /path/to/masks_overlayed
-	  masks_overlayed_eroded_dir: /path/to/masks_overlayed_eroded
+          masks_overlayed_prefix: masks_overlayed
 	  experiment_dir:             /path/to/work/dir
    ```
 
