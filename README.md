@@ -151,7 +151,7 @@ $ neptune data upload YOUR/DATA/FOLDER
    Suggested setup is:
 
    ```yaml
-        border_width: 0
+    border_width: 0
 	small_annotations_size: 14
 	erode_selem_size: 0
 	dilate_selem_size: 0
