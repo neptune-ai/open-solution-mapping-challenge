@@ -72,8 +72,7 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths, logger, pa
                              process_test_data=test_data,
                              public_paths=public_paths)
 
-    # metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadata.csv').format(params.competition_stage)
-    metadata_filepath = os.path.join(params.meta_dir, 'DEBUG_TEST.csv').format(params.competition_stage)
+    metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadata.csv').format(params.competition_stage)
     logger.info('saving metadata to {}'.format(metadata_filepath))
     meta.to_csv(metadata_filepath, index=None)
 
