@@ -303,6 +303,7 @@ def mask_postprocessing(model, config, make_transformer, **kwargs):
 def lgbm_train(config):
     save_output = False
     unet_type = 'weighted'
+    config['execution']['stream_mode']=True
 
     if unet_type == 'standard':
         unet_pipeline = unet(config, train_mode=False)
@@ -313,21 +314,6 @@ def lgbm_train(config):
 
     mask_dilation = unet_pipeline.get_step('mask_dilation')
     mask_resize = unet_pipeline.get_step('mask_resize')
-
-    mask_dilation.transformer = make_apply_transformer_stream(
-        partial(post.dilate_image, **config.postprocessor.mask_dilation),
-        output_name='dilated_images')
-    mask_resize.transformer = make_apply_transformer_stream(post.resize_image,
-                                                            output_name='resized_images',
-                                                            apply_on=['images', 'target_sizes'])
-    unet_pipeline.get_step('category_mapper').transformer = make_apply_transformer_stream(
-        post.categorize_multilayer_image,
-        output_name='categorized_images')
-    unet_pipeline.get_step('mask_erosion').transformer = make_apply_transformer_stream(
-        partial(post.erode_image, **config.postprocessor.mask_erosion),
-        output_name='eroded_images')
-    unet_pipeline.get_step('labeler').transformer = make_apply_transformer_stream(post.label_multilayer_image,
-                                                                                  output_name='labeled_images')
 
     feature_extractor = Step(name='feature_extractor',
                              transformer=post.FeatureExtractor(**config['postprocessor']['feature_extractor']),
@@ -348,7 +334,6 @@ def lgbm_train(config):
                          input_steps=[feature_extractor],
                          cache_dirpath=config.env.cache_dirpath,
                          save_output=save_output,
-                         force_fitting=True  # test
                          )
 
     return scoring_model

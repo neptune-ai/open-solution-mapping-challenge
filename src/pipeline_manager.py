@@ -87,6 +87,8 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
 
+    train_mode = True
+
     meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
 
     if dev_mode:
@@ -94,10 +96,11 @@ def train(pipeline_name, dev_mode, logger, params, seed):
         meta_valid = meta_valid.sample(10, random_state=seed)
 
     if 'lgbm' in pipeline_name:
-        annotations = []
         annotation_file_path = os.path.join(params.data_dir, 'train', "annotation.json")
         coco = COCO(annotation_file_path)
         meta_train = meta_train.sample(params.evaluation_data_sample, random_state=seed)
+        train_mode = False
+        annotations = []
         for image_id in meta_train['ImageId'].values:
             image_annotations = {}
             for category_id in CATEGORY_IDS:
@@ -111,7 +114,7 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     data = {'input': {'meta': meta_train,
                       'target_sizes': [(300, 300)] * len(meta_train),
                       'annotations': annotations},
-            'specs': {'train_mode': True,
+            'specs': {'train_mode': train_mode,
                       'n_threads': params.num_threads},
             'callback_input': {'meta_valid': meta_valid}
             }

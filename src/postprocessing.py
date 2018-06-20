@@ -260,6 +260,10 @@ def crop_image_center_per_class(image, h_crop, w_crop):
     return cropped_per_class_prediction
 
 
+def join_score_image(image, score):
+    return (image, score)
+
+
 def get_features_for_image(image, probabilities, annotations):
     image_features = []
     category_layers_inds = np.cumsum(CATEGORY_LAYERS)

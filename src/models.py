@@ -59,7 +59,7 @@ class BasePyTorchUNet(Model):
         self.loss_function = None
         self.callbacks = callbacks_unet(self.callbacks_config)
 
-    def fit(self, datagen, validation_datagen=None, inference_datagen=None, meta_valid=None):
+    def fit(self, datagen, validation_datagen=None, meta_valid=None):
         self._initialize_model_weights()
 
         self.model = nn.DataParallel(self.model)
@@ -85,9 +85,7 @@ class BasePyTorchUNet(Model):
         self.callbacks.on_train_end()
         return self
 
-    def transform(self, datagen, validation_datagen=None, inference_datagen=None, *args, **kwargs):
-        if inference_datagen is not None and inference_datagen[0] is not None:
-            datagen = inference_datagen
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
         outputs = self._transform(datagen, validation_datagen)
         for name, prediction in outputs.items():
             outputs[name] = softmax(prediction, axis=1)
@@ -114,9 +112,7 @@ class PyTorchUNetStream(BasePyTorchUNet):
         super().__init__(architecture_config, training_config, callbacks_config)
         self.loss_function = [('multichannel_map', multiclass_segmentation_loss, 1.0)]
 
-    def transform(self, datagen, validation_datagen=None, inference_datagen=None, *args, **kwargs):
-        if inference_datagen is not None and inference_datagen[0] is not None:
-            datagen = inference_datagen
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
         if len(self.output_names) == 1:
             output_generator = self._transform(datagen, validation_datagen)
             output = {'{}_prediction'.format(self.output_names[0]): output_generator}
@@ -168,17 +164,18 @@ class PyTorchUNetWeighted(BasePyTorchUNet):
 class PyTorchUNetWeightedStream(BasePyTorchUNet):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        weighted_loss = partial(multiclass_weighted_cross_entropy,
-                                **get_loss_variables(**architecture_config['weighted_cross_entropy']))
-        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
+        weights_function = partial(get_weights, **architecture_config['weighted_cross_entropy'])
+        weighted_loss = partial(multiclass_weighted_cross_entropy, weights_function=weights_function)
+        dice_loss = partial(multiclass_dice_loss, excluded_classes=[0])
+        loss = partial(mixed_dice_cross_entropy_loss,
+                       dice_loss=dice_loss,
+                       dice_weight=architecture_config['loss_weights']['dice_mask'],
                        cross_entropy_weight=architecture_config['loss_weights']['bce_mask'],
                        cross_entropy_loss=weighted_loss,
                        **architecture_config['dice'])
         self.loss_function = [('multichannel_map', loss, 1.0)]
 
-    def transform(self, datagen, validation_datagen=None, inference_datagen=None, *args, **kwargs):
-        if inference_datagen is not None and inference_datagen[0] is not None:
-            datagen = inference_datagen
+    def transform(self, datagen, validation_datagen=None, *args, **kwargs):
         if len(self.output_names) == 1:
             output_generator = self._transform(datagen, validation_datagen)
             output = {'{}_prediction'.format(self.output_names[0]): output_generator}

@@ -139,7 +139,7 @@ SOLUTION_CONFIG = AttrDict({
                       'prediction_crop': {'h_crop': params.crop_image_h,
                                           'w_crop': params.crop_image_w
                                           },
-                      'scoring_model': {'model': params.scoring_model},
+                      'scoring_model': params.scoring_model,
                       'lightGBM': {'model_params': {'learning_rate': params.lgbm__learning_rate,
                                                     'boosting_type': 'gbdt',
                                                     'objective': 'regression',
