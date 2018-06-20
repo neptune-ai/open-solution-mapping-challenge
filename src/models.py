@@ -241,11 +241,11 @@ def multiclass_weighted_cross_entropy(output, target, weights_function=None):
         torch.Tensor: Loss value.
 
     """
-    target = target[:, 0, :, :].long()
     if weights_function is None:
         weights = target[:, 1, :, :]
     else:
         weights = weights_function(target[:, 1:, :, :])
+    target = target[:, 0, :, :].long()
 
     loss_per_pixel = torch.nn.CrossEntropyLoss(reduce=False)(output, target)
 
