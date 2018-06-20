@@ -101,7 +101,7 @@ parameters:
   unet_outputs_to_plot: '["multichannel_map",]'
 
 #Scoring model
-  scoring_model: 'rf'
+  scoring_model: 'lgbm'
 
 #LightGBM
   lgbm__num_training_examples: 10000
