@@ -128,14 +128,6 @@ SOLUTION_CONFIG = AttrDict({
                                         },
                       'mask_erosion': {'erode_selem_size': params.erode_selem_size
                                        },
-                      'crf': {'apply_crf': params.apply_crf,
-                              'nr_iter': params.nr_iter,
-                              'compat_gaussian': params.compat_gaussian,
-                              'sxy_gaussian': params.sxy_gaussian,
-                              'compat_bilateral': params.compat_bilateral,
-                              'sxy_bilateral': params.sxy_bilateral,
-                              'srgb': params.srgb
-                              },
                       'prediction_crop': {'h_crop': params.crop_image_h,
                                           'w_crop': params.crop_image_w
                                           },

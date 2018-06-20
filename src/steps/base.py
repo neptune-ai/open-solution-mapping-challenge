@@ -14,7 +14,7 @@ logger = get_logger()
 
 class Step:
     def __init__(self, name, transformer, input_steps=[], input_data=[], adapter=None,
-                 cache_dirpath=None, cache_output=False, save_output=False, load_saved_output=False,
+                 cache_dirpath=None, is_trainable=False, cache_output=False, save_output=False, load_saved_output=False,
                  save_graph=False, force_fitting=False):
         self.name = name
 
@@ -24,6 +24,7 @@ class Step:
         self.input_data = input_data
         self.adapter = adapter
 
+        self.is_trainable = is_trainable
         self.force_fitting = force_fitting
         self.cache_output = cache_output
         self.save_output = save_output
@@ -112,16 +113,20 @@ class Step:
         return step_output_data
 
     def _cached_fit_transform(self, step_inputs):
-        if self.transformer_is_cached and not self.force_fitting:
-            logger.info('step {} loading transformer...'.format(self.name))
-            self.transformer.load(self.cache_filepath_step_transformer)
+        if self.is_trainable:
+            if self.transformer_is_cached and not self.force_fitting:
+                logger.info('step {} loading transformer...'.format(self.name))
+                self.transformer.load(self.cache_filepath_step_transformer)
+                logger.info('step {} transforming...'.format(self.name))
+                step_output_data = self.transformer.transform(**step_inputs)
+            else:
+                logger.info('step {} fitting and transforming...'.format(self.name))
+                step_output_data = self.transformer.fit_transform(**step_inputs)
+                logger.info('step {} saving transformer...'.format(self.name))
+                self.transformer.save(self.cache_filepath_step_transformer)
+        else:
             logger.info('step {} transforming...'.format(self.name))
             step_output_data = self.transformer.transform(**step_inputs)
-        else:
-            logger.info('step {} fitting and transforming...'.format(self.name))
-            step_output_data = self.transformer.fit_transform(**step_inputs)
-            logger.info('step {} saving transformer...'.format(self.name))
-            self.transformer.save(self.cache_filepath_step_transformer)
 
         if self.cache_output:
             logger.info('step {} caching outputs...'.format(self.name))
@@ -161,13 +166,18 @@ class Step:
         return step_output_data
 
     def _cached_transform(self, step_inputs):
-        if self.transformer_is_cached:
-            logger.info('step {} loading transformer...'.format(self.name))
-            self.transformer.load(self.cache_filepath_step_transformer)
+        if self.is_trainable:
+            if self.transformer_is_cached:
+                logger.info('step {} loading transformer...'.format(self.name))
+                self.transformer.load(self.cache_filepath_step_transformer)
+                logger.info('step {} transforming...'.format(self.name))
+                step_output_data = self.transformer.transform(**step_inputs)
+            else:
+                raise ValueError('No transformer cached {}'.format(self.name))
+        else:
             logger.info('step {} transforming...'.format(self.name))
             step_output_data = self.transformer.transform(**step_inputs)
-        else:
-            raise ValueError('No transformer cached {}'.format(self.name))
+
         if self.cache_output:
             logger.info('step {} caching outputs...'.format(self.name))
             self._cached_output = step_output_data

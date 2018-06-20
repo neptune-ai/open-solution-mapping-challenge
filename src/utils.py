@@ -2,12 +2,14 @@ import json
 import logging
 import math
 import os
+import ntpath
 import random
 import sys
 import time
 from itertools import product, chain
 from collections import defaultdict, Iterable
 
+import glob
 import numpy as np
 import pandas as pd
 import torch
@@ -123,7 +125,7 @@ def read_params(ctx, fallback_file):
 
 def generate_metadata(data_dir,
                       meta_dir,
-                      masks_overlayed_dir,
+                      masks_overlayed_prefix,
                       process_train_data=True,
                       process_validation_data=True,
                       process_test_data=True,
@@ -140,28 +142,22 @@ def generate_metadata(data_dir,
             dataset = "test_images"
 
         images_path = os.path.join(data_dir, dataset)
-        public_path = "/public/mapping_challenge_data/"
 
         if dataset != "test_images":
             images_path = os.path.join(images_path, "images")
 
-        if public_paths:  # TODO: implement public generating public path
-            raise NotImplementedError
+        if public_paths:
+            raise NotImplementedError('public neptune paths not implemented')
         else:
-            images_path_to_write = images_path
-            masks_overlayed_dir_ = masks_overlayed_dir[:-1]
-            masks_dir_prefix = os.path.split(masks_overlayed_dir_)[1]
-            masks_overlayed_sufix_to_write = []
-            for masks_dir in os.listdir(meta_dir):
-                masks_dir_name = os.path.split(masks_dir)[1]
-                if masks_dir_name.startswith(masks_dir_prefix):
-                    masks_overlayed_sufix_to_write.append(masks_dir_name[len(masks_dir_prefix):])
-
+            masks_overlayed_dirs, mask_overlayed_suffix = [], []
+            for file_path in glob.glob('{}/*'.format(meta_dir)):
+                if ntpath.basename(file_path).startswith(masks_overlayed_prefix):
+                    masks_overlayed_dirs.append(file_path)
+                    mask_overlayed_suffix.append(ntpath.basename(file_path).replace(masks_overlayed_prefix, ''))
         df_dict = defaultdict(lambda: [])
 
-        for image_file_name in tqdm(sorted(os.listdir(images_path))):
-            file_path_image = os.path.join(images_path_to_write, image_file_name)
-            image_id = image_file_name[:-4]
+        for image_file_path in tqdm(sorted(glob.glob('{}/*'.format(images_path)))):
+            image_id = ntpath.basename(image_file_path).split('.')[0]
 
             is_train = 0
             is_valid = 0
@@ -171,13 +167,13 @@ def generate_metadata(data_dir,
                 n_buildings = None
                 is_test = 1
                 df_dict['ImageId'].append(image_id)
-                df_dict['file_path_image'].append(file_path_image)
+                df_dict['file_path_image'].append(image_file_path)
                 df_dict['is_train'].append(is_train)
                 df_dict['is_valid'].append(is_valid)
                 df_dict['is_test'].append(is_test)
                 df_dict['n_buildings'].append(n_buildings)
-                for mask_dir_sufix in masks_overlayed_sufix_to_write:
-                    df_dict['file_path_mask' + mask_dir_sufix].append(None)
+                for mask_dir_suffix in mask_overlayed_suffix:
+                    df_dict['file_path_mask' + mask_dir_suffix].append(None)
 
             else:
                 n_buildings = None
@@ -186,16 +182,15 @@ def generate_metadata(data_dir,
                 else:
                     is_train = 1
                 df_dict['ImageId'].append(image_id)
-                df_dict['file_path_image'].append(file_path_image)
+                df_dict['file_path_image'].append(image_file_path)
                 df_dict['is_train'].append(is_train)
                 df_dict['is_valid'].append(is_valid)
                 df_dict['is_test'].append(is_test)
                 df_dict['n_buildings'].append(n_buildings)
 
-                for mask_dir_sufix in masks_overlayed_sufix_to_write:
-                    file_path_mask = os.path.join(meta_dir, masks_dir_prefix + mask_dir_sufix, dataset, "masks",
-                                                  image_file_name[:-4] + ".png")
-                    df_dict['file_path_mask' + mask_dir_sufix].append(file_path_mask)
+                for mask_dir, mask_dir_suffix in zip(masks_overlayed_dirs, mask_overlayed_suffix):
+                    file_path_mask = os.path.join(mask_dir, dataset, "masks", '{}.png'.format(image_id))
+                    df_dict['file_path_mask' + mask_dir_suffix].append(file_path_mask)
 
         return pd.DataFrame.from_dict(df_dict)
 
