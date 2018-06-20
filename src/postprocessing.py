@@ -22,8 +22,9 @@ class FeatureExtractor(BaseTransformer):
     def transform(self, images, probabilities, annotations=None):
         if annotations is None:
             annotations = [{}] * len(images)
-        with mp.pool.ThreadPool(self.n_threads) as executor:
-            all_features = executor.map(lambda p: get_features_for_image(*p), zip(images, probabilities, annotations))
+        all_features = []
+        for image, im_probabilities, im_annotations in zip(images, probabilities, annotations):
+            all_features.append(get_features_for_image(image, im_probabilities, im_annotations))
         return {'features': all_features}
 
 
@@ -288,11 +289,11 @@ def get_features_for_image(image, probabilities, annotations):
             bbox_aspect_ratio = bbox_height / bbox_width
             bbox_area = bbox_width * bbox_height
             bbox_fill = area / bbox_area
-            dist_to_boarder = get_distance_to_boarder(bbox, mask.shape)
+            dist_to_border = get_distance_to_border(bbox, mask.shape)
             contour_length = get_contour_length(mask)
             mask_features = {'iou': iou, 'threshold': threshold, 'area': area, 'mean_prob': mean_prob,
                              'max_prob': max_prob, 'bbox_ar': bbox_aspect_ratio,
-                             'bbox_area': bbox_area, 'bbox_fill': bbox_fill, 'dist_to_boarder': dist_to_boarder,
+                             'bbox_area': bbox_area, 'bbox_fill': bbox_fill, 'dist_to_border': dist_to_border,
                              'contour_length': contour_length}
             layer_features.append(mask_features)
         image_features.append(pd.DataFrame(layer_features))
@@ -342,7 +343,7 @@ def get_bbox(mask):
     return rmin, rmax + 1, cmin, cmax + 1
 
 
-def get_distance_to_boarder(bbox, im_size):
+def get_distance_to_border(bbox, im_size):
     return min(bbox[0], im_size[0] - bbox[1], bbox[2], im_size[1] - bbox[3])
 
 

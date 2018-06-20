@@ -101,6 +101,7 @@ def unet_tta(config):
                 transformer=PyTorchUNet(**config.unet),
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
+                is_trainable=True,
                 save_output=save_output)
 
     tta_aggregator = Step(name='tta_aggregator',
@@ -326,8 +327,7 @@ def lgbm_train(config):
                                       'annotations': ([('input', 'annotations')]),
                                       },
                              cache_dirpath=config.env.cache_dirpath,
-                             save_output=True,
-                             load_saved_output=False)
+                             save_output=save_output)
 
     scoring_model = Step(name='scoring_model',
                          transformer=ScoringLightGBM(**config['postprocessor']['lightGBM'])
@@ -337,6 +337,7 @@ def lgbm_train(config):
                          cache_dirpath=config.env.cache_dirpath,
                          save_output=save_output,
                          is_trainable=True,
+                         force_fitting=False
                          )
 
     return scoring_model
@@ -345,8 +346,8 @@ def lgbm_train(config):
 def lgbm_inference(config, input_pipeline):
     save_output = False
 
-    mask_dilation = input_pipeline(config, train_mode=False).get_step('mask_dilation')
-    mask_resize = input_pipeline(config, train_mode=False).get_step('mask_resize')
+    mask_dilation = input_pipeline(config).get_step('mask_dilation')
+    mask_resize = input_pipeline(config).get_step('mask_resize')
 
     feature_extractor = Step(name='feature_extractor',
                              transformer=post.FeatureExtractor(),
@@ -405,5 +406,6 @@ PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
              'lgbm': {'train': lgbm_train},
              'unet_lgbm': {'inference': partial(lgbm_inference, input_pipeline=partial(unet, train_mode=False))},
              'unet_padded_lgbm': {'inference': partial(lgbm_inference, input_pipeline=unet_padded)},
+             'unet_tta_lgbm': {'inference': partial(lgbm_inference, input_pipeline=unet_tta)},
 
              }
