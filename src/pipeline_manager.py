@@ -99,7 +99,7 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     if 'lgbm' in pipeline_name:
         annotation_file_path = os.path.join(params.data_dir, 'train', "annotation.json")
         coco = COCO(annotation_file_path)
-        meta_train = meta_train.sample(params.evaluation_data_sample, random_state=seed)
+        meta_train = meta_train.sample(params.lgbm__num_training_examples, random_state=seed)
         train_mode = False
         annotations = []
         for image_id in meta_train['ImageId'].values:

@@ -22,7 +22,9 @@ def unet(config, train_mode):
                 input_data=['callback_input'],
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
-                save_output=save_output, load_saved_output=load_saved_output)
+                save_output=save_output,
+                is_trainable=True,
+                load_saved_output=load_saved_output)
 
     mask_postprocessed = mask_postprocessing(unet, config, make_apply_transformer_, save_output=save_output)
 
@@ -303,7 +305,7 @@ def mask_postprocessing(model, config, make_transformer, **kwargs):
 def lgbm_train(config):
     save_output = False
     unet_type = 'weighted'
-    config['execution']['stream_mode']=True
+    config['execution']['stream_mode'] = True
 
     if unet_type == 'standard':
         unet_pipeline = unet(config, train_mode=False)
@@ -334,6 +336,7 @@ def lgbm_train(config):
                          input_steps=[feature_extractor],
                          cache_dirpath=config.env.cache_dirpath,
                          save_output=save_output,
+                         is_trainable=True,
                          )
 
     return scoring_model
@@ -361,6 +364,7 @@ def lgbm_inference(config, input_pipeline):
                          ScoringRandomForest(**config['postprocessor']['random_forest']),
                          input_steps=[feature_extractor],
                          cache_dirpath=config.env.cache_dirpath,
+                         is_trainable=True,
                          save_output=save_output)
 
     score_builder = Step(name='score_builder',

@@ -104,6 +104,7 @@ parameters:
   scoring_model: 'rf'
 
 #LightGBM
+  lgbm__num_training_examples: 10000
   lgbm__learning_rate: 0.001
   lgbm__num_leaves: 10
   lgbm__min_data: 50
