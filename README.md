@@ -62,52 +62,45 @@ _The results exceded our expectations. The output from the network is so good th
 * Adding component weighted by building size (smaller buildings has greater weight) to the weighted cross entropy that penalizes misclassification on pixels belonging to the small objects ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) :computer:).
 
 ### Weights visualization
-For both weights: the darker the higher value.
+For both weights: the darker the color the higher value.
 * distance weights: high values corresponds to pixels between buildings.
 * size weights: high values denotes small buildings (the smaller the building the darker the color). Note that no-building is fixed to black.
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/1578b08c464dd3829bb3437e4534ce6d1eafc632/loss_inputs.png"></img>
 
 ## Training
+### What Worked 
+* Use pretrained models!
+* Our multistage training procedure:
+    1. train on a 50000 examples subset of the dataset with `lr=0.0001` and `dice_weight=0.5`
+    1. train on a full dataset with `lr=0.0001` and `dice_weight=0.5`
+    1. train with smaller `lr=0.00001` and `dice_weight=0.5`
+    1. increase dice weight to `dice_weight=5.0` to make results smoother
+* Multi-GPU training
+* Use very simple augmentations
 
-##### What Worked 
-* use pretrained models
-* use multistage training
-1. train on a 50000 subset of the dataset with `lr=0.0001` and `dice_weight=0.5`
-2. train on a full dataset with `lr=0.0001` and `dice_weight=0.5`
-3. train with smaller `lr=0.00001` and `dice_weight=0.5`
-4. increase dice weight to `dice_weight=5.0` to make results smoother
-* multigpu training
-* use very simple augmentations
+The entire configuration can be tweaked from the [config file](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml) :bookmark_tabs:.
 
-The entire configuration can be tweaked from the config file [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml)
+### What could have worked but we haven't tried it
+* Set different learning rates to different layers.
+* Use cyclic optimizers.
+* Use warm start optimizers.
 
-##### What didn't Work
+## Postprocessing
+### What Worked
+* Test time augmentation (tta). Make predictions on image rotations (90-180-270 degrees) and flips (up-down, left-right) and take geometric mean on the predictions ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L338-L497) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/pipeline_config.py#L119-L125) :bookmark_tabs:).
+* Simple morphological operations. At the beginning we used erosion followed by labeling and per label dilation with structure elements chosed by cross-validation. As the models got better, erosion was removed and very small dilation was the only one showing improvements ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/postprocessing.py) :computer:).
+* Scoring objects. In the beginning we simply used score `1.0` for every object which was a huge mistake. Changing that to average probability over the object region improved results. What improved scores even more was weighing those probabilities with the object size ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/postprocessing.py#L173-L181) :computer:).
+* Second level model. We tried Light-GBM and Random Forest trained on U-Net outputs and features calculated during postprocessing.
 
-##### We could work but we didnt' try it
-* set different learning rates to different layers
-* use cyclic optimizers
-* use warm start optimizers
+### What didn't Work
+* Test time augmentations by using colors ([config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/pipeline_config.py#L122) :bookmark_tabs:).
+* Inference on reflection-padded images was not a way to go. What worked better (but not for the very best models) was replication padding where border pixel value was replicated for all the padded regions ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L313) :computer:).
+* Conditional Random Fields. It was so slow that we didn't check it for the best models ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/postprocessing.py#L128-L170) :computer:).
 
-#### Postprocessing
-
-##### What Worked 
-
-* test time augmentations rotations + flips and geometric mean [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L338-L497) [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/pipeline_config.py#L119-L125)
-* simple morphological operations. In the beginning we used erosion followed by labeling and per label dilation with structure elements chosed by CV but as the models got better erosion was removed and very small dilation was the only one showing improvements [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/postprocessing.py)
-* scoring objects. In the beginning we simply used score `1.0` for every object which was a huge mistake. 
-Changing that to average probability over the object region improved results. What improved scores even more was weighing those probabilities with the object size. [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/postprocessing.py#L173-L181)
-* second level model
-
-##### What didn't Work
-* test time augmentations colors [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/pipeline_config.py#L122)
-* inference on reflection-padded images was not a way to go. What worked better (but not for the very best models) was replication padding where border pixel value was replicated for all the padded regions. [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L313)
-* Conditional Random Fields. To be honest it was so slow that we didn't check it for the best models [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/postprocessing.py#L128-L170)
-
-##### What could have worked but we haven't tried it
+### What could have worked but we haven't tried it
 * Ensembling
-* Recurrent Neural networks for cleanup
-
+* Recurrent neural networks for postprocessing (instead of our current approach)
 
 ## Installation
 1. clone this repository: `git clone https://github.com/minerva-ml/open-solution-mapping-challenge.git`
