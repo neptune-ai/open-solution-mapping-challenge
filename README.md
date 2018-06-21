@@ -14,7 +14,7 @@ _No cherry-picking here, I promise :wink:. The results exceded our expectations.
 Our approach got `0.943` **Average Precision** :rocket: and `0.954` **Average Recall** :rocket: on [stage 1 data](https://www.crowdai.org/challenges/mapping-challenge/dataset_files). Both were calculated using [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools). Check this [blog post](https://medium.com/@jonathan_hui/map-mean-average-precision-for-object-detection-45c121a31173) for average precision explanation.
 
 # Solution write-up
-## End-to-end pipeline diagram
+## Pipeline diagram
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/e1bf6300fa119db2fec6622a603c63655ff5d770/unet_pipeline.png"></img>
 
@@ -93,141 +93,12 @@ The entire configuration can be tweaked from the [config file](https://github.co
 * Ensembling
 * Recurrent neural networks for postprocessing (instead of our current approach)
 
-## Installation
-1. clone this repository: `git clone https://github.com/minerva-ml/open-solution-mapping-challenge.git`
-2. install requirements: `pip3 install -r requirements.txt`
-3. download the data from the competition site [dataset files](https://www.crowdai.org/challenges/mapping-challenge/dataset_files)
-4. register to [Neptune](https://neptune.ml/ 'machine learning lab') *(if you wish to use it)* login via:
-
-```bash
-$ neptune login
-```
-
-open [Neptune](https://neptune.ml/ 'machine learning lab') and create new project called: `Mapping Challenge` with project key: `MC`*
-
-upload the data to neptune (if you want to run computation in the cloud) via:
-```bash
-$ neptune data upload YOUR/DATA/FOLDER
-```
-
-5. prepare training data
-
-   set paths in `neptune.yaml`
-
-   ```yaml
-	  data_dir:                   /path/to/data
-	  meta_dir:                   /path/to/data
-      masks_overlayed_prefix: masks_overlayed
-	  experiment_dir:             /path/to/work/dir
-   ```
-
-   change erosion/dilation setup if in `neptune.yaml` you want to:
-   Suggested setup is:
-
-   ```yaml
-    border_width: 0
-	small_annotations_size: 14
-	erode_selem_size: 0
-	dilate_selem_size: 0
-   ```
-
-   prepare target masks and metadata for training:
-   
-
-    * local machine with neptune
-    ```bash
-    $ neptune login
-    $ neptune experiment run \
-    main.py -- prepare_masks  
-    $ neptune experiment run \
-    main.py -- prepare_metadata --train_data --valid_data --test_data 
-    ```
-
-    * cloud via neptune
-
-    ```bash
-    $ neptune login
-    $ neptune experiment send --config neptune.yaml \
-    --worker gcp-large \
-    --environment pytorch-0.2.0-gpu-py3 \
-    main.py -- prepare_masks
-    $ neptune experiment send --config neptune.yaml \
-    --worker gcp-large \
-    --environment pytorch-0.2.0-gpu-py3 \
-    main.py -- prepare_metadata --train_data --valid_data --test_data 
-    ```
-
-    * local pure python
-
-    ```bash
-    $ python main.py -- prepare_masks
-    $ python main.py -- prepare_metadata --train_data --valid_data --test_data 
-    ```
-
-6. train model:
-
-    * local machine with neptune
-    ```bash
-    $ neptune login
-    $ neptune experiment run \
-    main.py -- train --pipeline_name unet_weighted
-    ```
-
-    * cloud via neptune
-
-    ```bash
-    $ neptune login
-    $ neptune experiment send --config neptune.yaml \
-    --worker gcp-large \
-    --environment pytorch-0.2.0-gpu-py3 \
-    main.py -- train --pipeline_name unet_weighted
-    ```
-
-    * local pure python
-
-    ```bash
-    $ python main.py -- train --pipeline_name unet_weighted
-    ```
-
-7. evaluate model and predict on test data:
-   Change values in the configuration file `neptune.yaml`.
-   Suggested setup is:
-
-   ```yaml
-      tta_aggregation_method: gmean
-      loader_mode: resize
-      erode_selem_size: 0
-      dilate_selem_size: 2
-   ```
-
-    * local machine with neptune
-    ```bash
-    $ neptune login
-    $ neptune experiment run \
-    main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
-    ```
-
-    * cloud via neptune
-
-    ```bash
-    $ neptune login
-    $ neptune experiment send --config neptune.yaml \
-    --worker gcp-large \
-    --environment pytorch-0.2.0-gpu-py3 \
-    main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
-    ```
-
-    * local pure python
-
-    ```bash
-    $ python main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
-    ```
-
-## User support
+# User support
 There are several ways to seek help:
-1. crowdai [discussion](https://www.crowdai.org/challenges/mapping-challenge/topics) is our primary way of communication.
+1. crowdai [discussion](https://www.crowdai.org/challenges/mapping-challenge/topics).
 1. You can submit an [issue](https://github.com/minerva-ml/open-solution-mapping-challenge/issues) directly in this repo.
+1. Join us on [Gitter](https://gitter.im/minerva-ml/open-solution-mapping-challenge?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge).
 
-## Contributing
+# Contributing
 1. Check [CONTRIBUTING](CONTRIBUTING.md) for more information.
-1. Check [issues](https://github.com/minerva-ml/open-mapping-challenge/issues) and [project](https://github.com/minerva-ml/open-solution-mapping-challenge/projects/1) to check if there is something you would like to contribute to.
+1. Check [issues](https://github.com/minerva-ml/open-solution-mapping-challenge/issues) to check if there is something you would like to contribute to.
