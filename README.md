@@ -18,7 +18,7 @@ Our approach got `0.943` **Average Precision** :rocket: and `0.954` **Average Re
 
 Some examples (no cherry-picking I promise :wink: ).
 
-_(The results exceded our expectations. The output from the network is so good that not a lot of morphological shenanigans is needed. Happy days:))_
+_The results exceded our expectations. The output from the network is so good that not a lot of morphological shenanigans is needed. Happy days:)_
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/0f88863b18904b23d4301611ddf2b532aff8de96/example_output.png"></img>
 
@@ -47,7 +47,7 @@ _(The results exceded our expectations. The output from the network is so good t
 
 ## Network
 ### What Worked 
-* Unet with Resnet101 as encoder. The approach is explained https://arxiv.org/abs/1806.00844 [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/unet_models.py#L315-L403) [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L63)
+* Unet with Resnet101 as encoder. The approach is explained in the paper [TernausNetV2: Fully Convolutional Network for Instance Segmentation](https://arxiv.org/abs/1806.00844) (our [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/unet_models.py#L315-L403) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L63) :bookmark_tabs:)
 
 ### What didn't Work
 * Unet build from scracth with Resnet34 and Resnet152 as encoder. Worked to a certain degree but failed to produce the very best results. [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/steps/pytorch/architectures/unet.py) 
