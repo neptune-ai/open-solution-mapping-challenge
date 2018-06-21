@@ -6,7 +6,7 @@ Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challen
 
 ## The purpose of the Open Solution
 We have built entirely open solution to this competition. Specifically:
-1. Check **live preview of our work** on public projects page: [Mapping Challange](https://app.neptune.ml/neptune-ml/Mapping-Challange).
+1. Check **live preview of our work** on public projects page: [Mapping Challange](https://app.neptune.ml/neptune-ml/Mapping-Challange) :chart_with_upwards_trend:.
 1. Source code and [issues](https://github.com/minerva-ml/open-solution-mapping-challenge/issues) are publicly available.
 
 Our rules:
@@ -17,6 +17,7 @@ Our rules:
 Our approach got `0.943` **Average Precision** :rocket: and `0.954` **Average Recall** :rocket: on [stage 1 data](https://www.crowdai.org/challenges/mapping-challenge/dataset_files). Both were calculated using [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools). Check this [blog post](https://medium.com/@jonathan_hui/map-mean-average-precision-for-object-detection-45c121a31173) for average precision explanation.
 
 Some examples (no cherry-picking I promise :wink: ).
+
 _(The results exceded our expectations. The output from the network is so good that not a lot of morphological shenanigans is needed. Happy days:))_
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/0f88863b18904b23d4301611ddf2b532aff8de96/example_output.png"></img>
@@ -27,18 +28,16 @@ _(The results exceded our expectations. The output from the network is so good t
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/e1bf6300fa119db2fec6622a603c63655ff5d770/unet_pipeline.png"></img>
 
 ## Preprocessing
-#### What Worked 
+### :heavy_check_mark: What Worked 
+* Overlay binary masks for each image is produced ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:)
+* Distances to the two closest objects are calculated creating the distance map that is used for weighing ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:)
+* Size masks for each image is produced ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:)
+* Dropped small masks on the edges ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py#L141-L142) :computer:)
+* We load training and validation data in batches: using [torch.utils.data.Dataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.Dataset) and [torch.utils.data.DataLoader](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader) makes it easy and clean ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py) :computer:)
+* Only some basic augmentations (due to speed constraints) from the [imgaug package](https://github.com/aleju/imgaug) are applied to images ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/augmentation.py) :computer:)
+* Image is resized before feeding it to the network. Surprisingly this worked better than cropping ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L246-L263) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L47) :bookmark_tabs:)
 
-* Overlay binary masks for each image is produced [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py)
-* Distances to the 2 closest objects are calculated creating the distance map that is used for weighing [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py)
-* Size masks for each image is produced [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py)
-* Dropped small masks on the edges [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py#L141-L142)
-* We load training and validation data in batches:
-using `torch.utils.data.Dataset` and `torch.utils.data.DataLoader` makes it easy and clean (see loaders.py )[code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py)
-only some basic augmentations (due to speed constraints) from the imgaug package are be applied to images (see augmentations.py )
-* Image is resized before feeding it to the network. Surprisingly this worked better than cropping [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L246-L263) [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L47)
-
-##### What didn't Work
+### :heavy_multiplication_x: What didn't Work
 
 * Ground truth masks are prepared by first eroding them per mask creating non overlapping masks and only after that the distances are calculated [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py)
 * Dilated small objectcs to increase the signal (no experimental results yet) [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py)
