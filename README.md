@@ -13,8 +13,8 @@ _No cherry-picking here, I promise :wink:. The results exceded our expectations.
 
 Our approach got `0.943` **Average Precision** :rocket: and `0.954` **Average Recall** :rocket: on [stage 1 data](https://www.crowdai.org/challenges/mapping-challenge/dataset_files). Both were calculated using [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools). Check this [blog post](https://medium.com/@jonathan_hui/map-mean-average-precision-for-object-detection-45c121a31173) for average precision explanation.
 
-# Installation
-Check [installation guide](Installation.md)
+# Reproduce it!
+Check [REPRODUCE_RESULTS](Installation.md)
 
 # Solution write-up
 ## Pipeline diagram
