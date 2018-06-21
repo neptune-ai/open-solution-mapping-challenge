@@ -1,5 +1,7 @@
 # Open Solution to the Mapping Challenge Competition
 
+[![Gitter](https://badges.gitter.im/minerva-ml/open-solution-mapping-challenge.svg)](https://gitter.im/minerva-ml/open-solution-mapping-challenge?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
 Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge) competition.
 
 ## The purpose of the Open Solution
