@@ -29,53 +29,46 @@ _The results exceded our expectations. The output from the network is so good th
 
 ## Preprocessing
 ### :heavy_check_mark: What Worked 
-* Overlay binary masks for each image is produced ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:)
-* Distances to the two closest objects are calculated creating the distance map that is used for weighing ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:)
-* Size masks for each image is produced ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:)
-* Dropped small masks on the edges ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py#L141-L142) :computer:)
-* We load training and validation data in batches: using [torch.utils.data.Dataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.Dataset) and [torch.utils.data.DataLoader](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader) makes it easy and clean ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py) :computer:)
-* Only some basic augmentations (due to speed constraints) from the [imgaug package](https://github.com/aleju/imgaug) are applied to images ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/augmentation.py) :computer:)
-* Image is resized before feeding it to the network. Surprisingly this worked better than cropping ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L246-L263) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L47) :bookmark_tabs:)
+* Overlay binary masks for each image is produced ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:).
+* Distances to the two closest objects are calculated creating the distance map that is used for weighing ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:).
+* Size masks for each image is produced ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:).
+* Dropped small masks on the edges ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py#L141-L142) :computer:).
+* We load training and validation data in batches: using [torch.utils.data.Dataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.Dataset) and [torch.utils.data.DataLoader](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader) makes it easy and clean ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py) :computer:).
+* Only some basic augmentations (due to speed constraints) from the [imgaug package](https://github.com/aleju/imgaug) are applied to images ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/augmentation.py) :computer:).
+* Image is resized before feeding it to the network. Surprisingly this worked better than cropping ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L246-L263) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L47) :bookmark_tabs:).
 
 ### :heavy_multiplication_x: What didn't Work
-* Ground truth masks are prepared by first eroding them per mask creating non overlapping masks and only after that the distances are calculated ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:)
-* Dilated small objectcs to increase the signal ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:)
-* Network is fed with random crops ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L225-L243) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L47) :bookmark_tabs:)
+* Ground truth masks are prepared by first eroding them per mask creating non overlapping masks and only after that the distances are calculated ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:).
+* Dilated small objectcs to increase the signal ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:).
+* Network is fed with random crops ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L225-L243) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L47) :bookmark_tabs:).
 
 ### What could have worked but we haven't tried it
 * Ground truth masks for overlapping contours ([DSB-2018 winners](https://www.kaggle.com/c/data-science-bowl-2018/discussion/54741) approach).
 
 ## Network
 ### What Worked 
-* Unet with Resnet101 as encoder. The approach is explained in the paper [TernausNetV2: Fully Convolutional Network for Instance Segmentation](https://arxiv.org/abs/1806.00844) (our [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/unet_models.py#L315-L403) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L63) :bookmark_tabs:)
+* Unet with Resnet34, Resnet101 and Resnet152 as an encoder where Resnet101 gave us the best results. This approach is explained in the [TernausNetV2](https://arxiv.org/abs/1806.00844) paper (our [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/unet_models.py#L315-L403) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L63) :bookmark_tabs:). Also take a look at our parametrizable [implementation of the U-Net](https://github.com/minerva-ml/steppy-toolkit/blob/master/toolkit/pytorch_transformers/architectures/unet.py#L9).
 
 ### What didn't Work
-* Unet build from scracth with Resnet34 and Resnet152 as encoder. Worked to a certain degree but failed to produce the very best results. [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/steps/pytorch/architectures/unet.py) 
-* Network architecture based on dilated convolutions described here https://arxiv.org/pdf/1709.00179.pdf
+* Network architecture based on dilated convolutions described in [this paper](https://arxiv.org/abs/1709.00179).
 
-##### What could have worked but we haven't tried it
-* Unet with contextual blocks explained here https://openreview.net/pdf?id=S1F-dpjjM
+### What could have worked but we haven't tried it
+* Unet with contextual blocks explained in [this paper](https://openreview.net/pdf?id=S1F-dpjjM).
 
+## Loss function
+### What Worked
+* Distance weighted cross entropy explained in the famous [U-Net paper](https://arxiv.org/pdf/1505.04597.pdf) (our [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L79-L80 :bookmark_tabs:).
+* Using linear combination of soft dice and distance weighted cross entropy ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L65-L67 :bookmark_tabs:).
+* Adding component weighted by building size (smaller buildings has greater weight) to the weighted cross entropy that penalizes misclassification on pixels belonging to the small objects ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) :computer:).
 
-#### Loss
-
-##### What Worked 
-
-* distance weighted cross entropy explained here https://arxiv.org/pdf/1505.04597.pdf [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L79-L80)
-* using linear combination of soft dice and distance weighted cross entropy [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L65-L67)
-* adding size weighted component to the weighted cross entropy that would penalize misclassification on pixels belonging to small objects [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371)
-
-Inputs to the  distance and size weighted cross entropy look like this:
+### Weights visualization
+For both weights: the darker the higher value.
+* distance weights: high values corresponds to pixels between buildings.
+* size weights: high values denotes small buildings (the smaller the building the darker the color). Note that no-building is fixed to black.
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/1578b08c464dd3829bb3437e4534ce6d1eafc632/loss_inputs.png"></img>
 
-
-##### What didn't Work
-
-##### What could have worked but we haven't tried it
-
-
-#### Training
+## Training
 
 ##### What Worked 
 * use pretrained models
