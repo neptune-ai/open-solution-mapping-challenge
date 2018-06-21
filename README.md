@@ -15,7 +15,7 @@ Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challen
 
 _No cherry-picking here, I promise :wink:. The results exceded our expectations. The output from the network is so good that not a lot of morphological shenanigans is needed. Happy days:)_
 
-Average Precision and Average Recall wre alculated on [stage 1 data](https://www.crowdai.org/challenges/mapping-challenge/dataset_files) using [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools). Check this [blog post](https://medium.com/@jonathan_hui/map-mean-average-precision-for-object-detection-45c121a31173) for average precision explanation.
+Average Precision and Average Recall were calculated on [stage 1 data](https://www.crowdai.org/challenges/mapping-challenge/dataset_files) using [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools). Check this [blog post](https://medium.com/@jonathan_hui/map-mean-average-precision-for-object-detection-45c121a31173) for average precision explanation.
 
 # Reproduce it!
 Check [REPRODUCE_RESULTS](REPRODUCE_RESULTS.md)
