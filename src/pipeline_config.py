@@ -12,8 +12,8 @@ SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
 Y_COLUMNS = ['file_path_mask_eroded_0_dilated_0']
 Y_COLUMNS_SCORING = ['ImageId']
-CATEGORY_IDS = [None, 100]
 SEED = 1234
+CATEGORY_IDS = [None, 100]
 CATEGORY_LAYERS = [1, 19]
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
@@ -122,7 +122,7 @@ SOLUTION_CONFIG = AttrDict({
                       'rotation': True,
                       'color_shift_runs': False},
     'tta_aggregator': {'method': params.tta_aggregation_method,
-                       'nthreads': params.num_threads
+                       'num_threads': params.num_threads
                        },
     'postprocessor': {'mask_dilation': {'dilate_selem_size': params.dilate_selem_size
                                         },
@@ -147,8 +147,7 @@ SOLUTION_CONFIG = AttrDict({
                                    },
                       'random_forest': {'train_size': params.lgbm__train_size,
                                         'target': params.lgbm__target},
-                      'nms': {'iou_threshold': params.iou_threshold,
-                              'n_threads': params.num_threads},
-                      'feature_extractor': {'n_threads': params.num_threads}
+                      'nms': {'iou_threshold': params.nms__iou_threshold,
+                              'num_threads': params.num_threads},
                       }
 })

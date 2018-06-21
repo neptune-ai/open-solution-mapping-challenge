@@ -218,11 +218,7 @@ class ScoringLightGBM(LightGBM):
         super().__init__(model_params, training_params)
 
     def fit(self, features, **kwargs):
-        df_features = []
-        for image_features in features:
-            for layer_features in image_features[1:]:
-                df_features.append(layer_features)
-        df_features = pd.concat(df_features)
+        df_features = _convert_features_to_df(features)
         train_data, val_data = train_test_split(df_features, train_size=self.train_size)
         self.feature_names = list(df_features.columns.drop(self.target))
         super().fit(X=train_data[self.feature_names],
@@ -261,11 +257,7 @@ class ScoringRandomForest(SklearnRegressor):
         self.estimator = RandomForestRegressor()
 
     def fit(self, features, **kwargs):
-        df_features = []
-        for image_features in features:
-            for layer_features in image_features[1:]:
-                df_features.append(layer_features)
-        df_features = pd.concat(df_features)
+        df_features = _convert_features_to_df(features)
         train_data, val_data = train_test_split(df_features, train_size=self.train_size)
         self.feature_names = list(df_features.columns.drop(self.target))
         super().fit(X=train_data[self.feature_names],
@@ -460,3 +452,11 @@ def multiclass_dice_loss(output, target, smooth=0, activation='softmax', exclude
         class_target.data = class_target.data.float()
         loss += dice(output[:, class_nr, :, :], class_target)
     return loss
+
+
+def _convert_features_to_df(features):
+    df_features = []
+    for image_features in features:
+        for layer_features in image_features[1:]:
+            df_features.append(layer_features)
+    return pd.concat(df_features)

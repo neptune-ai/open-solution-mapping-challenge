@@ -56,7 +56,7 @@ def prepare_masks(dev_mode, logger, params):
                       erode=params.erode_selem_size,
                       dilate=params.dilate_selem_size,
                       is_small=dev_mode,
-                      nthreads=params.num_threads,
+                      num_threads=params.num_threads,
                       border_width=params.border_width,
                       small_annotations_size=params.small_annotations_size)
 
@@ -96,19 +96,9 @@ def train(pipeline_name, dev_mode, logger, params, seed):
         meta_train = meta_train.sample(20, random_state=seed)
         meta_valid = meta_valid.sample(10, random_state=seed)
 
-    if 'lgbm' in pipeline_name:
-        annotation_file_path = os.path.join(params.data_dir, 'train', "annotation.json")
-        coco = COCO(annotation_file_path)
-        meta_train = meta_train.sample(params.lgbm__num_training_examples, random_state=seed)
+    if pipeline_name=='scoring_model':
         train_mode = False
-        annotations = []
-        for image_id in meta_train['ImageId'].values:
-            image_annotations = {}
-            for category_id in CATEGORY_IDS:
-                annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=category_id)
-                category_annotations = coco.loadAnns(annotation_ids)
-                image_annotations[category_id] = category_annotations
-            annotations.append(image_annotations)
+        meta_train, annotations = _get_scoring_model_data(params.data_dir, meta_train, params.scoring_model__num_training_examples, seed)
     else:
         annotations = None
 
@@ -116,7 +106,7 @@ def train(pipeline_name, dev_mode, logger, params, seed):
                       'target_sizes': [(300, 300)] * len(meta_train),
                       'annotations': annotations},
             'specs': {'train_mode': train_mode,
-                      'n_threads': params.num_threads},
+                      'num_threads': params.num_threads},
             'callback_input': {'meta_valid': meta_valid}
             }
 
@@ -189,19 +179,19 @@ def make_submission(submission_filepath, logger, params):
     challenge.submit(submission_filepath)
 
 
-def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size, n_threads=1):
+def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size, num_threads=1):
     if chunk_size is not None:
-        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size, n_threads)
+        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size, num_threads)
     else:
-        return _generate_prediction(meta_data, pipeline, logger, category_ids, n_threads)
+        return _generate_prediction(meta_data, pipeline, logger, category_ids, num_threads)
 
 
-def _generate_prediction(meta_data, pipeline, logger, category_ids, n_threads=1):
+def _generate_prediction(meta_data, pipeline, logger, category_ids, num_threads=1):
     data = {'input': {'meta': meta_data,
                       'target_sizes': [(300, 300)] * len(meta_data),
                       },
             'specs': {'train_mode': False,
-                      'n_threads': n_threads},
+                      'num_threads': num_threads},
             'callback_input': {'meta_valid': None}
             }
 
@@ -214,14 +204,14 @@ def _generate_prediction(meta_data, pipeline, logger, category_ids, n_threads=1)
     return prediction
 
 
-def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size, n_threads=1):
+def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size, num_threads=1):
     prediction = []
     for meta_chunk in generate_data_frame_chunks(meta_data, chunk_size):
         data = {'input': {'meta': meta_chunk,
                           'target_sizes': [(300, 300)] * len(meta_chunk)
                           },
                 'specs': {'train_mode': False,
-                          'n_threads': n_threads},
+                          'num_threads': num_threads},
                 'callback_input': {'meta_valid': None}
                 }
 
@@ -234,3 +224,18 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
         prediction.extend(prediction_chunk)
 
     return prediction
+
+
+def _get_scoring_model_data(data_dir, meta, num_training_examples, random_seed):
+    annotation_file_path = os.path.join(data_dir, 'train', "annotation.json")
+    coco = COCO(annotation_file_path)
+    meta = meta.sample(num_training_examples, random_state=random_seed)
+    annotations = []
+    for image_id in meta['ImageId'].values:
+        image_annotations = {}
+        for category_id in CATEGORY_IDS:
+            annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=category_id)
+            category_annotations = coco.loadAnns(annotation_ids)
+            image_annotations[category_id] = category_annotations
+        annotations.append(image_annotations)
+    return meta, annotations

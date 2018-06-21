@@ -16,8 +16,6 @@ from .pipeline_config import MEAN, STD, CATEGORY_LAYERS, CATEGORY_IDS
 
 
 class FeatureExtractor(BaseTransformer):
-    def __init__(self, n_threads=1):
-        self.n_threads = n_threads
 
     def transform(self, images, probabilities, annotations=None):
         if annotations is None:
@@ -37,12 +35,12 @@ class ScoreImageJoiner(BaseTransformer):
 
 
 class NonMaximumSupression(BaseTransformer):
-    def __init__(self, iou_threshold, n_threads=1):
+    def __init__(self, iou_threshold, num_threads=1):
         self.iou_threshold = iou_threshold
-        self.n_threads = n_threads
+        self.num_threads = num_threads
 
     def transform(self, images_with_scores):
-        with mp.pool.ThreadPool(self.n_threads) as executor:
+        with mp.pool.ThreadPool(self.num_threads) as executor:
             cleaned_images_with_scores = executor.map(
                 lambda p: remove_overlapping_masks(*p, iou_threshold=self.iou_threshold), images_with_scores)
         return {'images_with_scores': cleaned_images_with_scores}
@@ -80,10 +78,10 @@ def categorize_image(image):
 def categorize_multilayer_image(image):
     categorized_image = []
     for category_id, category_output in enumerate(image):
-        thrs_step = 1. / (CATEGORY_LAYERS[category_id] + 1)
-        thresholds = np.arange(thrs_step, 1, thrs_step)
-        for thrs in thresholds:
-            categorized_image.append(category_output > thrs)
+        threshold_step = 1. / (CATEGORY_LAYERS[category_id] + 1)
+        thresholds = np.arange(threshold_step, 1, threshold_step)
+        for threshold in thresholds:
+            categorized_image.append(category_output > threshold)
     return np.stack(categorized_image)
 
 
@@ -261,43 +259,48 @@ def crop_image_center_per_class(image, h_crop, w_crop):
     return cropped_per_class_prediction
 
 
-def join_score_image(image, score):
-    return (image, score)
-
-
 def get_features_for_image(image, probabilities, annotations):
     image_features = []
     category_layers_inds = np.cumsum(CATEGORY_LAYERS)
     thresholds = get_thresholds()
     for category_ind, category_instances in enumerate(image):
         layer_features = []
-        category_nr = np.searchsorted(category_layers_inds, category_ind, side='right')
-        category_probabilities = probabilities[category_nr]
         threshold = round(thresholds[category_ind], 2)
-        category_annotations = annotations.get(CATEGORY_IDS[category_nr], [])
-        iou_matrix = get_iou_matrix(category_instances, category_annotations)
-        for label_nr in range(1, category_instances.max() + 1):
-            mask = category_instances == label_nr
-            iou = get_iou(iou_matrix, label_nr)
-            mask_probabilities = np.where(mask, category_probabilities, 0)
-            area = np.count_nonzero(mask)
-            mean_prob = mask_probabilities.sum() / area
-            max_prob = mask_probabilities.max()
-            bbox = get_bbox(mask)
-            bbox_height = bbox[1] - bbox[0]
-            bbox_width = bbox[3] - bbox[2]
-            bbox_aspect_ratio = bbox_height / bbox_width
-            bbox_area = bbox_width * bbox_height
-            bbox_fill = area / bbox_area
-            dist_to_border = get_distance_to_border(bbox, mask.shape)
-            contour_length = get_contour_length(mask)
-            mask_features = {'iou': iou, 'threshold': threshold, 'area': area, 'mean_prob': mean_prob,
-                             'max_prob': max_prob, 'bbox_ar': bbox_aspect_ratio,
-                             'bbox_area': bbox_area, 'bbox_fill': bbox_fill, 'dist_to_border': dist_to_border,
-                             'contour_length': contour_length}
-            layer_features.append(mask_features)
+        for mask, iou, category_probabilities in get_mask_with_iou(category_ind, category_instances, category_layers_inds, annotations, probabilities):
+            layer_features.append(get_features_for_mask(mask, iou, threshold, category_probabilities))
         image_features.append(pd.DataFrame(layer_features))
     return image_features
+
+
+def get_mask_with_iou(category_ind, category_instances, category_layers_inds, annotations, probabilities):
+    category_nr = np.searchsorted(category_layers_inds, category_ind, side='right')
+    category_annotations = annotations.get(CATEGORY_IDS[category_nr], [])
+    iou_matrix = get_iou_matrix(category_instances, category_annotations)
+    category_probabilities = probabilities[category_nr]
+    for label_nr in range(1, category_instances.max() + 1):
+        mask = category_instances == label_nr
+        iou = get_iou(iou_matrix, label_nr)
+        yield mask, iou, category_probabilities
+
+
+def get_features_for_mask(mask, iou, threshold, category_probabilities):
+    mask_probabilities = np.where(mask, category_probabilities, 0)
+    area = np.count_nonzero(mask)
+    mean_prob = mask_probabilities.sum() / area
+    max_prob = mask_probabilities.max()
+    bbox = get_bbox(mask)
+    bbox_height = bbox[1] - bbox[0]
+    bbox_width = bbox[3] - bbox[2]
+    bbox_aspect_ratio = bbox_height / bbox_width
+    bbox_area = bbox_width * bbox_height
+    bbox_fill = area / bbox_area
+    min_dist_to_border, max_dist_to_border = get_min_max_distance_to_border(bbox, mask.shape)
+    contour_length = get_contour_length(mask)
+    mask_features = {'iou': iou, 'threshold': threshold, 'area': area, 'mean_prob': mean_prob,
+                     'max_prob': max_prob, 'bbox_ar': bbox_aspect_ratio,
+                     'bbox_area': bbox_area, 'bbox_fill': bbox_fill, 'min_dist_to_border': min_dist_to_border,
+                     'max_dist_to_border': max_dist_to_border, 'contour_length': contour_length}
+    return mask_features
 
 
 def get_iou_matrix(labels, annotations):
@@ -312,7 +315,8 @@ def get_iou_matrix(labels, annotations):
         annotations = [annotation['segmentation'] for annotation in annotations]
         for label_nr in range(1, labels.max() + 1):
             mask = labels == label_nr
-            mask_anns.append(rle_from_binary(mask.astype('uint8')))
+            mask_ann = rle_from_binary(mask.astype('uint8'))
+            mask_anns.append(mask_ann)
         iou_matrix = cocomask.iou(mask_anns, annotations, [0, ] * len(annotations))
         return iou_matrix
 
@@ -327,8 +331,8 @@ def get_iou(iou_matrix, label_nr):
 def get_thresholds():
     thresholds = []
     for n_thresholds in CATEGORY_LAYERS:
-        thrs_step = 1. / (n_thresholds + 1)
-        category_thresholds = np.arange(thrs_step, 1, thrs_step)
+        threshold_step = 1. / (n_thresholds + 1)
+        category_thresholds = np.arange(threshold_step, 1, threshold_step)
         thresholds.extend(category_thresholds)
     return thresholds
 
@@ -343,8 +347,10 @@ def get_bbox(mask):
     return rmin, rmax + 1, cmin, cmax + 1
 
 
-def get_distance_to_border(bbox, im_size):
-    return min(bbox[0], im_size[0] - bbox[1], bbox[2], im_size[1] - bbox[3])
+def get_min_max_distance_to_border(bbox, im_size):
+    min_distance = min(bbox[0], im_size[0] - bbox[1], bbox[2], im_size[1] - bbox[3])
+    max_distance = max(bbox[0], im_size[0] - bbox[1], bbox[2], im_size[1] - bbox[3])
+    return min_distance, max_distance
 
 
 def get_contour(mask):
