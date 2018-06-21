@@ -4,7 +4,8 @@ from . import loaders
 from .steps.base import Step, Dummy
 from .steps.preprocessing.misc import XYSplit
 from .utils import squeeze_inputs, make_apply_transformer, make_apply_transformer_stream
-from .models import PyTorchUNet, PyTorchUNetWeighted, PyTorchUNetStream, PyTorchUNetWeightedStream
+from .models import PyTorchUNet, PyTorchUNetWeighted, PyTorchUNetStream, PyTorchUNetWeightedStream, ScoringLightGBM, \
+    ScoringRandomForest
 from . import postprocessing as post
 
 
@@ -21,8 +22,9 @@ def unet(config, train_mode):
                 input_data=['callback_input'],
                 input_steps=[loader],
                 cache_dirpath=config.env.cache_dirpath,
+                save_output=save_output,
                 is_trainable=True,
-                save_output=save_output, load_saved_output=load_saved_output)
+                load_saved_output=load_saved_output)
 
     mask_postprocessed = mask_postprocessing(unet, config, make_apply_transformer_, save_output=save_output)
 
@@ -257,7 +259,7 @@ def mask_postprocessing(model, config, make_transformer, **kwargs):
                        cache_output=not config.execution.stream_mode, **kwargs)
 
     category_mapper = Step(name='category_mapper',
-                           transformer=make_transformer(post.categorize_image,
+                           transformer=make_transformer(post.categorize_multilayer_image,
                                                         output_name='categorized_images'),
                            input_steps=[mask_resize],
                            adapter={'images': ([('mask_resize', 'resized_images')]),
@@ -273,7 +275,7 @@ def mask_postprocessing(model, config, make_transformer, **kwargs):
                         cache_dirpath=config.env.cache_dirpath, **kwargs)
 
     labeler = Step(name='labeler',
-                   transformer=make_transformer(post.label_multiclass_image,
+                   transformer=make_transformer(post.label_multilayer_image,
                                                 output_name='labeled_images'),
                    input_steps=[mask_erosion],
                    adapter={'images': ([(mask_erosion.name, 'eroded_images')]),
@@ -301,6 +303,90 @@ def mask_postprocessing(model, config, make_transformer, **kwargs):
     return score_builder
 
 
+def scoring_model_train(config):
+    save_output = False
+    config['execution']['stream_mode'] = True
+
+    unet_pipeline = unet(config, train_mode=False)
+
+    mask_dilation = unet_pipeline.get_step('mask_dilation')
+    mask_resize = unet_pipeline.get_step('mask_resize')
+
+    feature_extractor = Step(name='feature_extractor',
+                             transformer=post.FeatureExtractor(),
+                             input_steps=[mask_dilation, mask_resize],
+                             input_data=['input'],
+                             adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
+                                      'probabilities': ([(mask_resize.name, 'resized_images')]),
+                                      'annotations': ([('input', 'annotations')]),
+                                      },
+                             cache_dirpath=config.env.cache_dirpath,
+                             save_output=True)
+
+    scoring_model = Step(name='scoring_model',
+                         transformer=ScoringLightGBM(**config.postprocessor.lightGBM)
+                         if config.postprocessor.scoring_model == 'lgbm' else
+                         ScoringRandomForest(**config.postprocessor.random_forest),
+                         input_steps=[feature_extractor],
+                         cache_dirpath=config.env.cache_dirpath,
+                         save_output=save_output,
+                         is_trainable=True,
+                         force_fitting=False
+                         )
+
+    return scoring_model
+
+
+def scoring_model_inference(config, input_pipeline):
+    save_output = False
+
+    mask_dilation = input_pipeline(config).get_step('mask_dilation')
+    mask_resize = input_pipeline(config).get_step('mask_resize')
+
+    feature_extractor = Step(name='feature_extractor',
+                             transformer=post.FeatureExtractor(),
+                             input_steps=[mask_dilation, mask_resize],
+                             input_data=['input'],
+                             adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
+                                      'probabilities': ([(mask_resize.name, 'resized_images')])
+                                      },
+                             cache_dirpath=config.env.cache_dirpath,
+                             save_output=save_output)
+
+    scoring_model = Step(name='scoring_model',
+                         transformer=ScoringLightGBM(**config.postprocessor.lightGBM)
+                         if config.postprocessor.scoring_model == 'lgbm' else
+                         ScoringRandomForest(**config.postprocessor.random_forest),
+                         input_steps=[feature_extractor],
+                         cache_dirpath=config.env.cache_dirpath,
+                         is_trainable=True,
+                         save_output=save_output)
+
+    score_builder = Step(name='score_builder',
+                         transformer=post.ScoreImageJoiner(),
+                         input_steps=[scoring_model, mask_dilation],
+                         adapter={'images': ([(mask_dilation.name, 'dilated_images')]),
+                                  'scores': ([(scoring_model.name, 'scores')])},
+                         cache_dirpath=config.env.cache_dirpath,
+                         save_output=save_output)
+
+    nms = Step(name='nms',
+               transformer=post.NonMaximumSupression(**config.postprocessor.nms),
+               input_steps=[score_builder],
+               cache_dirpath=config.env.cache_dirpath,
+               save_output=save_output)
+
+    output = Step(name='output',
+                  transformer=Dummy(),
+                  input_steps=[nms],
+                  adapter={'y_pred': ([(nms.name, 'images_with_scores')]),
+                           },
+                  cache_dirpath=config.env.cache_dirpath,
+                  save_output=save_output,
+                  load_saved_output=False)
+    return output
+
+
 PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
                       'inference': partial(unet, train_mode=False),
                       },
@@ -311,5 +397,9 @@ PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
                           },
              'unet_padded': {'inference': unet_padded,
                              },
+             'scoring_model': {'train': scoring_model_train},
+             'unet_scoring_model': {'inference': partial(scoring_model_inference, input_pipeline=partial(unet, train_mode=False))},
+             'unet_padded_scoring_model': {'inference': partial(scoring_model_inference, input_pipeline=unet_padded)},
+             'unet_tta_scoring_model': {'inference': partial(scoring_model_inference, input_pipeline=unet_tta)},
 
              }

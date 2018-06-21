@@ -13,7 +13,7 @@ from .steps.base import Step, Dummy
 from .steps.utils import get_logger
 from .steps.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
 from .utils import softmax, coco_evaluation, create_annotations, make_apply_transformer
-from .pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING
+from .pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING, CATEGORY_LAYERS
 
 logger = get_logger()
 
@@ -200,7 +200,7 @@ class ValidationMonitorSegmentation(ValidationMonitor):
         output = pipeline.transform(data)
         y_pred = output['y_pred']
 
-        prediction = create_annotations(self.meta_valid, y_pred, logger, CATEGORY_IDS)
+        prediction = create_annotations(self.meta_valid, y_pred, logger, CATEGORY_IDS, CATEGORY_LAYERS)
         return prediction
 
 

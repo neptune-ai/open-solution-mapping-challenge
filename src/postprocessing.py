@@ -1,11 +1,49 @@
+import multiprocessing as mp
+
 import numpy as np
 from skimage.transform import resize
 from skimage.morphology import erosion, dilation, rectangle
+from tqdm import tqdm
 from pydensecrf.densecrf import DenseCRF2D
 from pydensecrf.utils import unary_from_softmax
+from pycocotools import mask as cocomask
+import pandas as pd
+import cv2
 
-from .utils import denormalize_img, add_dropped_objects, label
-from .pipeline_config import MEAN, STD
+from .steps.base import BaseTransformer
+from .utils import denormalize_img, add_dropped_objects, label, rle_from_binary
+from .pipeline_config import MEAN, STD, CATEGORY_LAYERS, CATEGORY_IDS
+
+
+class FeatureExtractor(BaseTransformer):
+
+    def transform(self, images, probabilities, annotations=None):
+        if annotations is None:
+            annotations = [{}] * len(images)
+        all_features = []
+        for image, im_probabilities, im_annotations in zip(images, probabilities, annotations):
+            all_features.append(get_features_for_image(image, im_probabilities, im_annotations))
+        return {'features': all_features}
+
+
+class ScoreImageJoiner(BaseTransformer):
+    def transform(self, images, scores):
+        images_with_scores = []
+        for image, score in tqdm(zip(images, scores)):
+            images_with_scores.append((image, score))
+        return {'images_with_scores': images_with_scores}
+
+
+class NonMaximumSupression(BaseTransformer):
+    def __init__(self, iou_threshold, num_threads=1):
+        self.iou_threshold = iou_threshold
+        self.num_threads = num_threads
+
+    def transform(self, images_with_scores):
+        with mp.pool.ThreadPool(self.num_threads) as executor:
+            cleaned_images_with_scores = executor.map(
+                lambda p: remove_overlapping_masks(*p, iou_threshold=self.iou_threshold), images_with_scores)
+        return {'images_with_scores': cleaned_images_with_scores}
 
 
 def resize_image(image, target_size):
@@ -35,6 +73,16 @@ def categorize_image(image):
 
     """
     return np.argmax(image, axis=0)
+
+
+def categorize_multilayer_image(image):
+    categorized_image = []
+    for category_id, category_output in enumerate(image):
+        threshold_step = 1. / (CATEGORY_LAYERS[category_id] + 1)
+        thresholds = np.arange(threshold_step, 1, threshold_step)
+        for threshold in thresholds:
+            categorized_image.append(category_output > threshold)
+    return np.stack(categorized_image)
 
 
 def label_multiclass_image(mask):
@@ -73,6 +121,14 @@ def label_multiclass_image(mask):
     labeled_channels = []
     for label_nr in range(0, mask.max() + 1):
         labeled_channels.append(label(mask == label_nr))
+    labeled_image = np.stack(labeled_channels)
+    return labeled_image
+
+
+def label_multilayer_image(mask):
+    labeled_channels = []
+    for channel in mask:
+        labeled_channels.append(label(channel))
     labeled_image = np.stack(labeled_channels)
     return labeled_image
 
@@ -201,3 +257,130 @@ def crop_image_center_per_class(image, h_crop, w_crop):
         cropped_per_class_prediction.append(cropped_prediction)
     cropped_per_class_prediction = np.stack(cropped_per_class_prediction)
     return cropped_per_class_prediction
+
+
+def get_features_for_image(image, probabilities, annotations):
+    image_features = []
+    category_layers_inds = np.cumsum(CATEGORY_LAYERS)
+    thresholds = get_thresholds()
+    for category_ind, category_instances in enumerate(image):
+        layer_features = []
+        threshold = round(thresholds[category_ind], 2)
+        for mask, iou, category_probabilities in get_mask_with_iou(category_ind, category_instances, category_layers_inds, annotations, probabilities):
+            layer_features.append(get_features_for_mask(mask, iou, threshold, category_probabilities))
+        image_features.append(pd.DataFrame(layer_features))
+    return image_features
+
+
+def get_mask_with_iou(category_ind, category_instances, category_layers_inds, annotations, probabilities):
+    category_nr = np.searchsorted(category_layers_inds, category_ind, side='right')
+    category_annotations = annotations.get(CATEGORY_IDS[category_nr], [])
+    iou_matrix = get_iou_matrix(category_instances, category_annotations)
+    category_probabilities = probabilities[category_nr]
+    for label_nr in range(1, category_instances.max() + 1):
+        mask = category_instances == label_nr
+        iou = get_iou(iou_matrix, label_nr)
+        yield mask, iou, category_probabilities
+
+
+def get_features_for_mask(mask, iou, threshold, category_probabilities):
+    mask_probabilities = np.where(mask, category_probabilities, 0)
+    area = np.count_nonzero(mask)
+    mean_prob = mask_probabilities.sum() / area
+    max_prob = mask_probabilities.max()
+    bbox = get_bbox(mask)
+    bbox_height = bbox[1] - bbox[0]
+    bbox_width = bbox[3] - bbox[2]
+    bbox_aspect_ratio = bbox_height / bbox_width
+    bbox_area = bbox_width * bbox_height
+    bbox_fill = area / bbox_area
+    min_dist_to_border, max_dist_to_border = get_min_max_distance_to_border(bbox, mask.shape)
+    contour_length = get_contour_length(mask)
+    mask_features = {'iou': iou, 'threshold': threshold, 'area': area, 'mean_prob': mean_prob,
+                     'max_prob': max_prob, 'bbox_ar': bbox_aspect_ratio,
+                     'bbox_area': bbox_area, 'bbox_fill': bbox_fill, 'min_dist_to_border': min_dist_to_border,
+                     'max_dist_to_border': max_dist_to_border, 'contour_length': contour_length}
+    return mask_features
+
+
+def get_iou_matrix(labels, annotations):
+    mask_anns = []
+    if annotations is None or annotations == []:
+        return None
+    else:
+        for annotation in annotations:
+            if not isinstance(annotation['segmentation'], dict):
+                annotation['segmentation'] = \
+                    cocomask.frPyObjects(annotation['segmentation'], labels.shape[0], labels.shape[1])[0]
+        annotations = [annotation['segmentation'] for annotation in annotations]
+        for label_nr in range(1, labels.max() + 1):
+            mask = labels == label_nr
+            mask_ann = rle_from_binary(mask.astype('uint8'))
+            mask_anns.append(mask_ann)
+        iou_matrix = cocomask.iou(mask_anns, annotations, [0, ] * len(annotations))
+        return iou_matrix
+
+
+def get_iou(iou_matrix, label_nr):
+    if iou_matrix is not None:
+        return iou_matrix[label_nr - 1].max()
+    else:
+        return None
+
+
+def get_thresholds():
+    thresholds = []
+    for n_thresholds in CATEGORY_LAYERS:
+        threshold_step = 1. / (n_thresholds + 1)
+        category_thresholds = np.arange(threshold_step, 1, threshold_step)
+        thresholds.extend(category_thresholds)
+    return thresholds
+
+
+def get_bbox(mask):
+    '''taken from https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array and
+    modified to prevent bbox of zero area'''
+    rows = np.any(mask, axis=1)
+    cols = np.any(mask, axis=0)
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+    return rmin, rmax + 1, cmin, cmax + 1
+
+
+def get_min_max_distance_to_border(bbox, im_size):
+    min_distance = min(bbox[0], im_size[0] - bbox[1], bbox[2], im_size[1] - bbox[3])
+    max_distance = max(bbox[0], im_size[0] - bbox[1], bbox[2], im_size[1] - bbox[3])
+    return min_distance, max_distance
+
+
+def get_contour(mask):
+    mask_contour = np.zeros_like(mask).astype(np.uint8)
+    _, contours, hierarchy = cv2.findContours(mask.astype(np.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    cv2.drawContours(mask_contour, contours, -1, (255, 255, 255), 1)
+    return mask_contour
+
+
+def get_contour_length(mask):
+    return np.count_nonzero(get_contour(mask))
+
+
+def remove_overlapping_masks(image, scores, iou_threshold=0.5):
+    scores_with_labels = []
+    for layer_nr, layer_scores in enumerate(scores):
+        scores_with_labels.extend([(score, layer_nr, label_nr + 1) for label_nr, score in enumerate(layer_scores)])
+    scores_with_labels.sort(key=lambda x: x[0], reverse=True)
+    for i, (score_i, layer_nr_i, label_nr_i) in enumerate(scores_with_labels):
+        base_mask = image[layer_nr_i] == label_nr_i
+        for score_j, layer_nr_j, label_nr_j in scores_with_labels[i + 1:]:
+            mask_to_check = image[layer_nr_j] == label_nr_j
+            iou = get_iou_for_mask_pair(base_mask, mask_to_check)
+            if iou > iou_threshold:
+                scores_with_labels.remove((score_j, layer_nr_j, label_nr_j))
+                scores[layer_nr_j][label_nr_j - 1] = 0
+    return image, scores
+
+
+def get_iou_for_mask_pair(mask1, mask2):
+    intersection = np.count_nonzero(mask1 * mask2)
+    union = np.count_nonzero(mask1 + mask2)
+    return intersection / union
