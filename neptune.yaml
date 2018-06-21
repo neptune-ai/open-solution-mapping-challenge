@@ -88,7 +88,7 @@ parameters:
   erode_selem_size: 0
   dilate_selem_size: 2
   tta_aggregation_method: gmean
-  iou_threshold: 0.5
+  nms__iou_threshold: 0.5
 
 # Inference padding
   crop_image_h: 300
