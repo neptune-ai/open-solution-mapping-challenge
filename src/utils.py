@@ -308,7 +308,6 @@ def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, s
     cocoEval.params.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, small_annotations_size ** 2],
                                [small_annotations_size ** 2, 1e5 ** 2]]
     cocoEval.params.areaRngLbl = ['all', 'small', 'large']
-    cocoEval.params.maxDets = [1, 10, 100000]
     cocoEval.evaluate()
     cocoEval.accumulate()
     cocoEval.summarize()
