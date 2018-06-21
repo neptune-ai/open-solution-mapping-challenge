@@ -12,7 +12,6 @@ from . import postprocessing as post
 def unet(config, train_mode):
     save_output = False
     load_saved_output = False
-    print('stream ', config.execution.stream_mode)#test
 
     make_apply_transformer_ = make_apply_transformer_stream if config.execution.stream_mode else make_apply_transformer
 
@@ -290,7 +289,6 @@ def mask_postprocessing(model, config, make_transformer, **kwargs):
                          adapter={'images': ([(labeler.name, 'labeled_images')]),
                                   },
                          cache_dirpath=config.env.cache_dirpath, **kwargs)
-    print('mask dil transf ', mask_dilation.transformer)#test
 
     score_builder = Step(name='score_builder',
                          transformer=make_transformer(post.build_score,
