@@ -1,17 +1,22 @@
 # Open Solution to the Mapping Challenge Competition
 
-Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge)
+Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge) competition.
 
-## Goal
-Deliver open source, ready-to-use and extendable solution to this competition. This solution should - by itself - establish solid benchmark, as well as provide good base for your custom ideas and experiments.
+## The purpose of the Open Solution
+We have built entirely open solution to this competition. Specifically:
+1. Check **live preview of our work** on public projects page: [Mapping Challange](https://app.neptune.ml/neptune-ml/Mapping-Challange).
+1. Source code and [issues](https://github.com/minerva-ml/open-solution-mapping-challenge/issues) are publicly available.
+
+Our rules:
+1. Clean code and extensible solution leads to the reproducible experimentations and better control over the improvements.
+1. Open solution should establish solid benchmark and give good base for your custom ideas and experiments.
+
 
 ## Results
 
 Our approach got `0.943` Average Precision and `0.954` Average Recall on stage 1 data. 
 
-You can check our experiments in Neptune: https://app.neptune.ml/neptune-ml/Mapping-Challange
-
-Some examples (no cherry-picking I promise):
+Some examples (no cherry-picking I promise :wink: ):
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/0f88863b18904b23d4301611ddf2b532aff8de96/example_output.png"></img>
 
