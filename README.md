@@ -14,13 +14,11 @@ Our rules:
 1. Open solution should establish solid benchmark and give good base for your custom ideas and experiments.
 
 ## Results
-Our approach got `0.943` **Average Precision** :rocket: and `0.954` **Average Recall** :rocket: on [stage 1 data](https://www.crowdai.org/challenges/mapping-challenge/dataset_files). Both were calculated using [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools). Check this [blog post](https://medium.com/@jonathan_hui/map-mean-average-precision-for-object-detection-45c121a31173) for average precision explanation.
-
-Some examples (no cherry-picking I promise :wink: ).
-
-_The results exceded our expectations. The output from the network is so good that not a lot of morphological shenanigans is needed. Happy days:)_
-
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/0f88863b18904b23d4301611ddf2b532aff8de96/example_output.png"></img>
+
+_No cherry-picking here, I promise :wink:. The results exceded our expectations. The output from the network is so good that not a lot of morphological shenanigans is needed. Happy days:)_
+
+Our approach got `0.943` **Average Precision** :rocket: and `0.954` **Average Recall** :rocket: on [stage 1 data](https://www.crowdai.org/challenges/mapping-challenge/dataset_files). Both were calculated using [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools). Check this [blog post](https://medium.com/@jonathan_hui/map-mean-average-precision-for-object-detection-45c121a31173) for average precision explanation.
 
 # Solution write-up
 ## End-to-end pipeline diagram
