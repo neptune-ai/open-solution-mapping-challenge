@@ -13,26 +13,21 @@ Our rules:
 1. Clean code and extensible solution leads to the reproducible experimentations and better control over the improvements.
 1. Open solution should establish solid benchmark and give good base for your custom ideas and experiments.
 
-
 ## Results
+Our approach got `0.943` **Average Precision** :rocket: and `0.954` **Average Recall** :rocket: on [stage 1 data](https://www.crowdai.org/challenges/mapping-challenge/dataset_files). Both were calculated using [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools). Check this [blog post](https://medium.com/@jonathan_hui/map-mean-average-precision-for-object-detection-45c121a31173) for average precision explanation.
 
-Our approach got `0.943` Average Precision and `0.954` Average Recall on stage 1 data. 
-
-Some examples (no cherry-picking I promise :wink: ):
+Some examples (no cherry-picking I promise :wink: ).
+_(The results exceded our expectations. The output from the network is so good that not a lot of morphological shenanigans is needed. Happy days:))_
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/0f88863b18904b23d4301611ddf2b532aff8de96/example_output.png"></img>
 
-I have to say that the results exceded my expectations. The output from the network is so good that not a lot of morphological shenanigans is needed. Happy days:)
-
-## Solution write-up
-
-We implemented the following pipeline:
+# Solution write-up
+## End-to-end pipeline diagram
 
 <img src="https://gist.githubusercontent.com/jakubczakon/cac72983726a970690ba7c33708e100b/raw/e1bf6300fa119db2fec6622a603c63655ff5d770/unet_pipeline.png"></img>
 
-#### Preprocessing
-
-##### What Worked 
+## Preprocessing
+#### What Worked 
 
 * Overlay binary masks for each image is produced [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py)
 * Distances to the 2 closest objects are calculated creating the distance map that is used for weighing [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py)
