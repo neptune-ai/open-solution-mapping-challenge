@@ -325,3 +325,4 @@ def average_inputs(inputs):
 
 def exp_transform(inputs):
     return np.exp(inputs[0])
+

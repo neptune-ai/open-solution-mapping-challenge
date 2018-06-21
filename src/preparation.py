@@ -17,7 +17,7 @@ from .utils import get_logger, add_dropped_objects, label
 logger = get_logger()
 
 
-def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, dilate=0, is_small=False, nthreads=1,
+def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, dilate=0, is_small=False, num_threads=1,
                   border_width=0, small_annotations_size=14):
     if is_small:
         suffix = "-small"
@@ -38,7 +38,7 @@ def overlay_masks(data_dir, dataset, target_dir, category_ids, erode=0, dilate=0
                                       border_width=border_width,
                                       small_annotations_size=small_annotations_size)
 
-    process_nr = min(nthreads, len(image_ids))
+    process_nr = min(num_threads, len(image_ids))
     with mp.pool.ThreadPool(process_nr) as executor:
         executor.map(_overlay_mask_one_image, image_ids)
 

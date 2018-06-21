@@ -4,6 +4,10 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch import optim
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.externals import joblib
+from sklearn.ensemble import RandomForestRegressor
 
 from .callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
 from .steps.pytorch.architectures.unet import UNet
@@ -11,6 +15,7 @@ from .steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpo
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
 from .steps.pytorch.models import Model
 from .steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
+from .steps.sklearn.models import LightGBM, make_transformer, SklearnRegressor
 from .utils import softmax
 from .unet_models import AlbuNet, UNet11, UNetVGG16, UNetResNet
 
@@ -159,9 +164,12 @@ class PyTorchUNetWeighted(BasePyTorchUNet):
 class PyTorchUNetWeightedStream(BasePyTorchUNet):
     def __init__(self, architecture_config, training_config, callbacks_config):
         super().__init__(architecture_config, training_config, callbacks_config)
-        weighted_loss = partial(multiclass_weighted_cross_entropy,
-                                **get_loss_variables(**architecture_config['weighted_cross_entropy']))
-        loss = partial(mixed_dice_cross_entropy_loss, dice_weight=architecture_config['loss_weights']['dice_mask'],
+        weights_function = partial(get_weights, **architecture_config['weighted_cross_entropy'])
+        weighted_loss = partial(multiclass_weighted_cross_entropy, weights_function=weights_function)
+        dice_loss = partial(multiclass_dice_loss, excluded_classes=[0])
+        loss = partial(mixed_dice_cross_entropy_loss,
+                       dice_loss=dice_loss,
+                       dice_weight=architecture_config['loss_weights']['dice_mask'],
                        cross_entropy_weight=architecture_config['loss_weights']['bce_mask'],
                        cross_entropy_loss=weighted_loss,
                        **architecture_config['dice'])
@@ -199,6 +207,81 @@ class PyTorchUNetWeightedStream(BasePyTorchUNet):
             if batch_id == steps:
                 break
         self.model.train()
+
+
+class ScoringLightGBM(LightGBM):
+    def __init__(self, model_params, training_params, train_size, target):
+        self.train_size = train_size
+        self.target = target
+        self.feature_names = []
+        self.estimator = None
+        super().__init__(model_params, training_params)
+
+    def fit(self, features, **kwargs):
+        df_features = _convert_features_to_df(features)
+        train_data, val_data = train_test_split(df_features, train_size=self.train_size)
+        self.feature_names = list(df_features.columns.drop(self.target))
+        super().fit(X=train_data[self.feature_names],
+                    y=train_data[self.target],
+                    X_valid=val_data[self.feature_names],
+                    y_valid=val_data[self.target],
+                    feature_names=self.feature_names,
+                    categorical_features=[])
+        return self
+
+    def transform(self, features, **kwargs):
+        scores = []
+        for image_features in features:
+            image_scores = []
+            for layer_features in image_features:
+                if len(layer_features) > 0:
+                    layer_scores = super().transform(layer_features[self.feature_names])
+                    image_scores.append(list(layer_scores['prediction']))
+                else:
+                    image_scores.append([])
+            scores.append(image_scores)
+        return {'scores': scores}
+
+    def save(self, filepath):
+        joblib.dump((self.estimator, self.feature_names), filepath)
+
+    def load(self, filepath):
+        self.estimator, self.feature_names = joblib.load(filepath)
+
+
+class ScoringRandomForest(SklearnRegressor):
+    def __init__(self, train_size, target, **kwargs):
+        self.train_size = train_size
+        self.target = target
+        self.feature_names = []
+        self.estimator = RandomForestRegressor()
+
+    def fit(self, features, **kwargs):
+        df_features = _convert_features_to_df(features)
+        train_data, val_data = train_test_split(df_features, train_size=self.train_size)
+        self.feature_names = list(df_features.columns.drop(self.target))
+        super().fit(X=train_data[self.feature_names],
+                    y=train_data[self.target])
+        return self
+
+    def transform(self, features, **kwargs):
+        scores = []
+        for image_features in features:
+            image_scores = []
+            for layer_features in image_features:
+                if len(layer_features) > 0:
+                    layer_scores = super().transform(layer_features[self.feature_names])
+                    image_scores.append(list(layer_scores['prediction']))
+                else:
+                    image_scores.append([])
+            scores.append(image_scores)
+        return {'scores': scores}
+
+    def save(self, filepath):
+        joblib.dump((self.estimator, self.feature_names), filepath)
+
+    def load(self, filepath):
+        self.estimator, self.feature_names = joblib.load(filepath)
 
 
 def weight_regularization_unet(model, regularize, weight_decay_conv2d):
@@ -369,3 +452,11 @@ def multiclass_dice_loss(output, target, smooth=0, activation='softmax', exclude
         class_target.data = class_target.data.float()
         loss += dice(output[:, class_nr, :, :], class_target)
     return loss
+
+
+def _convert_features_to_df(features):
+    df_features = []
+    for image_features in features:
+        for layer_features in image_features[1:]:
+            df_features.append(layer_features)
+    return pd.concat(df_features)

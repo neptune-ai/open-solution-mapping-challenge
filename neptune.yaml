@@ -1,7 +1,7 @@
 project: YOUR_PROJECT_NAME
 
 name: mapping_challenge_open_solution
-tags: [solution_1]
+tags: [solution_5]
 
 metric:
   channel: 'Final Validation Score'
@@ -40,7 +40,6 @@ parameters:
   small_annotations_size: 14
   loader_mode: resize
   stream_mode: 0
-
 
 # General parameters
   image_h: 256
@@ -86,11 +85,10 @@ parameters:
 
 # Postprocessing
   threshold: 0.5
-  min_nuclei_size: 20
-  erosion_percentages: '[10,20,30]'
   erode_selem_size: 0
   dilate_selem_size: 2
   tta_aggregation_method: gmean
+  nms__iou_threshold: 0.5
 
 # Inference padding
   crop_image_h: 300
@@ -101,3 +99,17 @@ parameters:
 
 #Neptune monitor
   unet_outputs_to_plot: '["multichannel_map",]'
+
+#Scoring model
+  scoring_model: 'lgbm'
+  scoring_model__num_training_examples: 10000
+
+#LightGBM
+  lgbm__learning_rate: 0.001
+  lgbm__num_leaves: 10
+  lgbm__min_data: 50
+  lgbm__max_depth: 10
+  lgbm__number_of_trees: 100
+  lgbm__early_stopping: 5
+  lgbm__train_size: 0.7
+  lgbm__target: 'iou'

@@ -12,8 +12,9 @@ SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
 Y_COLUMNS = ['file_path_mask_eroded_0_dilated_0']
 Y_COLUMNS_SCORING = ['ImageId']
-CATEGORY_IDS = [None, 100]
 SEED = 1234
+CATEGORY_IDS = [None, 100]
+CATEGORY_LAYERS = [1, 19]
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
@@ -121,9 +122,8 @@ SOLUTION_CONFIG = AttrDict({
                       'rotation': True,
                       'color_shift_runs': False},
     'tta_aggregator': {'method': params.tta_aggregation_method,
-                       'nthreads': params.num_threads
+                       'num_threads': params.num_threads
                        },
-    'dropper': {'min_size': params.min_nuclei_size},
     'postprocessor': {'mask_dilation': {'dilate_selem_size': params.dilate_selem_size
                                         },
                       'mask_erosion': {'erode_selem_size': params.erode_selem_size
@@ -131,5 +131,23 @@ SOLUTION_CONFIG = AttrDict({
                       'prediction_crop': {'h_crop': params.crop_image_h,
                                           'w_crop': params.crop_image_w
                                           },
+                      'scoring_model': params.scoring_model,
+                      'lightGBM': {'model_params': {'learning_rate': params.lgbm__learning_rate,
+                                                    'boosting_type': 'gbdt',
+                                                    'objective': 'regression',
+                                                    'metric': 'regression_l2',
+                                                    'sub_feature': 1.0,
+                                                    'num_leaves': params.lgbm__num_leaves,
+                                                    'min_data': params.lgbm__min_data,
+                                                    'max_depth': params.lgbm__max_depth},
+                                   'training_params': {'number_boosting_rounds': params.lgbm__number_of_trees,
+                                                       'early_stopping_rounds': params.lgbm__early_stopping},
+                                   'train_size': params.lgbm__train_size,
+                                   'target': params.lgbm__target
+                                   },
+                      'random_forest': {'train_size': params.lgbm__train_size,
+                                        'target': params.lgbm__target},
+                      'nms': {'iou_threshold': params.nms__iou_threshold,
+                              'num_threads': params.num_threads},
                       }
 })

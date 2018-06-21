@@ -436,9 +436,9 @@ class TestTimeAugmentationGenerator(BaseTransformer):
 
 
 class TestTimeAugmentationAggregator(BaseTransformer):
-    def __init__(self, method, nthreads):
+    def __init__(self, method, num_threads):
         self.method = method
-        self.nthreads = nthreads
+        self.num_threads = num_threads
 
     @property
     def agg_method(self):
@@ -456,7 +456,7 @@ class TestTimeAugmentationAggregator(BaseTransformer):
                                            img_ids=img_ids,
                                            agg_method=self.agg_method)
         unique_img_ids = set(img_ids)
-        threads = min(self.nthreads, len(unique_img_ids))
+        threads = min(self.num_threads, len(unique_img_ids))
         with mp.pool.ThreadPool(threads) as executor:
             averages_images = executor.map(_aggregate_augmentations, unique_img_ids)
         return {'aggregated_prediction': averages_images}

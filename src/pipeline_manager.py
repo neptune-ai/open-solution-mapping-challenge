@@ -5,8 +5,9 @@ import pandas as pd
 from deepsense import neptune
 import crowdai
 import json
+from pycocotools.coco import COCO
 
-from .pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, SEED
+from .pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, SEED, CATEGORY_LAYERS
 from .pipelines import PIPELINES
 from .preparation import overlay_masks
 from .utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
@@ -55,7 +56,7 @@ def prepare_masks(dev_mode, logger, params):
                       erode=params.erode_selem_size,
                       dilate=params.dilate_selem_size,
                       is_small=dev_mode,
-                      nthreads=params.num_threads,
+                      num_threads=params.num_threads,
                       border_width=params.border_width,
                       small_annotations_size=params.small_annotations_size)
 
@@ -87,15 +88,25 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
 
+    train_mode = True
+
     meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
 
     if dev_mode:
         meta_train = meta_train.sample(20, random_state=seed)
         meta_valid = meta_valid.sample(10, random_state=seed)
 
+    if pipeline_name=='scoring_model':
+        train_mode = False
+        meta_train, annotations = _get_scoring_model_data(params.data_dir, meta_train, params.scoring_model__num_training_examples, seed)
+    else:
+        annotations = None
+
     data = {'input': {'meta': meta_train,
-                      'target_sizes': [(300, 300)] * len(meta_train)},
-            'specs': {'train_mode': True},
+                      'target_sizes': [(300, 300)] * len(meta_train),
+                      'annotations': annotations},
+            'specs': {'train_mode': train_mode,
+                      'num_threads': params.num_threads},
             'callback_input': {'meta_valid': meta_valid}
             }
 
@@ -117,7 +128,8 @@ def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed, ctx):
         meta_valid = meta_valid.sample(30, random_state=seed)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    prediction = generate_prediction(meta_valid, pipeline, logger, CATEGORY_IDS, chunk_size)
+    prediction = generate_prediction(meta_valid, pipeline, logger, CATEGORY_IDS, chunk_size, params.num_threads)
+
     prediction_filepath = os.path.join(params.experiment_dir, 'prediction.json')
     with open(prediction_filepath, "w") as fp:
         fp.write(json.dumps(prediction))
@@ -146,7 +158,7 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, par
         meta_test = meta_test.sample(2, random_state=seed)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, chunk_size)
+    prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, chunk_size, params.num_threads)
 
     submission = prediction
     submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
@@ -167,18 +179,19 @@ def make_submission(submission_filepath, logger, params):
     challenge.submit(submission_filepath)
 
 
-def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size):
+def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size, num_threads=1):
     if chunk_size is not None:
-        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size)
+        return _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size, num_threads)
     else:
-        return _generate_prediction(meta_data, pipeline, logger, category_ids)
+        return _generate_prediction(meta_data, pipeline, logger, category_ids, num_threads)
 
 
-def _generate_prediction(meta_data, pipeline, logger, category_ids):
+def _generate_prediction(meta_data, pipeline, logger, category_ids, num_threads=1):
     data = {'input': {'meta': meta_data,
                       'target_sizes': [(300, 300)] * len(meta_data),
                       },
-            'specs': {'train_mode': False},
+            'specs': {'train_mode': False,
+                      'num_threads': num_threads},
             'callback_input': {'meta_valid': None}
             }
 
@@ -187,17 +200,18 @@ def _generate_prediction(meta_data, pipeline, logger, category_ids):
     pipeline.clean_cache()
     y_pred = output['y_pred']
 
-    prediction = create_annotations(meta_data, y_pred, logger, category_ids)
+    prediction = create_annotations(meta_data, y_pred, logger, category_ids, CATEGORY_LAYERS)
     return prediction
 
 
-def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size):
+def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, chunk_size, num_threads=1):
     prediction = []
     for meta_chunk in generate_data_frame_chunks(meta_data, chunk_size):
         data = {'input': {'meta': meta_chunk,
                           'target_sizes': [(300, 300)] * len(meta_chunk)
                           },
-                'specs': {'train_mode': False},
+                'specs': {'train_mode': False,
+                          'num_threads': num_threads},
                 'callback_input': {'meta_valid': None}
                 }
 
@@ -206,7 +220,22 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
         pipeline.clean_cache()
         y_pred = output['y_pred']
 
-        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids)
+        prediction_chunk = create_annotations(meta_chunk, y_pred, logger, category_ids, CATEGORY_LAYERS)
         prediction.extend(prediction_chunk)
 
     return prediction
+
+
+def _get_scoring_model_data(data_dir, meta, num_training_examples, random_seed):
+    annotation_file_path = os.path.join(data_dir, 'train', "annotation.json")
+    coco = COCO(annotation_file_path)
+    meta = meta.sample(num_training_examples, random_state=random_seed)
+    annotations = []
+    for image_id in meta['ImageId'].values:
+        image_annotations = {}
+        for category_id in CATEGORY_IDS:
+            annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=category_id)
+            category_annotations = coco.loadAnns(annotation_ids)
+            image_annotations[category_id] = category_annotations
+        annotations.append(image_annotations)
+    return meta, annotations
