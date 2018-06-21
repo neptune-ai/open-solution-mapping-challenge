@@ -6,7 +6,7 @@ Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challen
 
 ## The purpose of the Open Solution
 We have built entirely open solution to this competition. Specifically:
-1. Check **live preview of our work** on public projects page: [Mapping Challange](https://app.neptune.ml/neptune-ml/Mapping-Challange) :chart_with_upwards_trend:.
+1. Check **live preview of our work** on public projects page: [Mapping Challange](https://app.neptune.ml/neptune-ml/Mapping-Challange) [:chart_with_upwards_trend:](https://app.neptune.ml/neptune-ml/Mapping-Challange).
 1. Source code and [issues](https://github.com/minerva-ml/open-solution-mapping-challenge/issues) are publicly available.
 
 Our rules:
@@ -38,23 +38,18 @@ _(The results exceded our expectations. The output from the network is so good t
 * Image is resized before feeding it to the network. Surprisingly this worked better than cropping ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L246-L263) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L47) :bookmark_tabs:)
 
 ### :heavy_multiplication_x: What didn't Work
+* Ground truth masks are prepared by first eroding them per mask creating non overlapping masks and only after that the distances are calculated ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:)
+* Dilated small objectcs to increase the signal ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:)
+* Network is fed with random crops ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L225-L243) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L47) :bookmark_tabs:)
 
-* Ground truth masks are prepared by first eroding them per mask creating non overlapping masks and only after that the distances are calculated [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py)
-* Dilated small objectcs to increase the signal (no experimental results yet) [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py)
-* Network is fed with random crops [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L225-L243) [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L47)
+### What could have worked but we haven't tried it
+* Ground truth masks for overlapping contours ([DSB-2018 winners](https://www.kaggle.com/c/data-science-bowl-2018/discussion/54741) approach).
 
-##### What could have worked but we haven't tried it
-
-* Ground truth masks for overlapping contours (DSB-2018 winners approach)
-
-#### Network
-
-##### What Worked 
-
+## Network
+### What Worked 
 * Unet with Resnet101 as encoder. The approach is explained https://arxiv.org/abs/1806.00844 [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/unet_models.py#L315-L403) [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L63)
 
-##### What didn't Work
-
+### What didn't Work
 * Unet build from scracth with Resnet34 and Resnet152 as encoder. Worked to a certain degree but failed to produce the very best results. [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/steps/pytorch/architectures/unet.py) 
 * Network architecture based on dilated convolutions described here https://arxiv.org/pdf/1709.00179.pdf
 
