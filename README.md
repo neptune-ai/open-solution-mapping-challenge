@@ -160,10 +160,14 @@ $ neptune data upload YOUR/DATA/FOLDER
 	dilate_selem_size: 0
    ```
 
+   prepare target masks and metadata for training:
+   
 
     * local machine with neptune
     ```bash
     $ neptune login
+    $ neptune experiment run \
+    main.py -- prepare_masks  
     $ neptune experiment run \
     main.py -- prepare_metadata --train_data --valid_data --test_data 
     ```
@@ -175,12 +179,17 @@ $ neptune data upload YOUR/DATA/FOLDER
     $ neptune experiment send --config neptune.yaml \
     --worker gcp-large \
     --environment pytorch-0.2.0-gpu-py3 \
+    main.py -- prepare_masks
+    $ neptune experiment send --config neptune.yaml \
+    --worker gcp-large \
+    --environment pytorch-0.2.0-gpu-py3 \
     main.py -- prepare_metadata --train_data --valid_data --test_data 
     ```
 
     * local pure python
 
     ```bash
+    $ python main.py -- prepare_masks
     $ python main.py -- prepare_metadata --train_data --valid_data --test_data 
     ```
 
