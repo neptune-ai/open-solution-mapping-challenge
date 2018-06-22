@@ -1,6 +1,7 @@
 # Open Solution to the Mapping Challenge Competition
 
 [![Gitter](https://badges.gitter.im/minerva-ml/open-solution-mapping-challenge.svg)](https://gitter.im/minerva-ml/open-solution-mapping-challenge?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/LICENSE)
 
 Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge) competition.
 1. Check **live preview of our work** on public projects page: [Mapping Challange](https://app.neptune.ml/neptune-ml/Mapping-Challange) [:chart_with_upwards_trend:](https://app.neptune.ml/neptune-ml/Mapping-Challange).
