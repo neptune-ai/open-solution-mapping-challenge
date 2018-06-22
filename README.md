@@ -17,10 +17,10 @@ _No cherry-picking here, I promise :wink:. The results exceded our expectations.
 
 Average Precision and Average Recall were calculated on [stage 1 data](https://www.crowdai.org/challenges/mapping-challenge/dataset_files) using [pycocotools](https://github.com/cocodataset/cocoapi/tree/master/PythonAPI/pycocotools). Check this [blog post](https://medium.com/@jonathan_hui/map-mean-average-precision-for-object-detection-45c121a31173) for average precision explanation.
 
-# Disclaimer
+## Disclaimer
 In this open source solution you will find references to the neptune.ml. It is free platform for community Users, which we use daily to keep track of our experiments. Please note that using neptune.ml is not necessary to proceed with this solution. You may run it as plain Python script :wink:.
 
-# Reproduce it!
+## Reproduce it!
 Check [REPRODUCE_RESULTS](REPRODUCE_RESULTS.md)
 
 # Solution write-up
