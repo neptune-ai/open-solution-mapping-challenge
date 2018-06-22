@@ -146,7 +146,18 @@ SOLUTION_CONFIG = AttrDict({
                                    'target': params.lgbm__target
                                    },
                       'random_forest': {'train_size': params.lgbm__train_size,
-                                        'target': params.lgbm__target},
+                                        'target': params.lgbm__target,
+                                        'model_params': {'n_estimators': params.rf__n_estimators,
+                                                         'criterion': params.rf__criterion,
+                                                         'max_depth': params.rf__max_depth,
+                                                         'min_samples_split': params.rf__min_samples_split,
+                                                         'min_samples_leaf': params.rf__min_samples_leaf,
+                                                         'max_features': params.rf__max_features,
+                                                         'max_leaf_nodes': params.rf__max_leaf_nodes,
+                                                         'n_jobs': params.rf__n_jobs,
+                                                         'verbose': params.rf__verbose,
+                                                         }
+                                        },
                       'nms': {'iou_threshold': params.nms__iou_threshold,
                               'num_threads': params.num_threads},
                       }

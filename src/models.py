@@ -250,11 +250,11 @@ class ScoringLightGBM(LightGBM):
 
 
 class ScoringRandomForest(SklearnRegressor):
-    def __init__(self, train_size, target, **kwargs):
+    def __init__(self, train_size, target, model_params):
         self.train_size = train_size
         self.target = target
         self.feature_names = []
-        self.estimator = RandomForestRegressor()
+        self.estimator = RandomForestRegressor(**model_params)
 
     def fit(self, features, **kwargs):
         df_features = _convert_features_to_df(features)
