@@ -113,3 +113,14 @@ parameters:
   lgbm__early_stopping: 5
   lgbm__train_size: 0.7
   lgbm__target: 'iou'
+
+#Random Forest
+  rf__n_estimators: 500
+  rf__criterion: "mse"
+  rf__max_depth: 10
+  rf__min_samples_split: 2
+  rf__min_samples_leaf: 50
+  rf__max_features: 'auto'
+  rf__max_leaf_nodes: 100
+  rf__n_jobs: 10
+  rf__verbose: 1
