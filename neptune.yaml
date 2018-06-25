@@ -105,22 +105,22 @@ parameters:
   scoring_model__num_training_examples: 10000
 
 #LightGBM
-  lgbm__learning_rate: 0.001
-  lgbm__num_leaves: 10
-  lgbm__min_data: 50
-  lgbm__max_depth: 10
-  lgbm__number_of_trees: 100
-  lgbm__early_stopping: 5
+  lgbm__learning_rate: 0.01
+  lgbm__num_leaves: 500
+  lgbm__min_data: 100
+  lgbm__max_depth: 20
+  lgbm__number_of_trees: 50000
+  lgbm__early_stopping: 10
   lgbm__train_size: 0.7
   lgbm__target: 'iou'
 
 #Random Forest
   rf__n_estimators: 500
   rf__criterion: "mse"
-  rf__max_depth: 10
-  rf__min_samples_split: 2
-  rf__min_samples_leaf: 50
+  rf__max_depth: 20
+  rf__min_samples_split: 100
+  rf__min_samples_leaf: 100
   rf__max_features: 'auto'
-  rf__max_leaf_nodes: 100
+  rf__max_leaf_nodes: 500
   rf__n_jobs: 10
-  rf__verbose: 1
+  rf__verbose: 0
