@@ -59,8 +59,8 @@ Check [REPRODUCE_RESULTS](REPRODUCE_RESULTS.md)
 
 ## Loss function
 ### :heavy_check_mark: What Worked
-* Distance weighted cross entropy explained in the famous [U-Net paper](https://arxiv.org/pdf/1505.04597.pdf) (our [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L79-L80 :bookmark_tabs:).
-* Using linear combination of soft dice and distance weighted cross entropy ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L65-L67 :bookmark_tabs:).
+* Distance weighted cross entropy explained in the famous [U-Net paper](https://arxiv.org/pdf/1505.04597.pdf) (our [code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L79-L80) :bookmark_tabs:).
+* Using linear combination of soft dice and distance weighted cross entropy ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L65-L67) :bookmark_tabs:).
 * Adding component weighted by building size (smaller buildings has greater weight) to the weighted cross entropy that penalizes misclassification on pixels belonging to the small objects ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/models.py#L227-L371) :computer:).
 
 ### Weights visualization
