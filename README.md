@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/LICENSE)
 
 Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge) competition.
-1. Check **live preview of our work** on public projects page: [Mapping Challange](https://app.neptune.ml/neptune-ml/Mapping-Challange) [:chart_with_upwards_trend:](https://app.neptune.ml/neptune-ml/Mapping-Challange).
+1. Check **live preview of our work** on public projects page: [Mapping Challenge](https://app.neptune.ml/neptune-ml/Mapping-Challenge) [:chart_with_upwards_trend:](https://app.neptune.ml/neptune-ml/Mapping-Challenge).
 1. Source code and [issues](https://github.com/minerva-ml/open-solution-mapping-challenge/issues) are publicly available.
 
 ## Results
