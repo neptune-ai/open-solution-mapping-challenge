@@ -3,6 +3,10 @@
 [![Gitter](https://badges.gitter.im/minerva-ml/open-solution-mapping-challenge.svg)](https://gitter.im/minerva-ml/open-solution-mapping-challenge?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/LICENSE)
 
+## Poster :earth_africa:
+Poster that summarizs our project is [available here](https://gist.github.com/kamil-kaczmarek/b3b939797fb39752c45fdadfedba3ed9/raw/7fa365392997e9eae91c911c1837b45bfca45687/EP_poster.pdf).
+
+## Intro
 Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge) competition.
 1. Check **live preview of our work** on public projects page: [Mapping Challenge](https://app.neptune.ml/neptune-ml/Mapping-Challenge) [:chart_with_upwards_trend:](https://app.neptune.ml/neptune-ml/Mapping-Challenge).
 1. Source code and [issues](https://github.com/minerva-ml/open-solution-mapping-challenge/issues) are publicly available.
