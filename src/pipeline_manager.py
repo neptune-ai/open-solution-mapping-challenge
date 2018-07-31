@@ -96,9 +96,10 @@ def train(pipeline_name, dev_mode, logger, params, seed):
         meta_train = meta_train.sample(20, random_state=seed)
         meta_valid = meta_valid.sample(10, random_state=seed)
 
-    if pipeline_name=='scoring_model':
+    if pipeline_name == 'scoring_model':
         train_mode = False
-        meta_train, annotations = _get_scoring_model_data(params.data_dir, meta_train, params.scoring_model__num_training_examples, seed)
+        meta_train, annotations = _get_scoring_model_data(params.data_dir, meta_train,
+                                                          params.scoring_model__num_training_examples, seed)
     else:
         annotations = None
 
@@ -214,7 +215,6 @@ def _generate_prediction_in_chunks(meta_data, pipeline, logger, category_ids, ch
                           'num_threads': num_threads},
                 'callback_input': {'meta_valid': None}
                 }
-
         pipeline.clean_cache()
         output = pipeline.transform(data)
         pipeline.clean_cache()

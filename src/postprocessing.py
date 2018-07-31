@@ -16,7 +16,6 @@ from .pipeline_config import MEAN, STD, CATEGORY_LAYERS, CATEGORY_IDS
 
 
 class FeatureExtractor(BaseTransformer):
-
     def transform(self, images, probabilities, annotations=None):
         if annotations is None:
             annotations = [{}] * len(images)
@@ -266,7 +265,8 @@ def get_features_for_image(image, probabilities, annotations):
     for category_ind, category_instances in enumerate(image):
         layer_features = []
         threshold = round(thresholds[category_ind], 2)
-        for mask, iou, category_probabilities in get_mask_with_iou(category_ind, category_instances, category_layers_inds, annotations, probabilities):
+        for mask, iou, category_probabilities in get_mask_with_iou(category_ind, category_instances,
+                                                                   category_layers_inds, annotations, probabilities):
             layer_features.append(get_features_for_mask(mask, iou, threshold, category_probabilities))
         image_features.append(pd.DataFrame(layer_features))
     return image_features
