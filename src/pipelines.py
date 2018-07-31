@@ -256,7 +256,8 @@ def mask_postprocessing(model, config, make_transformer, **kwargs):
                                 'target_sizes': ([('input', 'target_sizes')]),
                                 },
                        cache_dirpath=config.env.cache_dirpath,
-                       cache_output=not config.execution.stream_mode, **kwargs)
+                       cache_output=not config.execution.stream_mode,
+                       **kwargs)
 
     category_mapper = Step(name='category_mapper',
                            transformer=make_transformer(post.categorize_multilayer_image,
@@ -339,9 +340,12 @@ def scoring_model_train(config):
 
 def scoring_model_inference(config, input_pipeline):
     save_output = False
+    pipe = input_pipeline(config)
 
-    mask_dilation = input_pipeline(config).get_step('mask_dilation')
-    mask_resize = input_pipeline(config).get_step('mask_resize')
+    mask_dilation = pipe.get_step('mask_dilation')
+    mask_resize = pipe.get_step('mask_resize')
+    mask_dilation.cache_output = not config.execution.stream_mode
+    mask_resize.cache_output = not config.execution.stream_mode
 
     feature_extractor = Step(name='feature_extractor',
                              transformer=post.FeatureExtractor(),
@@ -384,6 +388,7 @@ def scoring_model_inference(config, input_pipeline):
                   cache_dirpath=config.env.cache_dirpath,
                   save_output=save_output,
                   load_saved_output=False)
+
     return output
 
 
@@ -398,7 +403,8 @@ PIPELINES = {'unet': {'train': partial(unet, train_mode=True),
              'unet_padded': {'inference': unet_padded,
                              },
              'scoring_model': {'train': scoring_model_train},
-             'unet_scoring_model': {'inference': partial(scoring_model_inference, input_pipeline=partial(unet, train_mode=False))},
+             'unet_scoring_model': {
+                 'inference': partial(scoring_model_inference, input_pipeline=partial(unet, train_mode=False))},
              'unet_padded_scoring_model': {'inference': partial(scoring_model_inference, input_pipeline=unet_padded)},
              'unet_tta_scoring_model': {'inference': partial(scoring_model_inference, input_pipeline=unet_tta)},
 

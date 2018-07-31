@@ -239,6 +239,10 @@ class ScoringLightGBM(LightGBM):
                     image_scores.append(list(layer_scores['prediction']))
                 else:
                     image_scores.append([])
+            print(image_scores)
+            print()
+            import time
+            time.sleep(2)
             scores.append(image_scores)
         return {'scores': scores}
 
