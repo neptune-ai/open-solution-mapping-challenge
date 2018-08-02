@@ -11,7 +11,7 @@ from .pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, S
 from .pipelines import PIPELINES
 from .preparation import overlay_masks
 from .utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
-    create_annotations, generate_data_frame_chunks
+    create_annotations, generate_data_frame_chunks, generate_metadata_from_folder
 
 
 class PipelineManager():
@@ -36,6 +36,9 @@ class PipelineManager():
 
     def predict(self, pipeline_name, dev_mode, submit_predictions, chunk_size):
         predict(pipeline_name, dev_mode, submit_predictions, chunk_size, self.logger, self.params, self.seed)
+
+    def predict_on_folder(self, image_folder, pipeline_name, chunk_size):
+        predict_on_folder(image_folder, pipeline_name, chunk_size, self.logger, self.params)
 
     def make_submission(self, submission_filepath):
         make_submission(submission_filepath, self.logger, self.params)
@@ -170,6 +173,14 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, par
 
     if submit_predictions:
         make_submission(submission_filepath)
+
+
+def predict_on_folder(image_folder, pipeline_name, chunk_size, logger, params):
+    logger.info('predicting')
+    meta_test = generate_metadata_from_folder(image_folder)
+    pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
+    prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, chunk_size, params.num_threads)
+    return prediction
 
 
 def make_submission(submission_filepath, logger, params):
