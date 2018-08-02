@@ -86,7 +86,7 @@ parameters:
 # Postprocessing
   threshold: 0.5
   erode_selem_size: 0
-  dilate_selem_size: 2
+  dilate_selem_size: 0
   tta_aggregation_method: gmean
   nms__iou_threshold: 0.5
 
@@ -103,16 +103,17 @@ parameters:
 #Scoring model
   scoring_model: 'lgbm'
   scoring_model__num_training_examples: 10000
+  scoring_model__train_size: 0.7
+  scoring_model__target: 'iou'
 
 #LightGBM
-  lgbm__learning_rate: 0.01
+  lgbm__device: cpu
+  lgbm__learning_rate: 0.2
   lgbm__num_leaves: 500
   lgbm__min_data: 100
   lgbm__max_depth: 20
-  lgbm__number_of_trees: 50000
-  lgbm__early_stopping: 10
-  lgbm__train_size: 0.7
-  lgbm__target: 'iou'
+  lgbm__number_of_trees: 50
+  lgbm__early_stopping: 5
 
 #Random Forest
   rf__n_estimators: 500
@@ -124,3 +125,4 @@ parameters:
   rf__max_leaf_nodes: 500
   rf__n_jobs: 10
   rf__verbose: 0
+
