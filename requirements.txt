@@ -11,7 +11,7 @@ scikit_image==0.13.1
 torchvision==0.2.0
 numpy==1.14.0
 imgaug==0.2.5
-neptune_cli==2.8.0
+neptune-cli
 ipython==6.3.1
 Pillow==5.1.0
 PyYAML==3.12
