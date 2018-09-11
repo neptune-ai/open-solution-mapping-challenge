@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/LICENSE)
 
 ## Poster :earth_africa:
-Poster that summarizs our project is [available here](https://gist.github.com/kamil-kaczmarek/b3b939797fb39752c45fdadfedba3ed9/raw/7fa365392997e9eae91c911c1837b45bfca45687/EP_poster.pdf).
+Poster that summarizes our project is [available here](https://gist.github.com/kamil-kaczmarek/b3b939797fb39752c45fdadfedba3ed9/raw/7fa365392997e9eae91c911c1837b45bfca45687/EP_poster.pdf).
 
 ## Intro
 Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge) competition.
@@ -45,7 +45,7 @@ Check [REPRODUCE_RESULTS](REPRODUCE_RESULTS.md)
 
 ### :heavy_multiplication_x: What didn't Work
 * Ground truth masks are prepared by first eroding them per mask creating non overlapping masks and only after that the distances are calculated ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:).
-* Dilated small objectcs to increase the signal ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:).
+* Dilated small objects to increase the signal ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/preparation.py) :computer:).
 * Network is fed with random crops ([code](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/src/loaders.py#L225-L243) :computer: and [config](https://github.com/minerva-ml/open-solution-mapping-challenge/blob/master/neptune.yaml#L47) :bookmark_tabs:).
 
 ### :thinking: What could have worked but we haven't tried it
