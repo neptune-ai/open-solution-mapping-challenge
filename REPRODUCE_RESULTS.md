@@ -46,8 +46,8 @@ dilate_selem_size: 0
     * cloud via neptune
         ```bash
         neptune login
-        neptune send --worker gcp-large --environment pytorch-0.2.0-gpu-py3 main.py -- prepare_masks
-        neptune send --worker gcp-large --environment pytorch-0.2.0-gpu-py3 main.py -- prepare_metadata --train_data --valid_data --test_data
+        neptune send --worker gcp-large --environment pytorch-0.3.1-gpu-py3 main.py -- prepare_masks
+        neptune send --worker gcp-large --environment pytorch-0.3.1-gpu-py3 main.py -- prepare_metadata --train_data --valid_data --test_data
         ```
     * local pure python
         ```bash
@@ -64,7 +64,7 @@ dilate_selem_size: 0
 * cloud via neptune
     ```bash
     neptune login
-    neptune send --worker gcp-large --environment pytorch-0.2.0-gpu-py3 main.py -- train --pipeline_name unet_weighted
+    neptune send --worker gcp-large --environment pytorch-0.3.1-gpu-py3 main.py -- train --pipeline_name unet_weighted
     ```
 * local pure python
     ```bash
@@ -87,7 +87,7 @@ dilate_selem_size: 2
 * cloud via neptune
     ```bash
     neptune login
-    neptune send --worker gcp-large --environment pytorch-0.2.0-gpu-py3 main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
+    neptune send --worker gcp-large --environment pytorch-0.3.1-gpu-py3 main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
     ```
 * local pure python
     ```bash
