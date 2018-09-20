@@ -143,11 +143,11 @@ SOLUTION_CONFIG = AttrDict({
                                                     'num_threads': params.num_threads},
                                    'training_params': {'number_boosting_rounds': params.lgbm__number_of_trees,
                                                        'early_stopping_rounds': params.lgbm__early_stopping},
-                                   'train_size': params.lgbm__train_size,
-                                   'target': params.lgbm__target
+                                   'train_size': params.scoring_model__train_size,
+                                   'target': params.scoring_model__target
                                    },
-                      'random_forest': {'train_size': params.lgbm__train_size,
-                                        'target': params.lgbm__target,
+                      'random_forest': {'train_size': params.scoring_model__train_size,
+                                        'target': params.scoring_model__target,
                                         'model_params': {'n_estimators': params.rf__n_estimators,
                                                          'criterion': params.rf__criterion,
                                                          'max_depth': params.rf__max_depth,

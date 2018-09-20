@@ -89,5 +89,14 @@ def submit_predictions(submission_filepath):
     pipeline_manager.make_submission(submission_filepath)
 
 
+@main.command()
+@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
+@click.option('-i', '--image_folder', help='folder with images', required=True)
+@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
+              required=False)
+def predict_on_folder(image_folder, pipeline_name, chunk_size):
+    pipeline_manager.predict_on_folder(image_folder, pipeline_name, chunk_size)
+
+
 if __name__ == "__main__":
     main()
