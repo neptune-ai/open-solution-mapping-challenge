@@ -6,6 +6,9 @@
 ## Poster :earth_africa:
 Poster that summarizes our project is [available here](https://gist.github.com/kamil-kaczmarek/b3b939797fb39752c45fdadfedba3ed9/raw/7fa365392997e9eae91c911c1837b45bfca45687/EP_poster.pdf).
 
+## More competitions
+Check collection of [public projects :computer:](https://app.neptune.ml/-/explore), where you can find multiple Kaggle competitions with code, experiments and outputs.
+
 ## Intro
 Open solution to the [CrowdAI Mapping Challenge](https://www.crowdai.org/challenges/mapping-challenge) competition.
 1. Check **live preview of our work** on public projects page: [Mapping Challenge](https://app.neptune.ml/neptune-ml/Mapping-Challenge) [:chart_with_upwards_trend:](https://app.neptune.ml/neptune-ml/Mapping-Challenge).
