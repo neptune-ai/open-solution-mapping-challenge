@@ -8,13 +8,13 @@ git clone https://github.com/minerva-ml/open-solution-mapping-challenge.git
 pip3 install -r requirements.txt
 ```
 * download the data from the [competition site](https://www.crowdai.org/challenges/mapping-challenge/dataset_files)
-* register to [neptune.ml](https://neptune.ml) *(if you wish to use it)* and remember your USERNAME :wink:
-* login to [neptune.ml](https://neptune.ml)
+* register to [neptune.ml](http://bit.ly/2HtXtMH) *(if you wish to use it)* and remember your USERNAME :wink:
+* login to [neptune.ml](http://bit.ly/2HtXtMH)
 ```bash
 neptune account login
 ```
-* open [neptune.ml](https://neptune.ml) and create new project called: `Mapping-Challenge` with project key: `MC`
-* upload the data to [neptune.ml](https://neptune.ml) (if you want to run computations in the cloud) via:
+* open [neptune.ml](http://bit.ly/2HtXtMH) and create new project called: `Mapping-Challenge` with project key: `MC`
+* upload the data to [neptune.ml](http://bit.ly/2HtXtMH) (if you want to run computations in the cloud) via:
 ```bash
 neptune data upload -r --project USERNAME/Mapping-Challenge YOUR/DATA/FOLDER
 ```
