@@ -3,7 +3,6 @@ from src.pipeline_manager import PipelineManager
 
 pipeline_manager = PipelineManager()
 
-
 @click.group()
 def main():
     pass
@@ -28,7 +27,9 @@ def prepare_metadata(train_data, valid_data, test_data, public_paths):
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
 def train(pipeline_name, dev_mode):
+    pipeline_manager.start_experiment()
     pipeline_manager.train(pipeline_name, dev_mode)
+    pipeline_manager.finish_experiment()
 
 
 @main.command()
@@ -37,7 +38,9 @@ def train(pipeline_name, dev_mode):
 @click.option('-c', '--chunk_size', help='size of the chunks to run evaluation on', type=int, default=None,
               required=False)
 def evaluate(pipeline_name, dev_mode, chunk_size):
+    pipeline_manager.start_experiment()
     pipeline_manager.evaluate(pipeline_name, dev_mode, chunk_size)
+    pipeline_manager.finish_experiment()
 
 
 @main.command()
@@ -57,8 +60,11 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
 @click.option('-c', '--chunk_size', help='size of the chunks to run evaluation and prediction on', type=int,
               default=None, required=False)
 def train_evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
+    pipeline_manager.start_experiment()
     pipeline_manager.train(pipeline_name, dev_mode)
     pipeline_manager.evaluate(pipeline_name, dev_mode, chunk_size)
+    pipeline_manager.finish_experiment()
+
     pipeline_manager.predict(pipeline_name, dev_mode, submit_predictions, chunk_size)
 
 
@@ -68,8 +74,10 @@ def train_evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_si
 @click.option('-c', '--chunk_size', help='size of the chunks to run evaluation and prediction on', type=int,
               default=None, required=False)
 def train_evaluate(pipeline_name, dev_mode, chunk_size):
+    pipeline_manager.start_experiment()
     pipeline_manager.train(pipeline_name, dev_mode)
     pipeline_manager.evaluate(pipeline_name, dev_mode, chunk_size)
+    pipeline_manager.finish_experiment()
 
 
 @main.command()
@@ -79,7 +87,10 @@ def train_evaluate(pipeline_name, dev_mode, chunk_size):
 @click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
               required=False)
 def evaluate_predict(pipeline_name, submit_predictions, dev_mode, chunk_size):
+    pipeline_manager.start_experiment()
     pipeline_manager.evaluate(pipeline_name, dev_mode, chunk_size)
+    pipeline_manager.finish_experiment()
+
     pipeline_manager.predict(pipeline_name, dev_mode, submit_predictions, chunk_size)
 
 

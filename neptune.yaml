@@ -3,22 +3,6 @@ project: YOUR_PROJECT_NAME
 name: mapping_challenge_open_solution
 tags: [solution_5]
 
-metric:
-  channel: 'Final Validation Score'
-  goal: maximize
-
-#Comment out if not in Cloud Environment
-#pip-requirements-file: requirements.txt
-
-exclude:
-  - .git
-  - .idea
-  - .ipynb_checkpoints
-  - output
-  - imgs
-  - neptune.log
-  - offline_job.log
-  - notebooks
 
 parameters:
 # Data Paths

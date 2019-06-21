@@ -3,11 +3,9 @@ import multiprocessing as mp
 import os
 
 import numpy as np
-import torch
 from imageio import imwrite
 from pycocotools import mask as cocomask
 from pycocotools.coco import COCO
-from skimage.transform import resize
 from skimage.morphology import binary_erosion, rectangle, binary_dilation
 from scipy.ndimage.morphology import distance_transform_edt
 from sklearn.externals import joblib

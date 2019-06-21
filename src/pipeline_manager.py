@@ -10,7 +10,7 @@ from pycocotools.coco import COCO
 from .pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, SEED, CATEGORY_LAYERS
 from .pipelines import PIPELINES
 from .preparation import overlay_masks
-from .utils import init_logger, read_params, generate_metadata, set_seed, coco_evaluation, \
+from .utils import init_logger, read_config, generate_metadata, set_seed, coco_evaluation, \
     create_annotations, generate_data_frame_chunks
 
 
@@ -19,8 +19,14 @@ class PipelineManager():
         self.logger = init_logger()
         self.seed = SEED
         set_seed(self.seed)
-        self.ctx = neptune.Context()
-        self.params = read_params(self.ctx, fallback_file='neptune.yaml')
+        self.config = read_config(config_path=os.getenv('NEPTUNE_CONFIG_PATH'))
+        self.params = self.config.parameters
+
+    def start_experiment(self):
+        neptune.init(project_qualified_name=self.config.project)
+        neptune.create_experiment(name=self.config.name,
+                                  params=self.params,
+                                  tags=self.config.tags)
 
     def prepare_masks(self, dev_mode):
         prepare_masks(dev_mode, self.logger, self.params)
@@ -32,13 +38,16 @@ class PipelineManager():
         train(pipeline_name, dev_mode, self.logger, self.params, self.seed)
 
     def evaluate(self, pipeline_name, dev_mode, chunk_size):
-        evaluate(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed, self.ctx)
+        evaluate(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed)
 
     def predict(self, pipeline_name, dev_mode, submit_predictions, chunk_size):
         predict(pipeline_name, dev_mode, submit_predictions, chunk_size, self.logger, self.params, self.seed)
 
     def make_submission(self, submission_filepath):
         make_submission(submission_filepath, self.logger, self.params)
+
+    def finish_experiment(self):
+        neptune.stop()
 
 
 def prepare_masks(dev_mode, logger, params):
@@ -117,7 +126,7 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     pipeline.clean_cache()
 
 
-def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed, ctx):
+def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed):
     logger.info('evaluating')
     meta = pd.read_csv(os.path.join(params.meta_dir,
                                     'stage{}_metadata.csv'.format(params.competition_stage)))
@@ -145,8 +154,8 @@ def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed, ctx):
                                                         small_annotations_size=params.small_annotations_size)
     logger.info('Mean precision on validation is {}'.format(average_precision))
     logger.info('Mean recall on validation is {}'.format(average_recall))
-    ctx.channel_send('Precision', 0, average_precision)
-    ctx.channel_send('Recall', 0, average_recall)
+    neptune.send_metric('Precision', average_precision)
+    neptune.send_metric('Recall', average_recall)
 
 
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, params, seed):

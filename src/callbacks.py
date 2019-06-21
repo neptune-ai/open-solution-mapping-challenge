@@ -4,7 +4,7 @@ import torch
 import json
 import subprocess
 from PIL import Image
-from deepsense import neptune
+import neptune
 from torch.autograd import Variable
 from tempfile import TemporaryDirectory
 
@@ -48,10 +48,7 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
                 pill_image = pill_image.resize((int(self.image_resize * w_), int(self.image_resize * h_)),
                                                Image.ANTIALIAS)
 
-                self.ctx.channel_send('{} {}'.format(self.model_name, name), neptune.Image(
-                    name='epoch{}_batch{}_idx{}'.format(self.epoch_id, self.batch_id, i),
-                    description="true and prediction masks",
-                    data=pill_image))
+                neptune.send_image('{} {}'.format(self.model_name, name), pill_image)
 
                 if i == self.image_nr:
                     break

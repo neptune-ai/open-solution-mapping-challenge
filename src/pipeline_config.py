@@ -1,12 +1,11 @@
 import os
 
 from attrdict import AttrDict
-from deepsense import neptune
 
-from .utils import read_params
+from .utils import read_config
 
-ctx = neptune.Context()
-params = read_params(ctx, fallback_file='neptune.yaml')
+config = read_config(config_path=os.getenv('NEPTUNE_CONFIG_PATH'))
+params = config.parameters
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']

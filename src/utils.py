@@ -25,12 +25,6 @@ from .cocoeval import COCOeval
 from .steps.base import BaseTransformer
 
 
-def read_yaml(filepath):
-    with open(filepath) as f:
-        config = yaml.load(f)
-    return AttrDict(config)
-
-
 def init_logger():
     logger = logging.getLogger('mapping-challenge')
     logger.setLevel(logging.INFO)
@@ -122,13 +116,10 @@ def bounding_box_from_rle(rle):
     return list(cocomask.toBbox(rle))
 
 
-def read_params(ctx, fallback_file):
-    if ctx.params.__class__.__name__ == 'OfflineContextParams':
-        neptune_config = read_yaml(fallback_file)
-        params = neptune_config.parameters
-    else:
-        params = ctx.params
-    return params
+def read_config(config_path):
+    with open(config_path) as f:
+        config = yaml.load(f)
+    return AttrDict(config)
 
 
 def generate_metadata(data_dir,
