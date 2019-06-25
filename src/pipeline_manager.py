@@ -2,7 +2,7 @@ import os
 import shutil
 
 import pandas as pd
-from deepsense import neptune
+import neptune
 import crowdai
 import json
 from pycocotools.coco import COCO

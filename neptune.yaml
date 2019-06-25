@@ -70,7 +70,7 @@ parameters:
 # Postprocessing
   threshold: 0.5
   erode_selem_size: 0
-  dilate_selem_size: 2
+  dilate_selem_size: 0
   tta_aggregation_method: gmean
   nms__iou_threshold: 0.5
 
