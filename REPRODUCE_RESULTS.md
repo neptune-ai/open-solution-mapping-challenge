@@ -60,7 +60,7 @@ python main.py prepare_metadata --train_data --valid_data --test_data
 This will train your neural network
 
 ```bash
-python main.py -- train --pipeline_name unet_weighted
+python main.py train --pipeline_name unet_weighted
 ```
 
 ### Second level model (optional)
@@ -74,7 +74,7 @@ CATEGORY_LAYERS = [1, 19]
 ```
 
 ```bash
-python main.py -- train --pipeline_name scoring_model
+python main.py train --pipeline_name scoring_model
 ```
 
 ## Evaluate model and predict on test data:
@@ -92,13 +92,13 @@ dilate_selem_size: 2
 ### Standard Unet evaluation
 
 ```bash
-python main.py -- evaluate_predict --pipeline_name unet
+python main.py evaluate_predict --pipeline_name unet
 ```
 
 With Test time augmentation
 
 ```bash
-python main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
+python main.py evaluate_predict --pipeline_name unet_tta --chunk_size 1000
 ```
 
 ### Second level model (optional)
@@ -112,7 +112,7 @@ CATEGORY_LAYERS = [1, 19]
 ```
 
 ```bash
-python main.py -- evaluate_predict --pipeline_name unet_tta_scoring_model --chunk_size 1000
+python main.py evaluate_predict --pipeline_name unet_tta_scoring_model --chunk_size 1000
 ```
 
 ## Enjoy results :trophy:
