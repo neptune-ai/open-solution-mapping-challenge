@@ -56,20 +56,63 @@ python main.py prepare_metadata --train_data --valid_data --test_data
 
 ## Train model :rocket:
 
+### Unet Network
+This will train your neural network
+
 ```bash
 python main.py -- train --pipeline_name unet_weighted
 ```
 
+### Second level model (optional)
+This will train a lightgbm to be able to get the best threshold.
+Go to `pipeline_config.py` and change the number of thresholds to choose from for the building class.
+19 means that your scoring model will learn which out of 19 threshold options (0.05...0.95) to choose for 
+a particular image.
+
+```python
+CATEGORY_LAYERS = [1, 19]
+```
+
+```bash
+python main.py -- train --pipeline_name scoring_model
+```
+
 ## Evaluate model and predict on test data:
-Change values in the configuration file `neptune.yaml`. Suggested setup:
+
+Change values in the configuration file `neptune.yaml`. 
+Suggested setup:
+
 ```yaml
 tta_aggregation_method: gmean
 loader_mode: resize
 erode_selem_size: 0
 dilate_selem_size: 2
 ```
+
+### Standard Unet evaluation
+
+```bash
+python main.py -- evaluate_predict --pipeline_name unet
+```
+
+With Test time augmentation
+
 ```bash
 python main.py -- evaluate_predict --pipeline_name unet_tta --chunk_size 1000
+```
+
+### Second level model (optional)
+
+If you trained the second layer model go to the `pipeline_config.py` and change the `CATEGORY_LAYER` to 
+what you chose during training. 
+For example,
+
+```python
+CATEGORY_LAYERS = [1, 19]
+```
+
+```bash
+python main.py -- evaluate_predict --pipeline_name unet_tta_scoring_model --chunk_size 1000
 ```
 
 ## Enjoy results :trophy:

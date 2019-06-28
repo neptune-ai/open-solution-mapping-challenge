@@ -13,7 +13,7 @@ Y_COLUMNS = ['file_path_mask_eroded_0_dilated_0']
 Y_COLUMNS_SCORING = ['ImageId']
 SEED = 1234
 CATEGORY_IDS = [None, 100]
-CATEGORY_LAYERS = [1, 19]
+CATEGORY_LAYERS = [1, 1]  # thresholds, 1 means [0.5], 19 means [0.05, ... 0.95] use only with second layer model
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 

@@ -10,11 +10,11 @@ from pycocotools.coco import COCO
 from .pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, SEED, CATEGORY_LAYERS
 from .pipelines import PIPELINES
 from .preparation import overlay_masks
-from .utils import init_logger, read_config, generate_metadata, set_seed, coco_evaluation, \
+from .utils import init_logger, read_config, get_filepaths, generate_metadata, set_seed, coco_evaluation, \
     create_annotations, generate_data_frame_chunks
 
 
-class PipelineManager():
+class PipelineManager:
     def __init__(self):
         self.logger = init_logger()
         self.seed = SEED
@@ -26,6 +26,7 @@ class PipelineManager():
         neptune.init(project_qualified_name=self.config.project)
         neptune.create_experiment(name=self.config.name,
                                   params=self.params,
+                                  upload_source_files=get_filepaths(),
                                   tags=self.config.tags)
 
     def prepare_masks(self, dev_mode):
@@ -35,12 +36,30 @@ class PipelineManager():
         prepare_metadata(train_data, valid_data, test_data, public_paths, self.logger, self.params)
 
     def train(self, pipeline_name, dev_mode):
+        if 'scoring' in pipeline_name:
+            assert CATEGORY_LAYERS[1] > 1, """You are running training on a second layer model that chooses 
+               which threshold should be chosen for a particular image. You need to specify a larger number of 
+               possible thresholds in the CATEGORY_LAYERS, suggested is 19"""
         train(pipeline_name, dev_mode, self.logger, self.params, self.seed)
 
     def evaluate(self, pipeline_name, dev_mode, chunk_size):
+        if 'scoring' in pipeline_name:
+            assert CATEGORY_LAYERS[1] > 1, """You are running inference with a second layer model that chooses 
+               which threshold should be chosen for a particular image. You need to specify a larger number of 
+               possible thresholds in the CATEGORY_LAYERS, suggested is 19"""
+        else:
+            assert CATEGORY_LAYERS[1] == 1, """You are running inference without a second layer model.
+            Change thresholds setup in CATEGORY_LAYERS to [1,1]"""
         evaluate(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed)
 
     def predict(self, pipeline_name, dev_mode, submit_predictions, chunk_size):
+        if 'scoring' in pipeline_name:
+            assert CATEGORY_LAYERS[1] > 1, """You are running inference with a second layer model that chooses 
+               which threshold should be chosen for a particular image. You need to specify a larger number of 
+               possible thresholds in the CATEGORY_LAYERS, suggested is 19"""
+        else:
+            assert CATEGORY_LAYERS[1] == 1, """You are running inference without a second layer model.
+            Change thresholds setup in CATEGORY_LAYERS to [1,1]"""
         predict(pipeline_name, dev_mode, submit_predictions, chunk_size, self.logger, self.params, self.seed)
 
     def make_submission(self, submission_filepath):

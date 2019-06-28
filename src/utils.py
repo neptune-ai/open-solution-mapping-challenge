@@ -47,6 +47,17 @@ def get_logger():
     return logging.getLogger('mapping-challenge')
 
 
+def get_filepaths(dirpath='.', extensions=None):
+    if not extensions:
+        extensions = ['.py', '.yaml', 'yml']
+    files = []
+    for r, d, f in os.walk(dirpath):
+        for file in f:
+            if any(file.endswith(ext) for ext in extensions):
+                files.append(os.path.join(r, file))
+    return files
+
+
 def decompose(labeled):
     nr_true = labeled.max()
     masks = []
