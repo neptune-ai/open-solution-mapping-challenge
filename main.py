@@ -3,6 +3,7 @@ from src.pipeline_manager import PipelineManager
 
 pipeline_manager = PipelineManager()
 
+
 @click.group()
 def main():
     pass
@@ -51,6 +52,16 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
               required=False)
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     pipeline_manager.predict(pipeline_name, dev_mode, submit_predictions, chunk_size)
+
+
+@main.command()
+@click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
+@click.option('-d', '--dir_path', help='directory with images to score', required=True)
+@click.option('-r', '--prediction_path', help='path to the prediction .json file', required=True)
+@click.option('-c', '--chunk_size', help='size of the chunks to run prediction on', type=int, default=None,
+              required=False)
+def predict_on_dir(pipeline_name, dir_path, prediction_path, chunk_size):
+    pipeline_manager.predict_on_dir(pipeline_name, dir_path, prediction_path, chunk_size)
 
 
 @main.command()

@@ -11,7 +11,7 @@ from .pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, S
 from .pipelines import PIPELINES
 from .preparation import overlay_masks
 from .utils import init_logger, read_config, get_filepaths, generate_metadata, set_seed, coco_evaluation, \
-    create_annotations, generate_data_frame_chunks
+    create_annotations, generate_data_frame_chunks, generate_inference_metadata
 
 
 class PipelineManager:
@@ -61,6 +61,16 @@ class PipelineManager:
             assert CATEGORY_LAYERS[1] == 1, """You are running inference without a second layer model.
             Change thresholds setup in CATEGORY_LAYERS to [1,1]"""
         predict(pipeline_name, dev_mode, submit_predictions, chunk_size, self.logger, self.params, self.seed)
+
+    def predict_on_dir(self, pipeline_name, dir_path, prediction_path, chunk_size):
+        if 'scoring' in pipeline_name:
+            assert CATEGORY_LAYERS[1] > 1, """You are running inference with a second layer model that chooses 
+               which threshold should be chosen for a particular image. You need to specify a larger number of 
+               possible thresholds in the CATEGORY_LAYERS, suggested is 19"""
+        else:
+            assert CATEGORY_LAYERS[1] == 1, """You are running inference without a second layer model.
+            Change thresholds setup in CATEGORY_LAYERS to [1,1]"""
+        predict_on_dir(pipeline_name, dir_path, prediction_path, chunk_size, self.logger, self.params)
 
     def make_submission(self, submission_filepath):
         make_submission(submission_filepath, self.logger, self.params)
@@ -198,6 +208,20 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, par
 
     if submit_predictions:
         make_submission(submission_filepath)
+
+
+def predict_on_dir(pipeline_name, dir_path, prediction_path, chunk_size, logger, params):
+    logger.info('creating metadata')
+    meta = generate_inference_metadata(images_dir=dir_path)
+
+    logger.info('predicting')
+    pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
+    prediction = generate_prediction(meta, pipeline, logger, CATEGORY_IDS, chunk_size, params.num_threads)
+
+    with open(prediction_path, "w") as fp:
+        fp.write(json.dumps(prediction))
+        logger.info('submission saved to {}'.format(prediction_path))
+        logger.info('submission head \n\n{}'.format(prediction[0]))
 
 
 def make_submission(submission_filepath, logger, params):

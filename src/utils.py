@@ -220,6 +220,22 @@ def generate_metadata(data_dir,
     return metadata
 
 
+def generate_inference_metadata(images_dir):
+    df_dict = defaultdict(lambda: [])
+    for image_file_path in tqdm(sorted(glob.glob('{}/*'.format(images_dir)))):
+        image_id = ntpath.basename(image_file_path).split('.')[0]
+
+        n_buildings = None
+        df_dict['ImageId'].append(image_id)
+        df_dict['file_path_image'].append(image_file_path)
+        df_dict['is_train'].append(0)
+        df_dict['is_valid'].append(0)
+        df_dict['is_test'].append(1)
+        df_dict['n_buildings'].append(n_buildings)
+
+    return pd.DataFrame.from_dict(df_dict)
+
+
 def squeeze_inputs(inputs):
     return np.squeeze(inputs[0], axis=1)
 
