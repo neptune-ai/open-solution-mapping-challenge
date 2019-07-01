@@ -236,6 +236,15 @@ def generate_inference_metadata(images_dir):
     return pd.DataFrame.from_dict(df_dict)
 
 
+def check_env_vars():
+    assert os.getenv('NEPTUNE_API_TOKEN'), """You must put your Neptune API token in the \
+NEPTUNE_API_TOKEN env variable. You should run:
+    $ export NEPTUNE_API_TOKEN=your_neptune_api_token"""
+    assert os.getenv('NEPTUNE_CONFIG_PATH'), """You must specify path to the Neptune config file in \
+NEPTUNE_CONFIG_PATH env variable. For example run:
+    $ export NEPTUNE_CONFIG_PATH=neptune.yaml"""
+
+
 def squeeze_inputs(inputs):
     return np.squeeze(inputs[0], axis=1)
 
