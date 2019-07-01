@@ -115,4 +115,30 @@ CATEGORY_LAYERS = [1, 19]
 python main.py evaluate_predict --pipeline_name unet_tta_scoring_model --chunk_size 1000
 ```
 
+
+## Predict on new data
+
+Put your images in some `inference_directory`.
+
+Change values in the configuration file `neptune.yaml`. 
+Suggested setup:
+
+```yaml
+tta_aggregation_method: gmean
+loader_mode: resize
+erode_selem_size: 0
+dilate_selem_size: 2
+```
+
+Run prediction on this directory:
+
+```bash
+python main.py predict_on_dir \
+--pipeline_name unet_tta_scoring_model \
+--chunk_size 1000 \
+--dir_path path/to/inference_directory \
+--prediction_path path/to/predictions.json
+
+```
+
 ## Enjoy results :trophy:
