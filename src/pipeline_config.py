@@ -2,7 +2,9 @@ import os
 
 from attrdict import AttrDict
 
-from .utils import read_config
+from .utils import read_config, check_env_vars
+
+check_env_vars()
 
 config = read_config(config_path=os.getenv('NEPTUNE_CONFIG_PATH'))
 params = config.parameters
