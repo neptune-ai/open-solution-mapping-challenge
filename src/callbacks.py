@@ -76,7 +76,7 @@ class NeptuneMonitorSegmentation(NeptuneMonitor):
                     if name in self.outputs_to_plot:
                         prediction = []
                         for image in softmax(output.data.cpu().numpy()):
-                            prediction.append(post.categorize_image(image))
+                            prediction.append(image[:, :, -1])
                         prediction = np.stack(prediction)
                         ground_truth = np.squeeze(target.cpu().numpy(), axis=1)
                         n_channels = output.data.cpu().numpy().shape[1]
