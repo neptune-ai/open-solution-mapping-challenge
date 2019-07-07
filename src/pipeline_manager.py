@@ -3,7 +3,6 @@ import shutil
 
 import pandas as pd
 import neptune
-import crowdai
 import json
 from pycocotools.coco import COCO
 
@@ -19,7 +18,7 @@ class PipelineManager:
         self.logger = init_logger()
         self.seed = SEED
         set_seed(self.seed)
-        self.config = read_config(config_path=os.getenv('NEPTUNE_CONFIG_PATH'))
+        self.config = read_config(config_path=os.getenv('CONFIG_PATH'))
         self.params = self.config.parameters
 
     def start_experiment(self):
@@ -206,9 +205,6 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, par
         logger.info('submission saved to {}'.format(submission_filepath))
         logger.info('submission head \n\n{}'.format(submission[0]))
 
-    if submit_predictions:
-        make_submission(submission_filepath)
-
 
 def predict_on_dir(pipeline_name, dir_path, prediction_path, chunk_size, logger, params):
     logger.info('creating metadata')
@@ -222,14 +218,6 @@ def predict_on_dir(pipeline_name, dir_path, prediction_path, chunk_size, logger,
         fp.write(json.dumps(prediction))
         logger.info('submission saved to {}'.format(prediction_path))
         logger.info('submission head \n\n{}'.format(prediction[0]))
-
-
-def make_submission(submission_filepath, logger, params):
-    api_key = params.api_key
-
-    challenge = crowdai.Challenge("crowdAIMappingChallenge", api_key)
-    logger.info('submitting predictions to crowdai')
-    challenge.submit(submission_filepath)
 
 
 def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size, num_threads=1):

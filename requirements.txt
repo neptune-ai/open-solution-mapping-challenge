@@ -16,6 +16,5 @@ ipython==6.3.1
 Pillow==5.1.0
 pyyaml>=4.2b1
 Cython==0.28.2
-crowdai==1.0.19
 git+https://github.com/lucasb-eyer/pydensecrf.git
 pycocotools==2.0.0
