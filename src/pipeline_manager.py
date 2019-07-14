@@ -3,7 +3,6 @@ import shutil
 
 import pandas as pd
 import neptune
-import crowdai
 import json
 from pycocotools.coco import COCO
 
@@ -19,7 +18,7 @@ class PipelineManager:
         self.logger = init_logger()
         self.seed = SEED
         set_seed(self.seed)
-        self.config = read_config(config_path=os.getenv('NEPTUNE_CONFIG_PATH'))
+        self.config = read_config(config_path=os.getenv('CONFIG_PATH'))
         self.params = self.config.parameters
 
     def start_experiment(self):
@@ -32,8 +31,8 @@ class PipelineManager:
     def prepare_masks(self, dev_mode):
         prepare_masks(dev_mode, self.logger, self.params)
 
-    def prepare_metadata(self, train_data, valid_data, test_data, public_paths):
-        prepare_metadata(train_data, valid_data, test_data, public_paths, self.logger, self.params)
+    def prepare_metadata(self, train_data, valid_data, test_data):
+        prepare_metadata(train_data, valid_data, test_data, self.logger, self.params)
 
     def train(self, pipeline_name, dev_mode):
         if 'scoring' in pipeline_name:
@@ -52,7 +51,7 @@ class PipelineManager:
             Change thresholds setup in CATEGORY_LAYERS to [1,1]"""
         evaluate(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed)
 
-    def predict(self, pipeline_name, dev_mode, submit_predictions, chunk_size):
+    def predict(self, pipeline_name, dev_mode, chunk_size):
         if 'scoring' in pipeline_name:
             assert CATEGORY_LAYERS[1] > 1, """You are running inference with a second layer model that chooses 
                which threshold should be chosen for a particular image. You need to specify a larger number of 
@@ -60,7 +59,7 @@ class PipelineManager:
         else:
             assert CATEGORY_LAYERS[1] == 1, """You are running inference without a second layer model.
             Change thresholds setup in CATEGORY_LAYERS to [1,1]"""
-        predict(pipeline_name, dev_mode, submit_predictions, chunk_size, self.logger, self.params, self.seed)
+        predict(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed)
 
     def predict_on_dir(self, pipeline_name, dir_path, prediction_path, chunk_size):
         if 'scoring' in pipeline_name:
@@ -71,9 +70,6 @@ class PipelineManager:
             assert CATEGORY_LAYERS[1] == 1, """You are running inference without a second layer model.
             Change thresholds setup in CATEGORY_LAYERS to [1,1]"""
         predict_on_dir(pipeline_name, dir_path, prediction_path, chunk_size, self.logger, self.params)
-
-    def make_submission(self, submission_filepath):
-        make_submission(submission_filepath, self.logger, self.params)
 
     def finish_experiment(self):
         neptune.stop()
@@ -99,19 +95,17 @@ def prepare_masks(dev_mode, logger, params):
                       small_annotations_size=params.small_annotations_size)
 
 
-def prepare_metadata(train_data, valid_data, test_data, public_paths, logger, params):
+def prepare_metadata(train_data, valid_data, test_data, logger, params):
     logger.info('creating metadata')
 
     meta = generate_metadata(data_dir=params.data_dir,
                              meta_dir=params.meta_dir,
                              masks_overlayed_prefix=params.masks_overlayed_prefix,
-                             competition_stage=params.competition_stage,
                              process_train_data=train_data,
                              process_validation_data=valid_data,
-                             process_test_data=test_data,
-                             public_paths=public_paths)
+                             process_test_data=test_data)
 
-    metadata_filepath = os.path.join(params.meta_dir, 'stage{}_metadata.csv').format(params.competition_stage)
+    metadata_filepath = os.path.join(params.meta_dir, 'metadata.csv')
     logger.info('saving metadata to {}'.format(metadata_filepath))
     meta.to_csv(metadata_filepath, index=None)
 
@@ -121,8 +115,7 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     if bool(params.overwrite) and os.path.isdir(params.experiment_dir):
         shutil.rmtree(params.experiment_dir)
 
-    meta = pd.read_csv(os.path.join(params.meta_dir, 'stage{}_metadata.csv'.format(params.competition_stage)),
-                       low_memory=False)
+    meta = pd.read_csv(os.path.join(params.meta_dir, 'metadata.csv'), low_memory=False)
     meta_train = meta[meta['is_train'] == 1]
     meta_valid = meta[meta['is_valid'] == 1]
 
@@ -157,8 +150,8 @@ def train(pipeline_name, dev_mode, logger, params, seed):
 
 def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed):
     logger.info('evaluating')
-    meta = pd.read_csv(os.path.join(params.meta_dir,
-                                    'stage{}_metadata.csv'.format(params.competition_stage)))
+    meta = pd.read_csv(os.path.join(params.meta_dir, 'metadata.csv'), low_memory=False)
+
     meta_valid = meta[meta['is_valid'] == 1]
 
     meta_valid = meta_valid.sample(int(params.evaluation_data_sample), random_state=seed)
@@ -187,10 +180,10 @@ def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed):
     neptune.send_metric('Recall', average_recall)
 
 
-def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, params, seed):
+def predict(pipeline_name, dev_mode, chunk_size, logger, params, seed):
     logger.info('predicting')
-    meta = pd.read_csv(os.path.join(params.meta_dir,
-                                    'stage{}_metadata.csv'.format(params.competition_stage)))
+    meta = pd.read_csv(os.path.join(params.meta_dir, 'metadata.csv'), low_memory=False)
+
     meta_test = meta[meta['is_test'] == 1]
 
     if dev_mode:
@@ -206,9 +199,6 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, par
         logger.info('submission saved to {}'.format(submission_filepath))
         logger.info('submission head \n\n{}'.format(submission[0]))
 
-    if submit_predictions:
-        make_submission(submission_filepath)
-
 
 def predict_on_dir(pipeline_name, dir_path, prediction_path, chunk_size, logger, params):
     logger.info('creating metadata')
@@ -222,14 +212,6 @@ def predict_on_dir(pipeline_name, dir_path, prediction_path, chunk_size, logger,
         fp.write(json.dumps(prediction))
         logger.info('submission saved to {}'.format(prediction_path))
         logger.info('submission head \n\n{}'.format(prediction[0]))
-
-
-def make_submission(submission_filepath, logger, params):
-    api_key = params.api_key
-
-    challenge = crowdai.Challenge("crowdAIMappingChallenge", api_key)
-    logger.info('submitting predictions to crowdai')
-    challenge.submit(submission_filepath)
 
 
 def generate_prediction(meta_data, pipeline, logger, category_ids, chunk_size, num_threads=1):

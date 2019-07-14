@@ -23,7 +23,7 @@ neptune account login
 
 ```bash
 export NEPTUNE_API_TOKEN=your_api_token
-export NEPTUNE_CONFIG_PATH=neptune.yaml
+export CONFIG_PATH=neptune.yaml
 ```
 
 * change project name in `neptune.yaml`:

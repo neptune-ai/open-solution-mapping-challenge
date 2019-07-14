@@ -15,7 +15,7 @@ from .steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpo
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
 from .steps.pytorch.models import Model
 from .steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
-from .steps.sklearn.models import LightGBM, make_transformer, SklearnRegressor
+from .steps.sklearn.models import LightGBM, SklearnRegressor
 from .utils import softmax
 from .unet_models import AlbuNet, UNet11, UNetVGG16, UNetResNet
 

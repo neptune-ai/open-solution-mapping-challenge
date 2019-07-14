@@ -69,7 +69,7 @@ def overlay_mask_one_image(image_id, dataset, target_dir, coco, category_ids, er
                                                                                small_annotations_size=small_annotations_size)
                 mask = add_dropped_objects(mask, mask_eroded)
             else:
-                mask, distances = overlay_eroded__dilated_masks_from_annotations(annotations=annotations,
+                mask, distances = overlay_eroded_dilated_masks_from_annotations(annotations=annotations,
                                                                                  image_size=image_size,
                                                                                  erode=erode,
                                                                                  dilate=dilate,
@@ -105,12 +105,15 @@ def overlay_masks_from_annotations(annotations, image_size, distances=None):
     for ann in annotations:
         rle = cocomask.frPyObjects(ann['segmentation'], image_size[0], image_size[1])
         m = cocomask.decode(rle)
-        m = m.reshape(image_size)
-        if is_on_border(m, 2):
-            continue
-        if distances is not None:
-            distances = update_distances(distances, m)
-        mask += m
+
+        for i in range(m.shape[-1]):
+            mi = m[:, :, i]
+            mi = mi.reshape(image_size)
+            if is_on_border(mi, 2):
+                continue
+            if distances is not None:
+                distances = update_distances(distances, mi)
+            mask += mi
     return np.where(mask > 0, 1, 0).astype('uint8'), distances
 
 
@@ -129,7 +132,7 @@ def overlay_eroded_masks_from_annotations(annotations, image_size, erode, distan
     return np.where(mask > 0, 1, 0).astype('uint8'), distances
 
 
-def overlay_eroded__dilated_masks_from_annotations(annotations, image_size, erode, dilate, distances,
+def overlay_eroded_dilated_masks_from_annotations(annotations, image_size, erode, dilate, distances,
                                                    small_annotations_size):
     mask = np.zeros(image_size)
     for ann in annotations:

@@ -319,7 +319,7 @@ class NeptuneMonitor(Callback):
         self.model.train()
         for name, loss in val_loss.items():
             loss = loss.data.cpu().numpy()[0]
-            neptune.send_metric('{} epoch_val {} loss'.format(self.model_name, name), x=self.epoch_id, y=loss)
+            neptune.send_metric('{} epoch_val {} loss/metric'.format(self.model_name, name), x=self.epoch_id, y=loss)
 
 
 class ExperimentTiming(Callback):
