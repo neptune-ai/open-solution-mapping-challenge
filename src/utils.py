@@ -244,7 +244,7 @@ def check_env_vars():
     assert os.getenv('NEPTUNE_API_TOKEN'), """You must put your Neptune API token in the \
 NEPTUNE_API_TOKEN env variable. You should run:
     $ export NEPTUNE_API_TOKEN=your_neptune_api_token"""
-    assert os.getenv('CONFIG_PATH'), """You must specify path to the Neptune config file in \
+    assert os.getenv('CONFIG_PATH'), """You must specify path to the config file in \
 CONFIG_PATH env variable. For example run:
     $ export CONFIG_PATH=neptune.yaml"""
 
