@@ -52,8 +52,8 @@ class MetadataImageSegmentationDataset(Dataset):
             mask_filepath = self.y[index]
             Mi = self.load_image(mask_filepath)
 
+            Xi, Mi = from_pil(Xi, Mi)
             if self.image_augment_with_target is not None:
-                Xi, Mi = from_pil(Xi, Mi)
                 Xi, Mi = self.image_augment_with_target(Xi, Mi)
             if self.image_augment is not None:
                 Xi = self.image_augment(Xi)

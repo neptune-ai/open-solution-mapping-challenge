@@ -139,12 +139,7 @@ def generate_metadata(data_dir,
                       process_train_data=True,
                       process_validation_data=True,
                       process_test_data=True,
-                      public_paths=False,
-                      competition_stage=1,
                       ):
-    if competition_stage != 1:
-        raise NotImplementedError('only stage_1 is supported for now')
-
     def _generate_metadata(dataset):
         assert dataset in ["train", "test", "val"], "Unknown dataset!"
 
@@ -156,9 +151,6 @@ def generate_metadata(data_dir,
         if dataset != "test_images":
             images_path = os.path.join(images_path, "images")
 
-        if public_paths:
-            raise NotImplementedError('public neptune paths not implemented')
-        else:
             masks_overlayed_dirs, mask_overlayed_suffix = [], []
             for file_path in glob.glob('{}/*'.format(meta_dir)):
                 if ntpath.basename(file_path).startswith(masks_overlayed_prefix):
@@ -166,8 +158,19 @@ def generate_metadata(data_dir,
                     mask_overlayed_suffix.append(ntpath.basename(file_path).replace(masks_overlayed_prefix, ''))
         df_dict = defaultdict(lambda: [])
 
+        if dataset != "test_images":
+            annotation_path = os.path.join(data_dir, dataset, 'annotation.json')
+
+            with open(annotation_path) as f:
+                annotation = json.load(f)
+            file_name2img_id = {img['file_name']: img['id'] for img in annotation['images']}
+
         for image_file_path in tqdm(sorted(glob.glob('{}/*'.format(images_path)))):
-            image_id = ntpath.basename(image_file_path).split('.')[0]
+            image_file_name = ntpath.basename(image_file_path)
+            if dataset == "test_images":
+                image_id = image_file_name.split('.')[0]
+            else:
+                image_id = file_name2img_id[image_file_name]
 
             is_train = 0
             is_valid = 0
@@ -199,7 +202,8 @@ def generate_metadata(data_dir,
                 df_dict['n_buildings'].append(n_buildings)
 
                 for mask_dir, mask_dir_suffix in zip(masks_overlayed_dirs, mask_overlayed_suffix):
-                    file_path_mask = os.path.join(mask_dir, dataset, "masks", '{}.png'.format(image_id))
+                    file_path_mask = os.path.join(mask_dir, dataset, "masks",
+                                                  '{}.png'.format(image_file_name.split('.')[0]))
                     df_dict['file_path_mask' + mask_dir_suffix].append(file_path_mask)
 
         return pd.DataFrame.from_dict(df_dict)

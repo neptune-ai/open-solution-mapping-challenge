@@ -111,7 +111,7 @@ class ValidationMonitorSegmentation(ValidationMonitor):
         self.data_dir = data_dir
         self.small_annotations_size = small_annotations_size
         self.validate_with_map = validate_with_map
-        self.validation_pipeline = postprocessing__pipeline_simplified
+        self.validation_pipeline = postprocessing_pipeline_simplified
         self.validation_loss = None
         self.meta_valid = None
 
@@ -136,7 +136,6 @@ class ValidationMonitorSegmentation(ValidationMonitor):
             prediction = self._generate_prediction(temp_dir, outputs)
             if len(prediction) == 0:
                 return self.validation_loss.setdefault(self.epoch_id, {'sum': Variable(torch.Tensor([0]))})
-
             prediction_filepath = os.path.join(temp_dir, 'prediction.json')
             with open(prediction_filepath, "w") as fp:
                 fp.write(json.dumps(prediction))
@@ -201,7 +200,7 @@ class ValidationMonitorSegmentation(ValidationMonitor):
         return prediction
 
 
-def postprocessing__pipeline_simplified(cache_dirpath):
+def postprocessing_pipeline_simplified(cache_dirpath):
     mask_resize = Step(name='mask_resize',
                        transformer=make_apply_transformer(post.resize_image,
                                                           output_name='resized_images',
