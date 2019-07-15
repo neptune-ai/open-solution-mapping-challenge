@@ -226,9 +226,7 @@ def generate_metadata(data_dir,
 
 def generate_inference_metadata(images_dir):
     df_dict = defaultdict(lambda: [])
-    for image_file_path in tqdm(sorted(glob.glob('{}/*'.format(images_dir)))):
-        image_id = ntpath.basename(image_file_path).split('.')[0]
-
+    for image_id, image_file_path in tqdm(enumerate(sorted(glob.glob('{}/*'.format(images_dir))))):
         n_buildings = None
         df_dict['ImageId'].append(image_id)
         df_dict['file_path_image'].append(image_file_path)
