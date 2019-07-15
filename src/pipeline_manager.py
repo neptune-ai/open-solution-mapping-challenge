@@ -31,8 +31,8 @@ class PipelineManager:
     def prepare_masks(self, dev_mode):
         prepare_masks(dev_mode, self.logger, self.params)
 
-    def prepare_metadata(self, train_data, valid_data, test_data):
-        prepare_metadata(train_data, valid_data, test_data, self.logger, self.params)
+    def prepare_metadata(self, train_data, valid_data):
+        prepare_metadata(train_data, valid_data, self.logger, self.params)
 
     def train(self, pipeline_name, dev_mode):
         if 'scoring' in pipeline_name:
@@ -50,16 +50,6 @@ class PipelineManager:
             assert CATEGORY_LAYERS[1] == 1, """You are running inference without a second layer model.
             Change thresholds setup in CATEGORY_LAYERS to [1,1]"""
         evaluate(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed)
-
-    def predict(self, pipeline_name, dev_mode, chunk_size):
-        if 'scoring' in pipeline_name:
-            assert CATEGORY_LAYERS[1] > 1, """You are running inference with a second layer model that chooses 
-               which threshold should be chosen for a particular image. You need to specify a larger number of 
-               possible thresholds in the CATEGORY_LAYERS, suggested is 19"""
-        else:
-            assert CATEGORY_LAYERS[1] == 1, """You are running inference without a second layer model.
-            Change thresholds setup in CATEGORY_LAYERS to [1,1]"""
-        predict(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed)
 
     def predict_on_dir(self, pipeline_name, dir_path, prediction_path, chunk_size):
         if 'scoring' in pipeline_name:
@@ -95,15 +85,14 @@ def prepare_masks(dev_mode, logger, params):
                       small_annotations_size=params.small_annotations_size)
 
 
-def prepare_metadata(train_data, valid_data, test_data, logger, params):
+def prepare_metadata(train_data, valid_data, logger, params):
     logger.info('creating metadata')
 
     meta = generate_metadata(data_dir=params.data_dir,
                              meta_dir=params.meta_dir,
                              masks_overlayed_prefix=params.masks_overlayed_prefix,
                              process_train_data=train_data,
-                             process_validation_data=valid_data,
-                             process_test_data=test_data)
+                             process_validation_data=valid_data)
 
     metadata_filepath = os.path.join(params.meta_dir, 'metadata.csv')
     logger.info('saving metadata to {}'.format(metadata_filepath))
@@ -178,26 +167,6 @@ def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed):
     logger.info('Mean recall on validation is {}'.format(average_recall))
     neptune.send_metric('Precision', average_precision)
     neptune.send_metric('Recall', average_recall)
-
-
-def predict(pipeline_name, dev_mode, chunk_size, logger, params, seed):
-    logger.info('predicting')
-    meta = pd.read_csv(os.path.join(params.meta_dir, 'metadata.csv'), low_memory=False)
-
-    meta_test = meta[meta['is_test'] == 1]
-
-    if dev_mode:
-        meta_test = meta_test.sample(2, random_state=seed)
-
-    pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    prediction = generate_prediction(meta_test, pipeline, logger, CATEGORY_IDS, chunk_size, params.num_threads)
-
-    submission = prediction
-    submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
-    with open(submission_filepath, "w") as fp:
-        fp.write(json.dumps(submission))
-        logger.info('submission saved to {}'.format(submission_filepath))
-        logger.info('submission head \n\n{}'.format(submission[0]))
 
 
 def predict_on_dir(pipeline_name, dir_path, prediction_path, chunk_size, logger, params):

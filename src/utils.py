@@ -138,32 +138,26 @@ def generate_metadata(data_dir,
                       masks_overlayed_prefix,
                       process_train_data=True,
                       process_validation_data=True,
-                      process_test_data=True,
                       ):
     def _generate_metadata(dataset):
-        assert dataset in ["train", "test", "val"], "Unknown dataset!"
-
-        if dataset == "test":
-            dataset = "test_images"
+        assert dataset in ["train", "val"], "Unknown dataset!"
 
         images_path = os.path.join(data_dir, dataset)
 
-        if dataset != "test_images":
-            images_path = os.path.join(images_path, "images")
+        images_path = os.path.join(images_path, "images")
 
-            masks_overlayed_dirs, mask_overlayed_suffix = [], []
-            for file_path in glob.glob('{}/*'.format(meta_dir)):
-                if ntpath.basename(file_path).startswith(masks_overlayed_prefix):
-                    masks_overlayed_dirs.append(file_path)
-                    mask_overlayed_suffix.append(ntpath.basename(file_path).replace(masks_overlayed_prefix, ''))
+        masks_overlayed_dirs, mask_overlayed_suffix = [], []
+        for file_path in glob.glob('{}/*'.format(meta_dir)):
+            if ntpath.basename(file_path).startswith(masks_overlayed_prefix):
+                masks_overlayed_dirs.append(file_path)
+                mask_overlayed_suffix.append(ntpath.basename(file_path).replace(masks_overlayed_prefix, ''))
         df_dict = defaultdict(lambda: [])
 
-        if dataset != "test_images":
-            annotation_path = os.path.join(data_dir, dataset, 'annotation.json')
+        annotation_path = os.path.join(data_dir, dataset, 'annotation.json')
 
-            with open(annotation_path) as f:
-                annotation = json.load(f)
-            file_name2img_id = {img['file_name']: img['id'] for img in annotation['images']}
+        with open(annotation_path) as f:
+            annotation = json.load(f)
+        file_name2img_id = {img['file_name']: img['id'] for img in annotation['images']}
 
         for image_file_path in tqdm(sorted(glob.glob('{}/*'.format(images_path)))):
             image_file_name = ntpath.basename(image_file_path)
@@ -172,39 +166,24 @@ def generate_metadata(data_dir,
             else:
                 image_id = file_name2img_id[image_file_name]
 
-            is_train = 0
-            is_valid = 0
-            is_test = 0
-
-            if dataset == "test_images":
-                n_buildings = None
-                is_test = 1
-                df_dict['ImageId'].append(image_id)
-                df_dict['file_path_image'].append(image_file_path)
-                df_dict['is_train'].append(is_train)
-                df_dict['is_valid'].append(is_valid)
-                df_dict['is_test'].append(is_test)
-                df_dict['n_buildings'].append(n_buildings)
-                for mask_dir_suffix in mask_overlayed_suffix:
-                    df_dict['file_path_mask' + mask_dir_suffix].append(None)
-
+            n_buildings = None
+            if dataset == "train":
+                is_train, is_valid = 1, 0
+            elif dataset == "val":
+                is_train, is_valid = 0, 1
             else:
-                n_buildings = None
-                if dataset == "val":
-                    is_valid = 1
-                else:
-                    is_train = 1
-                df_dict['ImageId'].append(image_id)
-                df_dict['file_path_image'].append(image_file_path)
-                df_dict['is_train'].append(is_train)
-                df_dict['is_valid'].append(is_valid)
-                df_dict['is_test'].append(is_test)
-                df_dict['n_buildings'].append(n_buildings)
+                raise NotImplementedError
 
-                for mask_dir, mask_dir_suffix in zip(masks_overlayed_dirs, mask_overlayed_suffix):
-                    file_path_mask = os.path.join(mask_dir, dataset, "masks",
-                                                  '{}.png'.format(image_file_name.split('.')[0]))
-                    df_dict['file_path_mask' + mask_dir_suffix].append(file_path_mask)
+            df_dict['ImageId'].append(image_id)
+            df_dict['file_path_image'].append(image_file_path)
+            df_dict['is_train'].append(is_train)
+            df_dict['is_valid'].append(is_valid)
+            df_dict['n_buildings'].append(n_buildings)
+
+            for mask_dir, mask_dir_suffix in zip(masks_overlayed_dirs, mask_overlayed_suffix):
+                file_path_mask = os.path.join(mask_dir, dataset, "masks",
+                                              '{}.png'.format(image_file_name.split('.')[0]))
+                df_dict['file_path_mask' + mask_dir_suffix].append(file_path_mask)
 
         return pd.DataFrame.from_dict(df_dict)
 
@@ -215,11 +194,9 @@ def generate_metadata(data_dir,
     if process_validation_data:
         validation_metadata = _generate_metadata(dataset="val")
         metadata = metadata.append(validation_metadata, ignore_index=True)
-    if process_test_data:
-        test_metadata = _generate_metadata(dataset="test")
-        metadata = metadata.append(test_metadata, ignore_index=True)
-    if not (process_test_data or process_train_data or process_validation_data):
-        raise ValueError('At least one of train_data, validation_data or test_data has to be set to True')
+
+    if not (process_train_data or process_validation_data):
+        raise ValueError('At least one of train_data or validation_data has to be set to True')
 
     return metadata
 
