@@ -51,7 +51,7 @@ dilate_selem_size: 0
 * prepare target masks and metadata for training
 ```bash
 python main.py prepare_masks
-python main.py prepare_metadata --train_data --valid_data --test_data
+python main.py prepare_metadata --train_data --valid_data
 ```
 
 ## Train model :rocket:
@@ -92,13 +92,13 @@ dilate_selem_size: 2
 ### Standard Unet evaluation
 
 ```bash
-python main.py evaluate_predict --pipeline_name unet
+python main.py evaluate --pipeline_name unet
 ```
 
 With Test time augmentation
 
 ```bash
-python main.py evaluate_predict --pipeline_name unet_tta --chunk_size 1000
+python main.py evaluate --pipeline_name unet_tta --chunk_size 1000
 ```
 
 ### Second level model (optional)
@@ -112,7 +112,7 @@ CATEGORY_LAYERS = [1, 19]
 ```
 
 ```bash
-python main.py evaluate_predict --pipeline_name unet_tta_scoring_model --chunk_size 1000
+python main.py evaluate --pipeline_name unet_tta_scoring_model --chunk_size 1000
 ```
 
 
