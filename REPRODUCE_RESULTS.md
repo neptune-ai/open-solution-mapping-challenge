@@ -8,7 +8,7 @@ git clone https://github.com/minerva-ml/open-solution-mapping-challenge.git
 You can setup the project with default env variables and open `NEPTUNE_API_TOKEN` by running:
 
 ```bash
-source make_project
+source Makefile
 ```
 
 I suggest at least reading the step-by-step instructions to know what is happening.
