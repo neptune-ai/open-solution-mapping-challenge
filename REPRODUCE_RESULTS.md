@@ -3,41 +3,111 @@
 ```bash
 git clone https://github.com/minerva-ml/open-solution-mapping-challenge.git
 ```
-* install requirements
-```bash
-pip3 install -r requirements.txt
-```
+* install conda environment mapping
 
-**Note** 
-You may need to install Cython by hand before pycocotools
-
-* download the data from the [competition site](https://www.crowdai.org/challenges/mapping-challenge/dataset_files)
-* register to [neptune.ml](http://bit.ly/2HtXtMH) *(if you wish to use it)* and remember your USERNAME :wink:
-* login to [neptune.ml](http://bit.ly/2HtXtMH)
-```bash
-neptune account login
-```
-* open [neptune.ml](http://bit.ly/2HtXtMH) and create new project called: `Mapping-Challenge` with project key: `MC`
-* go to your Neptune account and get api token. 
-* set environment variables:
+You can setup the project with default env variables and open `NEPTUNE_API_TOKEN` by running:
 
 ```bash
-export NEPTUNE_API_TOKEN=your_api_token
-export CONFIG_PATH=neptune.yaml
+source make_project
 ```
 
-* change project name in `neptune.yaml`:
+I suggest at least reading the step-by-step instructions to know what is happening.
+
+Install conda environment mapping
+
+```bash
+conda env create -f environment.yml
+```
+
+After it is installed you can activate/deactivate it by running:
+
+```bash
+conda activate mapping
+```
+
+```bash
+conda deactivate
+```
+
+Register to the [neptune.ml](https://neptune.ml) _(if you wish to use it)_ even if you don't register you can still
+see your experiment in Neptune. Just go to [shared/showroom project](https://ui.neptune.ml/o/shared/org/showroom/experiments) and find it.
+
+Set environment variables `NEPTUNE_API_TOKEN` and `CONFIG_PATH`.
+
+If you are using the default `neptune.yaml` config then run:
+```bash
+export export CONFIG_PATH=neptune.yaml
+```
+
+otherwise you can change to your config.
+
+**Registered in Neptune**:
+
+Set `NEPTUNE_API_TOKEN` variable with your personal token:
+
+```bash
+export NEPTUNE_API_TOKEN=your_account_token
+```
+
+Create new project in Neptune and go to your config file (`neptune.yaml`) and change `project` name:
+
 ```yaml
-project: user_name/project_name
+project: USER_NAME/PROJECT_NAME
+``` 
+
+**Not registered in Neptune**:
+
+open token
+```bash
+export NEPTUNE_API_TOKEN=eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5tbCIsImFwaV9rZXkiOiJiNzA2YmM4Zi03NmY5LTRjMmUtOTM5ZC00YmEwMzZmOTMyZTQifQ==
 ```
 
 ## Prepare training data
-* set paths in `neptune.yaml`
+
+* download the data from the [competition site](https://www.aicrowd.com/challenges/mapping-challenge#datasets)
+
+We suggest setting up a following directory structure:
+
+```
+project
+|--   README.md
+|-- ...
+|-- data
+    |-- raw
+         |-- train 
+            |-- images 
+            |-- annotation.json
+         |-- val 
+            |-- images 
+            |-- annotation.json
+         |-- test_images 
+            |-- img1.jpg
+            |-- img2.jpg
+            |-- ...
+    |-- meta
+         |-- masks_overlayed_eroded_{}_dilated_{} # it is generated automatically
+            |-- train 
+                |-- distances 
+                |-- masks 
+                |-- sizes 
+            |-- val 
+                |-- distances 
+                |-- masks 
+                |-- sizes 
+    |-- experiments
+        |-- mapping_challenge_baseline # this is where your experiment files will be dumped
+            |-- checkpoints # neural network checkpoints
+            |-- transformers # serialized transformers after fitting
+            |-- outputs # outputs of transformers if you specified save_output=True anywhere
+            |-- prediction.json # prediction on valid
+```
+
+* set paths in `neptune.yaml` if you wish to use different project structure.
 ```yaml
-data_dir:              /path/to/data
-meta_dir:              /path/to/data
-masks_overlayed_prefix: masks_overlayed
-experiment_dir:        /path/to/work/dir
+  data_dir: data/raw
+  meta_dir: data/meta
+  masks_overlayed_prefix: masks_overlayed
+  experiment_dir: data/experiments
 ```
 
 * change erosion/dilation setup in `neptune.yaml` if you want to. Suggested setup
