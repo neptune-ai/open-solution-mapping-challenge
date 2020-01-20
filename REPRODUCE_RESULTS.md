@@ -1,7 +1,7 @@
 ## Prepare sources and data
 * clone this repository
 ```bash
-git clone https://github.com/minerva-ml/open-solution-mapping-challenge.git
+git clone https://github.com/neptune-ai/open-solution-mapping-challenge.git
 ```
 * install conda environment mapping
 
@@ -29,8 +29,8 @@ conda activate mapping
 conda deactivate
 ```
 
-Register to the [neptune.ml](https://neptune.ml) _(if you wish to use it)_ even if you don't register you can still
-see your experiment in Neptune. Just go to [shared/showroom project](https://ui.neptune.ml/o/shared/org/showroom/experiments) and find it.
+Register to the [neptune.ai](https://neptune.ai) _(if you wish to use it)_ even if you don't register you can still
+see your experiment in Neptune. Just go to [shared/showroom project](https://ui.neptune.ai/o/shared/org/showroom/experiments) and find it.
 
 Set environment variables `NEPTUNE_API_TOKEN` and `CONFIG_PATH`.
 
