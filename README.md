@@ -111,6 +111,12 @@ The entire configuration can be tweaked from the [config file](https://github.co
 * Ensembling
 * Recurrent neural networks for postprocessing (instead of our current approach)
 
+# Model Weights
+
+Model weights for the winning solution are available [here](https://ui.neptune.ai/o/neptune-ai/org/Mapping-Challenge/e/MC-1057/artifacts)
+
+You can use those weights and run the pipeline as explained in [REPRODUCE_RESULTS](REPRODUCE_RESULTS.md).
+
 # User support
 There are several ways to seek help:
 1. crowdai [discussion](https://www.crowdai.org/challenges/mapping-challenge/topics).
