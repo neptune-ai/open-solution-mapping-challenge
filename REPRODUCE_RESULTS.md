@@ -133,6 +133,10 @@ This will train your neural network
 python main.py train --pipeline_name unet_weighted
 ```
 
+**NOTE**
+
+Model weights for the winning solution are available [here](https://ui.neptune.ai/o/neptune-ai/org/Mapping-Challenge/e/MC-1057/artifacts)
+
 ### Second level model (optional)
 This will train a lightgbm to be able to get the best threshold.
 Go to `pipeline_config.py` and change the number of thresholds to choose from for the building class.
