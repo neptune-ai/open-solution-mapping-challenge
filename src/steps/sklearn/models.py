@@ -5,7 +5,7 @@ from attrdict import AttrDict
 #from catboost import CatBoostClassifier
 from sklearn import ensemble
 from sklearn import svm
-from sklearn.externals import joblib
+import joblib
 from xgboost import XGBClassifier
 
 from ..base import BaseTransformer

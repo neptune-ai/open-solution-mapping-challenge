@@ -97,7 +97,7 @@ project
     |-- experiments
         |-- mapping_challenge_baseline # this is where your experiment files will be dumped
             |-- checkpoints # neural network checkpoints
-            |-- transformers # serialized transformers after fitting
+            |-- transformers # serialized transformers after fitting ('unet' and 'scoring_model' go here!)
             |-- outputs # outputs of transformers if you specified save_output=True anywhere
             |-- prediction.json # prediction on valid
 ```
