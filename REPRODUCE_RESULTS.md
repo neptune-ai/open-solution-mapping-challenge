@@ -135,7 +135,8 @@ python main.py train --pipeline_name unet_weighted
 
 **NOTE**
 
-Model weights for the winning solution are available [here](https://ui.neptune.ai/o/neptune-ai/org/Mapping-Challenge/e/MC-1057/artifacts)
+Model weights for the winning solution are available [here](https://ui.neptune.ai/o/neptune-ai/org/Mapping-Challenge/e/MC-1057/artifacts)  
+They must be placed in the `./data/experiments/mapping_challenge_baseline/transformers/` folder.
 
 ### Second level model (optional)
 This will train a lightgbm to be able to get the best threshold.
