@@ -3,6 +3,9 @@
 [![Gitter](https://badges.gitter.im/minerva-ml/open-solution-mapping-challenge.svg)](https://gitter.im/minerva-ml/open-solution-mapping-challenge?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/neptune-ai/open-solution-mapping-challenge/blob/master/LICENSE)
 
+# Note
+**Unfortunately, we can no longer provide support for this repo. Hopefully, it should still work but if it doesn't we cannot really help.** 
+
 ## More competitions :sparkler:
 Check collection of [public projects :gift:](https://ui.neptune.ai/-/explore), where you can find multiple Kaggle competitions with code, experiments and outputs.
 
