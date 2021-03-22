@@ -4,7 +4,7 @@ import shutil
 
 import numpy as np
 from scipy import sparse
-from sklearn.externals import joblib
+import joblib
 
 from .utils import view_graph, plot_graph, get_logger, initialize_logger
 

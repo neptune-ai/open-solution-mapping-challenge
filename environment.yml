@@ -1,27 +1,26 @@
 name: mapping
 
 dependencies:
-  - pip=19.1.1
+  - pip=21.0.1
   - python=3.6.8
   - psutil
   - matplotlib
   - scikit-image
   - lightgbm=2.2.1
+  - cython=0.28.2
 
   - pip:
-      - click==6.7
       - tqdm==4.23.0
       - pydot_ng==1.0.0
       - git+https://github.com/lucasb-eyer/pydensecrf.git
       - xgboost==0.90
-      - neptune-client==0.3.0
-      - neptune-contrib==0.9.2
+      - neptune-client==0.3.0 #installs click==7.1.2 !
+      - neptune-contrib==0.9.2 #joblib-1.0.1->0.13.2, Pillow-8.1.1->5.4.1, matplotlib-3.3.4->3.2.2
       - imgaug==0.2.5
       - opencv_python==3.4.0.12
       - torch==0.3.1
       - torchvision==0.2.0
       - pretrainedmodels==0.7.0
-      - pandas==0.24.2
-      - numpy==1.16.4
-      - cython==0.28.2
+      - pandas==1.1.5 # we cannot install 0.24.2 .. other packages require 1.1.5 
+      - numpy==1.16.4 # some other packages installed version 1.19.2 but the 'squeeze' method is removed somewhere in later versions. we must have this version.
       - pycocotools==2.0.0

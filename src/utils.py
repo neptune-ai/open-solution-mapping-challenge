@@ -129,7 +129,7 @@ def bounding_box_from_rle(rle):
 
 def read_config(config_path):
     with open(config_path) as f:
-        config = yaml.load(f)
+        config = yaml.safe_load(f)
     return AttrDict(config)
 
 

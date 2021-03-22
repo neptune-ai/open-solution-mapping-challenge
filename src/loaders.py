@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
-from sklearn.externals import joblib
+import joblib
 from skimage.transform import rotate
 from scipy.stats import gmean
 

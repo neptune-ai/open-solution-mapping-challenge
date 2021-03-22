@@ -1,6 +1,6 @@
 import lightgbm as lgb
 from attrdict import AttrDict
-from sklearn.externals import joblib
+import joblib
 
 from .base import BaseTransformer
 from .utils import get_logger

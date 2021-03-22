@@ -8,7 +8,7 @@ import pandas as pd
 from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.tokenize import TweetTokenizer
-from sklearn.externals import joblib
+import joblib
 
 from ..base import BaseTransformer
 

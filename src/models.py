@@ -6,7 +6,7 @@ from torch.autograd import Variable
 from torch import optim
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.externals import joblib
+import joblib
 from sklearn.ensemble import RandomForestRegressor
 
 from .callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
